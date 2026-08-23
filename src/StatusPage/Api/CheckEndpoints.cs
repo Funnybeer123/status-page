@@ -56,6 +56,17 @@ public static class CheckEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
+        checks.MapPatch("/{id}/enabled", (string id, EnableCheckJson body, IStatusStore store) =>
+        {
+            try
+            {
+                return Results.Json(CheckJson.From(store.SetCheckEnabled(id, body.Enabled)));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+        });
         checks.MapDelete("/{id}", (string id, IStatusStore store) =>
         {
             try
@@ -105,6 +116,7 @@ public sealed class CheckWriteJson
     public CheckTargetDocument Target { get; set; } = new();
     public HttpCheckDocument? Http { get; set; }
     public TlsCheckDocument? Tls { get; set; }
+    public DnsCheckDocument? Dns { get; set; }
 
     public CreateCheckRequest ToRequest() => new(
         Name ?? "",
@@ -137,7 +149,13 @@ public sealed class CheckWriteJson
             },
         ComponentName,
         GroupId,
-        Tls is null ? null : new TlsCheckSpec { Days = Tls.Days });
+        Tls is null ? null : new TlsCheckSpec { Days = Tls.Days },
+        Dns is null ? null : new DnsCheckSpec { ExpectedAddresses = [.. Dns.ExpectedAddresses] });
+}
+
+public sealed class EnableCheckJson
+{
+    public bool Enabled { get; set; }
 }
 
 public static class CheckJson
@@ -147,6 +165,8 @@ public static class CheckJson
         id = check.Id,
         name = check.Name,
         componentId = check.ComponentId,
+        componentName = check.ComponentName,
+        groupId = check.ComponentGroupId,
         type = check.Type.ApiValue(),
         enabled = check.Enabled,
         intervalSeconds = check.IntervalSeconds,
@@ -172,7 +192,10 @@ public static class CheckJson
                 headers = RedactHeaders(check.Http.Headers)
             },
         tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
+        dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null,
         state = check.State.ApiValue(),
+        consecutiveFailures = check.ConsecutiveFailures,
+        consecutiveSuccesses = check.ConsecutiveSuccesses,
         lastResult = check.LastResult is null ? null : ResultJson.From(check.LastResult)
     };
 

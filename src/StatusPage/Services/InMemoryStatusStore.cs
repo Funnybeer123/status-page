@@ -11,10 +11,15 @@ public interface IStatusStore
     IReadOnlyList<StatusCheck> ListChecks();
     StatusCheck CreateCheck(CreateCheckRequest request);
     StatusCheck UpdateCheck(string id, CreateCheckRequest request);
+    StatusCheck SetCheckEnabled(string id, bool enabled);
     void DeleteCheck(string id);
     Incident CreateIncident(CreateIncidentRequest request, bool maintenance);
     Incident UpdateIncident(string id, UpdateIncidentRequest request);
     Component UpdateComponentStatus(string id, ComponentStatus status);
+    Component CreateComponent(WriteComponentRequest request);
+    Component UpdateComponentMeta(string id, WriteComponentRequest request);
+    void DeleteComponent(string id);
+    StatusPageInfo UpdatePage(string? name, string? logoUrl);
     void RecordCheckResult(string checkId, CheckResult result);
     IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses();
     void ApplyConnectorImport(ConnectorSnapshot snapshot);
@@ -50,12 +55,17 @@ public sealed class InMemoryStatusStore : IStatusStore
     private readonly object _gate = new();
     private readonly StatusPageState _state;
     private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
+    private readonly Action<StatusPageState>? _persistPage;
     private readonly Dictionary<string, ConnectorSnapshot> _connectorSnapshots = new(StringComparer.Ordinal);
 
-    public InMemoryStatusStore(StatusPageState state, Action<IReadOnlyList<StatusCheck>>? persistChecks = null)
+    public InMemoryStatusStore(
+        StatusPageState state,
+        Action<IReadOnlyList<StatusCheck>>? persistChecks = null,
+        Action<StatusPageState>? persistPage = null)
     {
         _state = state;
         _persistChecks = persistChecks;
+        _persistPage = persistPage;
         EnsureLeavesForChecks();
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
     }
@@ -103,6 +113,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             _state.Checks.Add(check);
             ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
             PersistChecks();
+            PersistPage();
             return Clone(check);
         }
     }
@@ -132,7 +143,21 @@ public sealed class InMemoryStatusStore : IStatusStore
             }
 
             PersistChecks();
+            PersistPage();
             return Clone(next);
+        }
+    }
+
+    public StatusCheck SetCheckEnabled(string id, bool enabled)
+    {
+        lock (_gate)
+        {
+            var check = _state.Checks.FirstOrDefault(c => c.Id == id)
+                        ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
+            check.Enabled = enabled;
+            ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
+            PersistChecks();
+            return Clone(check);
         }
     }
 
@@ -315,7 +340,142 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
+            PersistPage();
             return Clone(component);
+        }
+    }
+
+    public Component CreateComponent(WriteComponentRequest request)
+    {
+        var id = RequireSlug(request.Id, "id");
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Name is required.");
+        }
+
+        lock (_gate)
+        {
+            if (_state.Components.Any(c => c.Id == id))
+            {
+                throw new ArgumentException($"Component '{id}' already exists.");
+            }
+
+            string? groupId = null;
+            if (request.Group)
+            {
+                if (!string.IsNullOrWhiteSpace(request.GroupId))
+                {
+                    throw new ArgumentException("A group cannot belong to another group.");
+                }
+            }
+            else
+            {
+                groupId = ResolveGroupId(request.GroupId);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var position = request.Position
+                           ?? _state.Components.Select(c => c.Position).DefaultIfEmpty(0).Max() + 1;
+            var component = new Component
+            {
+                Id = id,
+                Name = request.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                Group = request.Group,
+                GroupId = groupId,
+                Position = position,
+                Status = ComponentStatus.Operational,
+                ManualStatus = ComponentStatus.Operational,
+                Showcase = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _state.Components.Add(component);
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+            return Clone(component);
+        }
+    }
+
+    public Component UpdateComponentMeta(string id, WriteComponentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Name is required.");
+        }
+
+        lock (_gate)
+        {
+            var component = _state.Components.FirstOrDefault(c => c.Id == id)
+                            ?? throw new KeyNotFoundException($"Unknown component '{id}'.");
+            if (component.Group && !string.IsNullOrWhiteSpace(request.GroupId))
+            {
+                throw new ArgumentException("A group cannot belong to another group.");
+            }
+
+            if (!component.Group)
+            {
+                component.GroupId = ResolveGroupId(request.GroupId);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            component.Name = request.Name.Trim();
+            component.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+            if (request.Position is { } position)
+            {
+                component.Position = position;
+            }
+
+            component.UpdatedAt = now;
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+            return Clone(component);
+        }
+    }
+
+    public void DeleteComponent(string id)
+    {
+        lock (_gate)
+        {
+            var component = _state.Components.FirstOrDefault(c => c.Id == id)
+                            ?? throw new KeyNotFoundException($"Unknown component '{id}'.");
+            if (component.Group && _state.Components.Any(c => c.GroupId == component.Id))
+            {
+                throw new ArgumentException("Delete or move child components before deleting a group.");
+            }
+
+            if (!component.Group && _state.Checks.Any(c => c.ComponentId == component.Id))
+            {
+                throw new ArgumentException("Delete or reassign checks before deleting a component.");
+            }
+
+            _state.Components.Remove(component);
+            var now = DateTimeOffset.UtcNow;
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+        }
+    }
+
+    public StatusPageInfo UpdatePage(string? name, string? logoUrl)
+    {
+        lock (_gate)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                _state.Page.Name = name.Trim();
+            }
+
+            if (logoUrl is not null)
+            {
+                _state.Page.LogoUrl = string.IsNullOrWhiteSpace(logoUrl) ? null : NormalizeLogoUrl(logoUrl);
+            }
+
+            _state.Page.UpdatedAt = DateTimeOffset.UtcNow;
+            PersistPage();
+            return Clone(_state).Page;
         }
     }
 
@@ -628,6 +788,12 @@ public sealed class InMemoryStatusStore : IStatusStore
             {
                 Days = TlsExpiryEvaluator.NormalizeDays(request.Tls?.Days)
             },
+            Dns = new DnsCheckSpec
+            {
+                ExpectedAddresses = request.Dns?.ExpectedAddresses is { Count: > 0 } addresses
+                    ? [.. addresses.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim())]
+                    : []
+            },
             NextRunAt = DateTimeOffset.UtcNow
         };
 
@@ -753,6 +919,62 @@ public sealed class InMemoryStatusStore : IStatusStore
         _persistChecks?.Invoke(_state.Checks.Select(Clone).ToList());
     }
 
+    private void PersistPage()
+    {
+        _persistPage?.Invoke(Clone(_state));
+    }
+
+    private string? ResolveGroupId(string? groupId)
+    {
+        if (string.IsNullOrWhiteSpace(groupId))
+        {
+            return null;
+        }
+
+        var group = _state.Components.FirstOrDefault(c => c.Id == groupId.Trim());
+        if (group is null || !group.Group)
+        {
+            throw new ArgumentException($"Unknown group '{groupId}'.");
+        }
+
+        return group.Id;
+    }
+
+    private static string RequireSlug(string? value, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{field} is required.");
+        }
+
+        var slug = value.Trim();
+        if (slug.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_')))
+        {
+            throw new ArgumentException($"{field} must be a slug (letters, digits, hyphen, or underscore).");
+        }
+
+        return slug;
+    }
+
+    internal static string NormalizeLogoUrl(string raw)
+    {
+        var value = raw.Trim();
+        if (value.StartsWith("/branding/", StringComparison.OrdinalIgnoreCase)
+            && !value.Contains("..", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return uri.ToString();
+        }
+
+        throw new ArgumentException("Logo must be a local /branding/ path or an http(s) URL.");
+    }
+
     private void RefreshGroupStatuses(DateTimeOffset at)
     {
         foreach (var group in _state.Components.Where(c => c.Group))
@@ -789,7 +1011,8 @@ public sealed class InMemoryStatusStore : IStatusStore
             Name = state.Page.Name,
             Url = state.Page.Url,
             TimeZone = state.Page.TimeZone,
-            UpdatedAt = state.Page.UpdatedAt
+            UpdatedAt = state.Page.UpdatedAt,
+            LogoUrl = state.Page.LogoUrl
         },
         Components = state.Components.Select(Clone).ToList(),
         Incidents = state.Incidents.Select(Clone).ToList(),
@@ -871,6 +1094,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             Headers = new Dictionary<string, string>(check.Http.Headers, StringComparer.OrdinalIgnoreCase)
         },
         Tls = new TlsCheckSpec { Days = check.Tls.Days },
+        Dns = new DnsCheckSpec { ExpectedAddresses = [.. check.Dns.ExpectedAddresses] },
         State = check.State,
         ConsecutiveFailures = check.ConsecutiveFailures,
         ConsecutiveSuccesses = check.ConsecutiveSuccesses,

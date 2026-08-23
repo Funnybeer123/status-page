@@ -457,6 +457,17 @@ a:hover { text-decoration: underline; }
 .btn-primary { background: var(--blue); color: var(--white); }
 .btn-secondary { background: #e8eef6; color: var(--ink); }
 .login-card { max-width: 460px; margin: 48px auto; }
+.brand-logo { height: 38px; width: auto; border-radius: 8px; display: block; }
+.operator-nav { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 18px; }
+.operator-nav a { font-weight: 700; }
+.operator-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
+.inline-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.inline-actions form { display: inline; }
+.btn-danger { background: #b42318; color: #fff; }
+.operator-card h2 { margin-top: 0; }
+@media (max-width: 820px) {
+    .operator-form-grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 620px) {
     .signal-art { display: none; }

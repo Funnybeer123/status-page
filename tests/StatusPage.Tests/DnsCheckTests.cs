@@ -22,6 +22,21 @@ public class DnsCheckTests
     }
 
     [Fact]
+    public void Evaluate_fails_when_expected_address_missing()
+    {
+        var result = CheckRunner.EvaluateDns([IPAddress.Loopback], DateTimeOffset.UtcNow, ["8.8.8.8"]);
+        Assert.Equal(CheckResultStatus.Fail, result.Status);
+        Assert.Contains("8.8.8.8", result.Error);
+    }
+
+    [Fact]
+    public void Evaluate_passes_when_expected_address_present()
+    {
+        var result = CheckRunner.EvaluateDns([IPAddress.Loopback], DateTimeOffset.UtcNow, ["127.0.0.1"]);
+        Assert.Equal(CheckResultStatus.Ok, result.Status);
+    }
+
+    [Fact]
     public void Parses_dns_hostname()
     {
         Assert.True(CheckTarget.TryParse("localhost", "dns", out var target, out var error), error);

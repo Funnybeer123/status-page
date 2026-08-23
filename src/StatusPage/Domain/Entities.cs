@@ -16,6 +16,8 @@ public sealed class StatusPageInfo
     public string Url { get; set; } = "http://localhost:5080";
     public string TimeZone { get; set; } = "Etc/UTC";
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Local logo path or operator-supplied URL. Not a paid CDN.</summary>
+    public string? LogoUrl { get; set; }
 }
 
 public sealed class Component
@@ -80,6 +82,7 @@ public sealed class StatusCheck
     public CheckTargetSpec Target { get; set; } = new();
     public HttpCheckSpec Http { get; set; } = new();
     public TlsCheckSpec Tls { get; set; } = new();
+    public DnsCheckSpec Dns { get; set; } = new();
     public CheckState State { get; set; } = CheckState.Up;
     public int ConsecutiveFailures { get; set; }
     public int ConsecutiveSuccesses { get; set; }
@@ -123,6 +126,11 @@ public sealed class TlsCheckSpec
     public int Days { get; set; } = 14;
 }
 
+public sealed class DnsCheckSpec
+{
+    public List<string> ExpectedAddresses { get; set; } = [];
+}
+
 public sealed class CheckResult
 {
     public CheckResultStatus Status { get; set; } = CheckResultStatus.Fail;
@@ -150,7 +158,8 @@ public sealed record CreateCheckRequest(
     HttpCheckSpec? Http,
     string? ComponentName = null,
     string? GroupId = null,
-    TlsCheckSpec? Tls = null);
+    TlsCheckSpec? Tls = null,
+    DnsCheckSpec? Dns = null);
 
 public sealed record CreateIncidentRequest(
     string Name,
@@ -168,3 +177,13 @@ public sealed record UpdateIncidentRequest(
     IReadOnlyDictionary<string, string>? ComponentStatuses);
 
 public sealed record UpdateComponentRequest(string Status);
+
+public sealed record WriteComponentRequest(
+    string? Id,
+    string Name,
+    string? Description,
+    bool Group,
+    string? GroupId,
+    int? Position);
+
+public sealed record WritePageRequest(string? Name, string? LogoUrl);

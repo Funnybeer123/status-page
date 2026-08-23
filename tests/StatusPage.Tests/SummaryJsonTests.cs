@@ -112,6 +112,10 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.Contains("CURRENT STATUS", html);
         Assert.DoesNotContain("Subscribe", html, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("site-footer", html);
+        Assert.DoesNotContain("OPERATOR ADMIN", html);
+        Assert.DoesNotContain("Add a check", html);
+        Assert.DoesNotContain("/api/operator", html);
+        Assert.DoesNotContain("Create check", html);
     }
 
     [Fact]
@@ -371,10 +375,14 @@ public class StatusPageFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
+        var pagePath = Path.Combine(Path.GetTempPath(), $"status-page-page-{Guid.NewGuid():N}.json");
+        var brandingPath = Path.Combine(Path.GetTempPath(), $"status-page-brand-{Guid.NewGuid():N}");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
         builder.UseSetting("StatusPage:ChecksPath", checksPath);
+        builder.UseSetting("StatusPage:PagePath", pagePath);
+        builder.UseSetting("StatusPage:BrandingPath", brandingPath);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -384,6 +392,8 @@ public class StatusPageFactory : WebApplicationFactory<Program>
                 ["StatusPage:EnableConnectorWorker"] = "false",
                 ["StatusPage:ApiKey"] = "dev-key",
                 ["StatusPage:ChecksPath"] = checksPath,
+                ["StatusPage:PagePath"] = pagePath,
+                ["StatusPage:BrandingPath"] = brandingPath,
                 ["AzureAd:TenantId"] = "",
                 ["AzureAd:ClientId"] = ""
             });

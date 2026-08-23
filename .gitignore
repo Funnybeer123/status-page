@@ -7,6 +7,8 @@ obj/
 data/store.json
 data/checks.json
 **/data/checks.json
+**/data/page.json
+**/data/branding/
 **/store.json
 .dotnet/
 .nuget/

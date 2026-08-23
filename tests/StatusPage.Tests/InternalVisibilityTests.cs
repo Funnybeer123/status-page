@@ -83,4 +83,31 @@ public class InternalVisibilityTests : IClassFixture<StatusPageFactory>
         using var opDoc = JsonDocument.Parse(await operatorComponents.Content.ReadAsStringAsync());
         Assert.Contains(opDoc.RootElement.EnumerateArray(), c => c.GetProperty("id").GetString() == "internal-db" && c.GetProperty("internal").GetBoolean());
     }
+
+    [Fact]
+    public void Disabled_internal_check_stays_off_public_page()
+    {
+        var state = DemoSeed.Create("http://localhost:5080", DateTimeOffset.UtcNow);
+        state.Checks.Clear();
+        var store = new InMemoryStatusStore(state);
+        var check = store.CreateCheck(new CreateCheckRequest(
+            "warehouse",
+            "billing-warehouse",
+            "tcp",
+            true,
+            15,
+            5,
+            3,
+            2,
+            new CheckTargetSpec { Host = "10.0.0.9", Port = 5432 },
+            null,
+            "Billing warehouse"));
+        store.SetCheckEnabled(check.Id, false);
+        var leaf = store.FindComponent("billing-warehouse")!;
+        Assert.True(ComponentVisibility.IsInternalLeaf(leaf, store.ListChecks()));
+
+        var publicState = store.Snapshot();
+        ComponentVisibility.RemoveInternal(publicState, store.ListChecks());
+        Assert.DoesNotContain(publicState.Components, c => c.Id == "billing-warehouse");
+    }
 }

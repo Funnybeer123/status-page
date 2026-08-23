@@ -24,7 +24,7 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             return check.Type switch
             {
                 CheckType.Tcp => await RunTcpAsync(target, check.TimeoutSeconds, cancellationToken),
-                CheckType.Dns => await RunDnsAsync(target, check.TimeoutSeconds, cancellationToken),
+                CheckType.Dns => await RunDnsAsync(target, check, cancellationToken),
                 CheckType.TlsExpiry => await RunTlsExpiryAsync(target, check, cancellationToken),
                 _ => await RunHttpAsync(target, check, cancellationToken)
             };
@@ -78,11 +78,29 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         };
     }
 
-    public static CheckResult EvaluateDns(IReadOnlyList<IPAddress> addresses, DateTimeOffset checkedAtUtc)
+    public static CheckResult EvaluateDns(
+        IReadOnlyList<IPAddress> addresses,
+        DateTimeOffset checkedAtUtc,
+        IReadOnlyList<string>? expectedAddresses = null)
     {
         if (addresses.Count == 0)
         {
             return Fail(checkedAtUtc, 0, "DNS lookup returned no addresses.");
+        }
+
+        var expected = (expectedAddresses ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .ToList();
+        if (expected.Count > 0)
+        {
+            var missing = expected.Where(value =>
+                !IPAddress.TryParse(value, out var want)
+                || addresses.All(have => !have.Equals(want))).ToList();
+            if (missing.Count > 0)
+            {
+                return Fail(checkedAtUtc, 0, $"DNS did not include expected address(es) {string.Join(", ", missing)}.");
+            }
         }
 
         return new CheckResult
@@ -210,15 +228,15 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
 
     private static async Task<CheckResult> RunDnsAsync(
         ResolvedCheckTarget target,
-        int timeoutSeconds,
+        StatusCheck check,
         CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 1, 120)));
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(check.TimeoutSeconds, 1, 120)));
         var clock = Stopwatch.StartNew();
         var addresses = await Dns.GetHostAddressesAsync(target.Host, timeout.Token);
         clock.Stop();
-        var result = EvaluateDns(addresses, DateTimeOffset.UtcNow);
+        var result = EvaluateDns(addresses, DateTimeOffset.UtcNow, check.Dns.ExpectedAddresses);
         result.LatencyMs = (int)clock.ElapsedMilliseconds;
         return result;
     }

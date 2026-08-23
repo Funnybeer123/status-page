@@ -85,7 +85,7 @@ Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/check
 
 `name` is the probe label only and is never the public leaf title. Bind to an existing `componentId`, or send a new slug plus `componentName` to create an operational leaf (`groupId` optional; otherwise ungrouped).
 
-TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. DNS target is a hostname. `tls_expiry` is an `https://` URL or host (port 443 default) and fails when the certificate is invalid or expires within `tls.days` (default 14).
+TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. DNS target is a hostname. Optional `dns.expectedAddresses` fails the probe if those IPs are missing. `tls_expiry` is an `https://` URL or host (port 443 default) and fails when the certificate is invalid or expires within `tls.days` (default 14).
 
 Defaults: interval 60s (min 15), timeout 10s (must be `<` interval), failureThreshold 3, successThreshold 2, method GET, expectedStatus `[200,201,204]`.
 
@@ -96,7 +96,7 @@ Probe rules:
 - HTTP/HTTPS: fail if status is not in `expectedStatus`, fail if `bodyContains` is set and missing (**case-sensitive**), fail if `jsonPath` is set and the value does not equal `expectedJsonValue` (simple `$.a.b` / `$.items[0].x` only), fail on timeout/connect/TLS.
 - TCP: connect to host:port, then close. No payload.
 - TLS expiry: certificate must be currently valid and not expiring within N days.
-- DNS: hostname must resolve to at least one address.
+- DNS: hostname must resolve to at least one address; if `expectedAddresses` is set, those IPs must be present.
 - Result: `ok|fail`, `httpStatus?`, `latencyMs`, `error?`, `checkedAtUtc`.
 - Check state hysteresis: 3 consecutive fails → `Down`; 2 consecutive oks → `Up`; otherwise keep last state. Initial state is `Up`.
 - Component from enabled checks: all Up → `operational`; mix → `partial_outage`; all Down → `major_outage`; zero checks → leave operator status.
@@ -112,7 +112,7 @@ Default seed probes real public health endpoints (expected HTTP 200, no body mat
 
 Delete `src/StatusPage/data/checks.json` if a previous run cached toy checks. Tests do not hit these hosts.
 
-CRUD (env API key or Entra):
+CRUD (env API key or Entra). List includes internal probes. Disable drops a check out of rollup without deleting it.
 
 ```bash
 curl -s http://localhost:5080/api/checks -H "X-Api-Key: dev-key"
@@ -122,10 +122,43 @@ curl -s -X POST http://localhost:5080/api/checks \
   -H "Content-Type: application/json" \
   -d '{"name":"docs HTTPS","componentId":"azure-status","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
 
+curl -s -X PATCH http://localhost:5080/api/checks/<id>/enabled \
+  -H "X-Api-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled":false}'
+
 curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key: dev-key"
 ```
 
 `GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for public leaves only.
+
+## Operator admin
+
+`/operator` is the product admin. It is not on the public page. Auth is the same as operator APIs: `StatusOperator` or `AllowedObjectIds`, else `X-Api-Key` when AzureAd is unset.
+
+Check admin (APIs + UI):
+
+- List every probe, including internal host:port
+- Create/edit: URL or host:port; type `http` / `https` / `tcp` / `tls_expiry` / `dns`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId`
+- Enable/disable (disabled leaves rollup, not delete)
+- Delete
+- Last result plus consecutive fail/success counts
+
+Page admin (operator UI and `/api/operator/*`, not public `/`):
+
+- Component and group CRUD
+- Incident open / update / resolve (operator incidents never override checked components except `under_maintenance` PATCH)
+- Scheduled maintenance
+- Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
+
+```bash
+curl -s http://localhost:5080/api/operator/page -H "X-Api-Key: dev-key"
+curl -s -X PATCH http://localhost:5080/api/operator/page \
+  -H "X-Api-Key: dev-key" -H "Content-Type: application/json" \
+  -d '{"name":"Local brand"}'
+curl -s http://localhost:5080/api/operator/components -H "X-Api-Key: dev-key"
+curl -s http://localhost:5080/api/operator/incidents -H "X-Api-Key: dev-key"
+```
 
 ## Operator incidents
 
@@ -193,7 +226,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate, hysteresis, component rollup for 0/1/N checks, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, public page not exposing admin, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

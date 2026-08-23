@@ -70,6 +70,9 @@ public static class CheckConfigStore
             },
         Tls = check.Type == CheckType.TlsExpiry
             ? new TlsCheckDocument { Days = TlsExpiryEvaluator.NormalizeDays(check.Tls.Days) }
+            : null,
+        Dns = check.Type == CheckType.Dns
+            ? new DnsCheckDocument { ExpectedAddresses = [.. check.Dns.ExpectedAddresses] }
             : null
     };
 
@@ -116,6 +119,12 @@ public static class CheckConfigStore
             Tls = new TlsCheckSpec
             {
                 Days = TlsExpiryEvaluator.NormalizeDays(document.Tls?.Days)
+            },
+            Dns = new DnsCheckSpec
+            {
+                ExpectedAddresses = document.Dns?.ExpectedAddresses is { Count: > 0 } addresses
+                    ? [.. addresses]
+                    : []
             },
             State = CheckState.Up,
             NextRunAt = now,

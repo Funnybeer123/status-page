@@ -55,6 +55,7 @@ public sealed class CheckDocument
     public CheckTargetDocument Target { get; set; } = new();
     public HttpCheckDocument? Http { get; set; }
     public TlsCheckDocument? Tls { get; set; }
+    public DnsCheckDocument? Dns { get; set; }
 }
 
 public sealed class CheckTargetDocument
@@ -78,6 +79,11 @@ public sealed class HttpCheckDocument
 public sealed class TlsCheckDocument
 {
     public int Days { get; set; } = CheckContract.DefaultTlsExpiryDays;
+}
+
+public sealed class DnsCheckDocument
+{
+    public List<string> ExpectedAddresses { get; set; } = [];
 }
 
 public sealed class CheckResultDocument

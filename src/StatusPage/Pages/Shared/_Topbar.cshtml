@@ -5,7 +5,14 @@
 }
 <header class="topbar@(onHero ? " topbar-hero" : "")">
     <a class="brand" href="/">
-        <span class="mark" aria-hidden="true">@mark</span>
+        @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+        {
+            <img class="brand-logo" src="@Model.LogoUrl" alt="" />
+        }
+        else
+        {
+            <span class="mark" aria-hidden="true">@mark</span>
+        }
         <span class="wordmark">@Model.Name</span>
     </a>
     <nav>

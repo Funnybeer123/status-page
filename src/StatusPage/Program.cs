@@ -64,11 +64,16 @@ var seed = DemoSeed.Create(publicUrl, DateTimeOffset.UtcNow);
 var seedPath = Path.Combine(builder.Environment.ContentRootPath, "Data", "checks.seed.json");
 var runtimePath = builder.Configuration["StatusPage:ChecksPath"]
                   ?? Path.Combine(builder.Environment.ContentRootPath, "data", "checks.json");
+var pagePath = builder.Configuration["StatusPage:PagePath"]
+               ?? Path.Combine(builder.Environment.ContentRootPath, "data", "page.json");
+var brandingDir = builder.Configuration["StatusPage:BrandingPath"]
+                  ?? Path.Combine(builder.Environment.ContentRootPath, "data", "branding");
 var checks = File.Exists(runtimePath)
     ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
     : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
 DemoSeed.BindSelfHealthChecks(checks, selfHealth);
 seed.Checks = checks;
+PageConfigStore.Apply(seed, pagePath);
 
 builder.Services.AddSingleton<IStatusStore>(_ =>
     new InMemoryStatusStore(seed, persist =>
@@ -80,6 +85,16 @@ builder.Services.AddSingleton<IStatusStore>(_ =>
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Could not persist checks.json: {ex.Message}");
+        }
+    }, persist =>
+    {
+        try
+        {
+            PageConfigStore.Save(pagePath, persist);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not persist page.json: {ex.Message}");
         }
     }));
 builder.Services.AddSingleton<CheckRunner>();
@@ -137,6 +152,7 @@ app.Use(async (context, next) =>
 app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Text("ok", "text/plain"));
+app.MapGet("/branding/{file}", (string file) => BrandingFiles.Serve(brandingDir, file));
 
 app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicApiMapper.Summary(ForPublic(store))));
 app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(ForPublic(store))));

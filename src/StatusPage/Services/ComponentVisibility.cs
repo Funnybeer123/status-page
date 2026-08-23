@@ -11,8 +11,8 @@ public static class ComponentVisibility
             return false;
         }
 
-        var enabled = checks.Where(c => c.Enabled && c.ComponentId == component.Id).ToList();
-        return enabled.Count > 0 && enabled.All(InternalHost.IsInternalCheck);
+        var mapped = checks.Where(c => c.ComponentId == component.Id).ToList();
+        return mapped.Count > 0 && mapped.All(InternalHost.IsInternalCheck);
     }
 
     /// <summary>
