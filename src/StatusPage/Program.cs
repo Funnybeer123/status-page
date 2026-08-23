@@ -49,6 +49,7 @@ if (entra)
         options.Scope.Add("openid");
         options.Scope.Add("profile");
         options.TokenValidationParameters.NameClaimType = "name";
+        options.TokenValidationParameters.RoleClaimType = "roles";
         options.TokenValidationParameters.ValidateIssuer = true;
     });
 }

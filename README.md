@@ -129,7 +129,7 @@ curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key
 
 ## Operator incidents
 
-Operator APIs and `/operator` accept **either** a valid Entra user in the configured tenant **or** `X-Api-Key` (header or Development login cookie). Development default `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
+Operator APIs and `/operator` accept **either** an Entra user who is an operator **or** `X-Api-Key` (header or Development login cookie). An Entra sign-in alone is not enough: the user must have the `StatusOperator` app role (roles/wids claim) or their object ID must be listed in `AzureAd__AllowedObjectIds`. Authenticated Entra users with neither get **403**. Development default API key is `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
 
 ```bash
 curl -s -X PATCH http://localhost:5080/api/operator/components/azure-status \
@@ -157,6 +157,8 @@ Set from the environment only (never commit a client secret or tenant-specific v
 | `AzureAd__TenantId` | Directory (tenant) ID from your app registration |
 | `AzureAd__ClientId` | Application (client) ID |
 | `AzureAd__ClientSecret` | Client secret from Certificates & secrets |
+| `AzureAd__OperatorRole` | App role value to require. Default `StatusOperator` |
+| `AzureAd__AllowedObjectIds` | Fallback only: comma-separated Entra **object IDs**. Emails and UPNs are ignored |
 
 If `TenantId` or `ClientId` is empty, Entra is off and `X-Api-Key` is used.
 
@@ -167,9 +169,11 @@ If `TenantId` or `ClientId` is empty, Entra is off and `X-Api-Key` is used.
 3. Add a **Web** redirect URI: `https://<your-host>/signin-oidc` (local: `http://localhost:5080/signin-oidc`).
 4. Open **Certificates & secrets** → **New client secret**. Copy the value into `AzureAd__ClientSecret` in the process environment. Do not put it in git.
 5. Copy **Application (client) ID** and **Directory (tenant) ID** into `AzureAd__ClientId` and `AzureAd__TenantId`.
-6. No extra app roles are required. Any user in that tenant can operate the page.
+6. Open **App roles** → **Create app role**. Allowed member types: Users/Groups. **Value** must be `StatusOperator`. Enable the role.
+7. Open **Enterprise applications** → this app → **Users and groups** → **Add user/group** and assign the `StatusOperator` role. The ID token `roles` (and `wids` when present) must carry that value.
+8. Optional fallback: set `AzureAd__AllowedObjectIds` to one or more object IDs from the user's Entra profile (`oid` claim). Do not put emails or UPNs here.
 
-This repo does not invent or ship a tenant ID.
+This repo does not invent or ship a tenant ID. It does not treat every user in the tenant as an operator.
 
 ## Connectors (read-only imports)
 

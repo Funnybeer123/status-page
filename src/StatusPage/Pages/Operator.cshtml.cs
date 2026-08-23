@@ -21,13 +21,18 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration) : P
 
     public IActionResult OnGet()
     {
-        if (!OperatorAuth.IsOperator(HttpContext))
+        if (OperatorAuth.IsOperator(HttpContext))
         {
-            return RedirectToLogin();
+            Load();
+            return Page();
         }
 
-        Load();
-        return Page();
+        if (OperatorAuth.IsDeniedEntraUser(HttpContext))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        return RedirectToLogin();
     }
 
     public async Task<IActionResult> OnPostLogoutAsync()
@@ -60,6 +65,11 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration) : P
         string? headerName,
         string? headerValue)
     {
+        if (OperatorAuth.IsDeniedEntraUser(HttpContext))
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         if (!OperatorAuth.IsOperator(HttpContext))
         {
             return RedirectToLogin();

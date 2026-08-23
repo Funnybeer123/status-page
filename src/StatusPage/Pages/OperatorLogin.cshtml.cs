@@ -25,6 +25,12 @@ public class OperatorLoginModel(IConfiguration configuration, IHostEnvironment e
             return RedirectToPage("/Operator");
         }
 
+        if (OperatorAuth.IsDeniedEntraUser(HttpContext))
+        {
+            Error = "Signed in, but this account is not an operator.";
+            return Page();
+        }
+
         if (EntraConfigured && !ApiKeyAvailable)
         {
             return Challenge(OpenIdConnectDefaults.AuthenticationScheme);

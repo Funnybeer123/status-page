@@ -14,6 +14,8 @@ services:
       # AzureAd__TenantId: <your-tenant-id>
       # AzureAd__ClientId: <your-client-id>
       # AzureAd__ClientSecret: <set from env, never commit>
+      # AzureAd__OperatorRole: StatusOperator
+      # AzureAd__AllowedObjectIds: <object-id>,<object-id>
       # Optional connector extras (never commit):
       # Azure__SubscriptionId:
       # AZURE_DEVOPS_PAT:
