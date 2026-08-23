@@ -45,7 +45,7 @@
         }
         if (response.status === 409) {
             const err = new Error((payload && payload.error) || "Check is muted.");
-            err.name = "MutedError";
+            err.name = payload && payload.parentDown ? "ParentDownError" : "MutedError";
             throw err;
         }
         if (!response.ok) {
@@ -96,6 +96,7 @@
             componentId: (data.get("componentId") || "").toString(),
             componentName: (data.get("componentName") || "").toString() || null,
             groupId: (data.get("groupId") || "").toString() || null,
+            parentId: (data.get("parentId") || "").toString() || null,
             type,
             enabled: form.dataset.enabled !== "false",
             intervalSeconds: Number(data.get("intervalSeconds")) || 60,
@@ -141,7 +142,7 @@
             }
             window.location = "/operator#checks";
         } catch (err) {
-            if (err && err.name === "MutedError") {
+            if (err && (err.name === "MutedError" || err.name === "ParentDownError")) {
                 showMuted(err.message || "Check is muted.");
                 return;
             }

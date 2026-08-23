@@ -136,6 +136,18 @@ public static class CheckEndpoints
                 }, statusCode: StatusCodes.Status409Conflict);
             }
 
+            var snapshot = store.Snapshot();
+            var parentId = CheckParentSkip.DownAncestorId(check.ComponentId, snapshot.Components, snapshot.Checks);
+            if (parentId is not null)
+            {
+                return Results.Json(new
+                {
+                    error = "Parent leaf is down.",
+                    parentDown = true,
+                    parentId
+                }, statusCode: StatusCodes.Status409Conflict);
+            }
+
             var result = await runner.RunAsync(check, cancellationToken);
             store.RecordCheckResult(check.Id, result);
             var latest = store.FindCheck(check.Id) ?? check;
@@ -210,6 +222,7 @@ public sealed class CheckWriteJson
     public string? ComponentId { get; set; }
     public string? ComponentName { get; set; }
     public string? GroupId { get; set; }
+    public string? ParentId { get; set; }
     public string? Type { get; set; }
     public bool? Enabled { get; set; }
     public int? IntervalSeconds { get; set; }
@@ -253,7 +266,8 @@ public sealed class CheckWriteJson
         ComponentName,
         GroupId,
         Tls is null ? null : new TlsCheckSpec { Days = Tls.Days },
-        Dns is null ? null : new DnsCheckSpec { ExpectedAddresses = [.. Dns.ExpectedAddresses] });
+        Dns is null ? null : new DnsCheckSpec { ExpectedAddresses = [.. Dns.ExpectedAddresses] },
+        ParentId);
 
     public CreateCheckRequest ToImportRequest(StatusCheck? existing)
     {
@@ -384,6 +398,7 @@ public static class CheckJson
         componentId = check.ComponentId,
         componentName = check.ComponentName,
         groupId = check.ComponentGroupId,
+        parentId = check.ComponentParentId,
         type = check.Type.ApiValue(),
         enabled = check.Enabled,
         intervalSeconds = check.IntervalSeconds,
@@ -426,6 +441,7 @@ public static class CheckJson
         componentId = check.ComponentId,
         componentName = check.ComponentName,
         groupId = check.ComponentGroupId,
+        parentId = check.ComponentParentId,
         type = check.Type.ApiValue(),
         enabled = check.Enabled,
         intervalSeconds = check.IntervalSeconds,

@@ -116,6 +116,9 @@
             <label>Group id (leaves only)
                 <input name="groupId" placeholder="cloud-cost-agent" />
             </label>
+            <label>Parent leaf id (leaves only)
+                <input name="parentId" placeholder="azure-status" />
+            </label>
             <label>Kind
                 <select name="isGroup">
                     <option value="false">leaf</option>
@@ -226,6 +229,9 @@
             </label>
             <label>Group id (optional)
                 <input name="groupId" value="@edit?.ComponentGroupId" placeholder="cloud-cost-agent" />
+            </label>
+            <label>Parent leaf id (optional)
+                <input name="parentId" value="@edit?.ComponentParentId" placeholder="azure-status" />
             </label>
             <label>Type
                 <select name="type">

@@ -36,9 +36,11 @@ public sealed class CheckWorker(
     public async Task RunDueAsync(CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var due = store.ListChecks()
+        var snapshot = store.Snapshot();
+        var due = snapshot.Checks
             .Where(c => c.Enabled)
             .Where(c => !CheckMute.IsActive(c, now))
+            .Where(c => !CheckParentSkip.IsActive(c, snapshot.Components, snapshot.Checks))
             .Where(c => c.NextRunAt is null || c.NextRunAt <= now)
             .ToList();
 
