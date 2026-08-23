@@ -145,6 +145,19 @@
                 <label>Details
                     <textarea name="body" required maxlength="4000" rows="4"></textarea>
                 </label>
+                <fieldset class="report-components">
+                    <legend>Public components (optional)</legend>
+                    @foreach (var group in Model.ComponentGroups)
+                    {
+                        foreach (var leaf in group.Children)
+                        {
+                            <label class="report-component">
+                                <input type="checkbox" name="componentIds" value="@leaf.Id" />
+                                @leaf.Name
+                            </label>
+                        }
+                    }
+                </fieldset>
                 <div><button type="submit" class="btn-primary">Submit report</button></div>
             </form>
         }

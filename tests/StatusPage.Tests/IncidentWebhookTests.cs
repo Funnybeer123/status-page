@@ -282,6 +282,7 @@ public sealed class IncidentWebhookFactory : WebApplicationFactory<Program>
         var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-hook-webhooks-{Guid.NewGuid():N}.json");
         var templatesPath = Path.Combine(Path.GetTempPath(), $"status-page-hook-templates-{Guid.NewGuid():N}.json");
         var templatesSeed = Path.Combine(Path.GetTempPath(), $"status-page-hook-templates-seed-{Guid.NewGuid():N}.json");
+        var reportsPath = Path.Combine(Path.GetTempPath(), $"status-page-hook-reports-{Guid.NewGuid():N}.json");
         builder.UseEnvironment("Development");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
@@ -294,6 +295,7 @@ public sealed class IncidentWebhookFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
         builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
         builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
+        builder.UseSetting("StatusPage:ReportsPath", reportsPath);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -309,6 +311,7 @@ public sealed class IncidentWebhookFactory : WebApplicationFactory<Program>
                 ["StatusPage:WebhooksPath"] = webhooksPath,
                 ["StatusPage:TemplatesPath"] = templatesPath,
                 ["StatusPage:TemplatesSeedPath"] = templatesSeed,
+                ["StatusPage:ReportsPath"] = reportsPath,
                 ["StatusPage:EnableIncidentWebhook"] = _enabled ? "true" : "false",
                 ["StatusPage:IncidentWebhookSecret"] = _secret,
                 ["AzureAd:TenantId"] = "",

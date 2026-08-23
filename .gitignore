@@ -12,6 +12,7 @@ data/checks.json
 **/data/audit.jsonl
 **/data/webhooks.json
 **/data/incident-templates.json
+**/data/reports.json
 **/data/cors.json
 **/data/branding/
 appsettings.local.json

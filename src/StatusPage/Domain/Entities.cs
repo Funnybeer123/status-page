@@ -217,7 +217,11 @@ public sealed class ProblemReport
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
     public string Body { get; set; } = "";
+    public List<string> ComponentIds { get; set; } = [];
+    public string Status { get; set; } = "open";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>SHA-256 hex of the rate-limit key. Never a raw IP.</summary>
+    public string RateLimitKey { get; set; } = "";
     public string? PromotedIncidentId { get; set; }
     public DateTimeOffset? PromotedAt { get; set; }
 }

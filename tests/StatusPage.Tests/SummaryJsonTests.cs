@@ -514,6 +514,8 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
 
 public class StatusPageFactory : WebApplicationFactory<Program>
 {
+    public string ReportsPath { get; } = Path.Combine(Path.GetTempPath(), $"status-page-reports-{Guid.NewGuid():N}.json");
+
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
@@ -524,6 +526,7 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-webhooks-{Guid.NewGuid():N}.json");
         var templatesPath = Path.Combine(Path.GetTempPath(), $"status-page-templates-{Guid.NewGuid():N}.json");
         var templatesSeed = Path.Combine(Path.GetTempPath(), $"status-page-templates-seed-{Guid.NewGuid():N}.json");
+        var reportsPath = ReportsPath;
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
@@ -535,6 +538,7 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
         builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
         builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
+        builder.UseSetting("StatusPage:ReportsPath", reportsPath);
         builder.UseEnvironment("Development");
         var settings = new Dictionary<string, string?>
         {
@@ -549,6 +553,7 @@ public class StatusPageFactory : WebApplicationFactory<Program>
             ["StatusPage:WebhooksPath"] = webhooksPath,
             ["StatusPage:TemplatesPath"] = templatesPath,
             ["StatusPage:TemplatesSeedPath"] = templatesSeed,
+            ["StatusPage:ReportsPath"] = reportsPath,
             ["AzureAd:TenantId"] = "",
             ["AzureAd:ClientId"] = ""
         };
