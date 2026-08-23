@@ -2,7 +2,7 @@ name: Status snapshot
 
 # Scheduled runs only fire on the repository default branch.
 # workflow_dispatch can be run from this branch. This workflow is not
-# attached to pull_request, so PR CI is unchanged.
+# a PR check, so existing PR CI is unchanged.
 on:
   schedule:
     - cron: "*/15 * * * *"

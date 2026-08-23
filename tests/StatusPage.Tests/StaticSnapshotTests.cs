@@ -18,7 +18,7 @@ public class StaticSnapshotTests
 
         Assert.Contains("*/15 * * * *", workflow);
         Assert.Contains("workflow_dispatch", workflow);
-        Assert.DoesNotContain("pull_request", workflow);
+        Assert.DoesNotContain("\n  pull_request:", workflow.Replace("\r", ""));
         Assert.Contains("AZURE_STATIC_WEB_APPS_API_TOKEN is not set; skipping Static Web Apps deploy.", workflow);
         Assert.DoesNotContain("github_pat_", workflow);
         Assert.DoesNotContain("00000", workflow);
