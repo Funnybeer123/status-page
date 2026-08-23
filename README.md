@@ -216,8 +216,9 @@ Page admin (operator UI and `/api/operator/*`, not public `/`):
 - Postmortem markdown after resolve (default unpublished; StatusViewer can read; only StatusOperator can write or publish)
 - Scheduled maintenance
 - Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
-- Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key` or Entra object ID — never an email)
+- Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key`, Entra object ID, or inbound `webhook` — never an email or the webhook secret)
 - Outbound webhooks: operator add/delete URLs in gitignored `data/webhooks.json`. Loopback, link-local, RFC1918, and cloud metadata (`169.254.169.254`, `metadata.google.internal`) are rejected. On incident create/update the app POSTs the **public** incident plus **public** component status only (5s timeout, best-effort — a failed POST never fails the request). Payloads never include check targets, internal-leaf ids, probe errors, bodies, or headers. The public page does not list webhook URLs.
+- Inbound incident webhook: optional `POST /api/hooks/incidents`. Disabled (**404**, not 401) when `StatusPage:EnableIncidentWebhook` is `false` **or** the env secret is unset. Set `STATUSPAGE_INCIDENT_WEBHOOK_SECRET` or `StatusPage:IncidentWebhookSecret` in the process environment only — never commit it. Send the same value in `X-Incident-Webhook-Secret` (constant-time compare). Wrong/missing secret while enabled → **401**. Receive-only: the handler does not fetch caller URLs (no SSRF). POST can open or update a **public** incident only; internal component ids are **400**. It never writes `CheckResult` and does not override a leaf that has enabled checks (same lock as connector imports). Audit actor is `webhook`.
 
 ```bash
 curl -s http://localhost:5080/api/operator/page -H "X-Api-Key: dev-key"
@@ -253,6 +254,11 @@ curl -s -X PUT http://localhost:5080/api/operator/incidents/<id>/postmortem \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"body":"## What happened\\nTimeouts recovered after a vendor advisory.","published":false}'
+
+curl -s -X POST http://localhost:5080/api/hooks/incidents \
+  -H "X-Incident-Webhook-Secret: $STATUSPAGE_INCIDENT_WEBHOOK_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Vendor advisory","status":"investigating","impact":"minor","body":"Inbound webhook.","componentIds":["azure-status"]}'
 ```
 
 Seeded leaf ids: `azure-status`, `azure-devops-status`, `github-status`, `local-health`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
@@ -306,7 +312,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, and publishing on an internal-only incident leaving it anonymous-404. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, inbound `POST /api/hooks/incidents` (unset/disabled secret → 404; bad secret → 401; internal ids → 400; checked leaf not overridden; audit actor `webhook`), authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, and publishing on an internal-only incident leaving it anonymous-404. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

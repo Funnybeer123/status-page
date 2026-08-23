@@ -185,7 +185,8 @@ public sealed record CreateIncidentRequest(
     string Body,
     IReadOnlyList<string>? ComponentIds,
     DateTimeOffset? ScheduledFor,
-    DateTimeOffset? ScheduledUntil);
+    DateTimeOffset? ScheduledUntil,
+    IReadOnlyDictionary<string, string>? ComponentStatuses = null);
 
 public sealed record UpdateIncidentRequest(
     string? Status,

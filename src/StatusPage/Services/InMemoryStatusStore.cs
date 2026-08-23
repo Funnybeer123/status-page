@@ -384,6 +384,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                 _state.Incidents.Add(incident);
             }
 
+            ApplyManualStatusesIfUnchecked(request.ComponentStatuses, now);
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
             QueueWebhook(incident.Id, "incident.created");
@@ -442,24 +443,7 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             if (request.ComponentStatuses is not null)
             {
-                foreach (var (componentId, rawStatus) in request.ComponentStatuses)
-                {
-                    if (!DomainEnums.TryParseComponentStatus(rawStatus, out var componentStatus))
-                    {
-                        throw new ArgumentException($"Invalid component status '{rawStatus}'.");
-                    }
-
-                    var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
-                                    ?? throw new ArgumentException($"Unknown component '{componentId}'.");
-                    if (HasEnabledChecks(component.Id))
-                    {
-                        continue;
-                    }
-
-                    component.ManualStatus = componentStatus;
-                    component.Status = componentStatus;
-                    component.UpdatedAt = now;
-                }
+                ApplyManualStatusesIfUnchecked(request.ComponentStatuses, now);
             }
             else if (incident.Status is IncidentStatus.Resolved or IncidentStatus.Completed)
             {
@@ -862,6 +846,39 @@ public sealed class InMemoryStatusStore : IStatusStore
                         c.UpdatedAt);
                 })
                 .ToList();
+        }
+    }
+
+    /// <summary>
+    /// Operator/import/webhook status writes. Never records a CheckResult.
+    /// Leaves with enabled checks keep check rollup (same lock as connector imports).
+    /// </summary>
+    private void ApplyManualStatusesIfUnchecked(
+        IReadOnlyDictionary<string, string>? statuses,
+        DateTimeOffset now)
+    {
+        if (statuses is null)
+        {
+            return;
+        }
+
+        foreach (var (componentId, rawStatus) in statuses)
+        {
+            if (!DomainEnums.TryParseComponentStatus(rawStatus, out var componentStatus))
+            {
+                throw new ArgumentException($"Invalid component status '{rawStatus}'.");
+            }
+
+            var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
+                            ?? throw new ArgumentException($"Unknown component '{componentId}'.");
+            if (HasEnabledChecks(component.Id))
+            {
+                continue;
+            }
+
+            component.ManualStatus = componentStatus;
+            component.Status = componentStatus;
+            component.UpdatedAt = now;
         }
     }
 
