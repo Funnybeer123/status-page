@@ -1,0 +1,101 @@
+:root {
+    --bg: #f7f8fa;
+    --card: #fff;
+    --ink: #1f2328;
+    --muted: #656d76;
+    --line: #d0d7de;
+    --ok: #2fcc66;
+    --minor: #f1c40f;
+    --major: #e67e22;
+    --critical: #e74c3c;
+    --maint: #3498db;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+}
+
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { width: min(880px, calc(100% - 32px)); margin: 0 auto; }
+
+.site-header { background: #fff; border-bottom: 1px solid var(--line); padding: 20px 0 16px; }
+.header-row { display: flex; justify-content: space-between; align-items: baseline; }
+.brand { font-size: 22px; font-weight: 700; color: var(--ink); }
+.lede { color: var(--muted); margin: 8px 0 0; }
+
+.banner { color: #fff; padding: 28px 0; }
+.banner h1 { margin: 0; font-size: 28px; font-weight: 600; }
+.banner-sub { margin: 6px 0 0; opacity: 0.9; }
+.banner-ok { background: var(--ok); }
+.banner-none { background: var(--ok); }
+.banner-minor { background: var(--minor); color: #3b2f00; }
+.banner-major { background: var(--major); }
+.banner-critical { background: var(--critical); }
+.banner-maintenance { background: var(--maint); }
+
+.page-body { padding: 28px 0 64px; }
+.block { margin-bottom: 36px; }
+.block h2 { margin: 0 0 12px; font-size: 20px; }
+
+.component-list, .incident {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.component-group { border-bottom: 1px solid var(--line); padding: 0; }
+.component-group:last-child { border-bottom: 0; }
+.component-group summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.component-group summary::-webkit-details-marker { display: none; }
+.component-group .component-desc { margin: -8px 18px 12px; }
+.component-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 18px 14px 32px;
+    border-top: 1px solid #eef1f4;
+}
+
+.component-name { font-weight: 600; }
+.component-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+.status { font-size: 13px; font-weight: 600; white-space: nowrap; }
+.status-operational { color: var(--ok); }
+.status-degraded_performance { color: #b8860b; }
+.status-partial_outage { color: var(--major); }
+.status-major_outage { color: var(--critical); }
+.status-under_maintenance { color: var(--maint); }
+
+.incident { padding: 16px 18px; margin: 0 0 12px; border-left: 4px solid var(--line); }
+.incident-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.incident-head a { font-weight: 700; color: var(--ink); }
+.incident-meta { color: var(--muted); font-size: 13px; text-transform: capitalize; }
+.impact-minor { border-left-color: var(--minor); }
+.impact-major { border-left-color: var(--major); }
+.impact-critical { border-left-color: var(--critical); }
+.impact-maintenance, .impact-none { border-left-color: var(--maint); }
+
+.update { margin-top: 12px; padding-top: 12px; border-top: 1px solid #eef1f4; }
+.update-meta { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.update p { margin: 6px 0 0; }
+
+.history-day { margin-top: 22px; }
+.history-day h3 { margin: 0 0 8px; font-size: 16px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+
+.muted { color: var(--muted); }
+.site-footer { border-top: 1px solid var(--line); padding: 20px 0 32px; color: var(--muted); font-size: 13px; }

@@ -1,0 +1,45 @@
+@model StatusPage.Domain.Incident
+<article class="incident impact-@Model.Impact.ApiValue()">
+    <header class="incident-head">
+        <a href="/incidents/@Model.Id">@Model.Name</a>
+        <span class="incident-meta">@Model.Status.ApiValue() · @Model.Impact.ApiValue()</span>
+    </header>
+    @if (Model.ScheduledFor is not null)
+    {
+        <p class="muted">
+            Scheduled @Model.ScheduledFor.Value.UtcDateTime.ToString("u")
+            @if (Model.ScheduledUntil is not null)
+            {
+                <text> – @Model.ScheduledUntil.Value.UtcDateTime.ToString("u")</text>
+            }
+        </p>
+    }
+    @foreach (var update in Model.Updates.OrderByDescending(u => u.DisplayAt))
+    {
+        <div class="update">
+            <div class="update-meta">
+                <strong>@Title(update.Status)</strong>
+                <time datetime="@update.DisplayAt.ToUniversalTime().ToString("o")">
+                    @update.DisplayAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC
+                </time>
+            </div>
+            <p>@update.Body</p>
+        </div>
+    }
+</article>
+
+@functions {
+    private static string Title(StatusPage.Domain.IncidentStatus status) => status switch
+    {
+        StatusPage.Domain.IncidentStatus.Investigating => "Investigating",
+        StatusPage.Domain.IncidentStatus.Identified => "Identified",
+        StatusPage.Domain.IncidentStatus.Monitoring => "Monitoring",
+        StatusPage.Domain.IncidentStatus.Resolved => "Resolved",
+        StatusPage.Domain.IncidentStatus.Postmortem => "Postmortem",
+        StatusPage.Domain.IncidentStatus.Scheduled => "Scheduled",
+        StatusPage.Domain.IncidentStatus.InProgress => "In progress",
+        StatusPage.Domain.IncidentStatus.Verifying => "Verifying",
+        StatusPage.Domain.IncidentStatus.Completed => "Completed",
+        _ => status.ToString()
+    };
+}

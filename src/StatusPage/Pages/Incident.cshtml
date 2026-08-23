@@ -1,0 +1,10 @@
+@page "/incidents/{id}"
+@model IncidentModel
+@{
+    ViewData["Title"] = Model.Incident.Name;
+}
+
+<div class="wrap page-body">
+    <p><a href="/">← Current status</a></p>
+    <partial name="_IncidentCard" model="Model.Incident" />
+</div>

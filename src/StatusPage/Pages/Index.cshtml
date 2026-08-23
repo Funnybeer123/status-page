@@ -1,0 +1,109 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = Model.PageInfo.Name;
+    ViewData["Banner"] = Model.Overall.Banner.ToLowerInvariant() switch
+    {
+        "all systems operational" => "ok",
+        "under maintenance" => "maintenance",
+        "major outage" => "critical",
+        _ => Model.Overall.Indicator.ApiValue()
+    };
+}
+
+<section class="banner banner-@ViewData["Banner"]">
+    <div class="wrap">
+        <h1>@Model.Overall.Banner</h1>
+        <p class="banner-sub">@Model.Overall.Description</p>
+    </div>
+</section>
+
+<div class="wrap page-body">
+    @if (Model.ActiveIncidents.Count > 0)
+    {
+        <section class="block">
+            <h2>Active incidents</h2>
+            @foreach (var incident in Model.ActiveIncidents)
+            {
+                <partial name="_IncidentCard" model="incident" />
+            }
+        </section>
+    }
+
+    @if (Model.ScheduledMaintenances.Count > 0)
+    {
+        <section class="block">
+            <h2>Scheduled maintenance</h2>
+            @foreach (var incident in Model.ScheduledMaintenances)
+            {
+                <partial name="_IncidentCard" model="incident" />
+            }
+        </section>
+    }
+
+    <section class="block">
+        <h2>Components</h2>
+        <div class="component-list">
+            @foreach (var group in Model.ComponentGroups)
+            {
+                <details class="component-group" open>
+                    <summary>
+                        <span class="component-name">@group.Group.Name</span>
+                        <span class="status status-@group.Group.Status.ApiValue()">@Label(group.Group.Status)</span>
+                    </summary>
+                    @if (!string.IsNullOrWhiteSpace(group.Group.Description) && group.Group.Id != "ungrouped")
+                    {
+                        <p class="component-desc">@group.Group.Description</p>
+                    }
+                    @foreach (var component in group.Children)
+                    {
+                        <div class="component-row">
+                            <div>
+                                <div class="component-name">@component.Name</div>
+                                @if (!string.IsNullOrWhiteSpace(component.Description))
+                                {
+                                    <div class="component-desc">@component.Description</div>
+                                }
+                            </div>
+                            <span class="status status-@component.Status.ApiValue()">@Label(component.Status)</span>
+                        </div>
+                    }
+                </details>
+            }
+        </div>
+    </section>
+
+    <section class="block">
+        <h2>Past incidents</h2>
+        <p class="muted">Last 15 days</p>
+        @foreach (var day in Model.History)
+        {
+            <div class="history-day">
+                <h3>@day.Day.ToString("MMMM d, yyyy")</h3>
+                @if (day.Incidents.Count == 0)
+                {
+                    <p class="muted">No incidents reported.</p>
+                }
+                else
+                {
+                    foreach (var incident in day.Incidents)
+                    {
+                        <partial name="_IncidentCard" model="incident" />
+                    }
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@functions {
+    private static string Label(StatusPage.Domain.ComponentStatus status) => status switch
+    {
+        StatusPage.Domain.ComponentStatus.Operational => "Operational",
+        StatusPage.Domain.ComponentStatus.DegradedPerformance => "Degraded Performance",
+        StatusPage.Domain.ComponentStatus.PartialOutage => "Partial Outage",
+        StatusPage.Domain.ComponentStatus.MajorOutage => "Major Outage",
+        StatusPage.Domain.ComponentStatus.UnderMaintenance => "Under Maintenance",
+        _ => status.ToString()
+    };
+}
