@@ -534,24 +534,33 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
         builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
         builder.UseEnvironment("Development");
+        var settings = new Dictionary<string, string?>
+        {
+            ["StatusPage:EnableCheckWorker"] = "false",
+            ["StatusPage:EnableConnectorWorker"] = "false",
+            ["StatusPage:ApiKey"] = "dev-key",
+            ["StatusPage:ChecksPath"] = checksPath,
+            ["StatusPage:PagePath"] = pagePath,
+            ["StatusPage:BrandingPath"] = brandingPath,
+            ["StatusPage:ResultsPath"] = resultsPath,
+            ["StatusPage:AuditPath"] = auditPath,
+            ["StatusPage:WebhooksPath"] = webhooksPath,
+            ["StatusPage:TemplatesPath"] = templatesPath,
+            ["StatusPage:TemplatesSeedPath"] = templatesSeed,
+            ["AzureAd:TenantId"] = "",
+            ["AzureAd:ClientId"] = ""
+        };
+        foreach (var kv in ExtraSettings())
+        {
+            settings[kv.Key] = kv.Value;
+            builder.UseSetting(kv.Key, kv.Value ?? "");
+        }
+
         builder.ConfigureAppConfiguration((_, config) =>
         {
-            config.AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["StatusPage:EnableCheckWorker"] = "false",
-                ["StatusPage:EnableConnectorWorker"] = "false",
-                ["StatusPage:ApiKey"] = "dev-key",
-                ["StatusPage:ChecksPath"] = checksPath,
-                ["StatusPage:PagePath"] = pagePath,
-                ["StatusPage:BrandingPath"] = brandingPath,
-                ["StatusPage:ResultsPath"] = resultsPath,
-                ["StatusPage:AuditPath"] = auditPath,
-                ["StatusPage:WebhooksPath"] = webhooksPath,
-                ["StatusPage:TemplatesPath"] = templatesPath,
-                ["StatusPage:TemplatesSeedPath"] = templatesSeed,
-                ["AzureAd:TenantId"] = "",
-                ["AzureAd:ClientId"] = ""
-            });
+            config.AddInMemoryCollection(settings);
         });
     }
+
+    protected virtual IEnumerable<KeyValuePair<string, string?>> ExtraSettings() => [];
 }

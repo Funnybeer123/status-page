@@ -156,6 +156,16 @@ if (builder.Configuration.GetValue("StatusPage:EnableConnectorWorker", true))
     builder.Services.AddHostedService<ConnectorWorker>();
 }
 
+builder.Configuration.AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true);
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+    var env = sp.GetRequiredService<IHostEnvironment>();
+    var corsPath = config[PublicCorsOptions.PathKey]
+                   ?? Path.Combine(env.ContentRootPath, "data", "cors.json");
+    return PublicCorsOptions.Load(config, corsPath);
+});
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -172,6 +182,7 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseAuthorization();
+app.UseMiddleware<PublicCorsMiddleware>();
 
 app.MapGet("/health", () => Results.Text("ok", "text/plain"));
 app.MapGet("/branding/{file}", (string file) => BrandingFiles.Serve(brandingDir, file));

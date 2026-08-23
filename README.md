@@ -74,6 +74,14 @@ Anonymous `/embed` shows overall status plus public components using the same `F
 
 `embed.js` reads `/api/v2/summary.json` and `/api/status/uptime`. Email/SMS subscribe is not implemented.
 
+## Public CORS
+
+Anonymous GET on `/api/v2/*`, `/api/status/uptime`, `/api/status/components`, `/embed`, `/incidents.rss`, `/incidents.atom`, and `/maintenance.ics` send `Access-Control-Allow-Origin` so the public widget can run on other sites. Writes (POST / PUT / PATCH / DELETE) stay same-origin and never get CORS. `/api/checks*` never gets CORS, including GET export, PATCH, import, and `/run`.
+
+`GET /api/status/components` stays `ForPublic` (no internal leaves) when CORS is applied.
+
+Operator allow-list is gitignored `data/cors.json`. Copy `Data/cors.example.json`. An empty `allowedOrigins` list means `*`. A non-empty list rejects other origins (no ACAO; OPTIONS is 403). Override with `StatusPage__CorsAllowedOrigins__0` in the process environment. Do not commit `data/cors.json`.
+
 ## Public incident feeds
 
 `/incidents.rss` and `/incidents.atom` list public incidents with the same visibility as `/api/v2/incidents.json`. Incidents that only touch internal leaves are omitted. Mixed incidents keep public component names only. Feeds do not include check targets or probe errors.
@@ -288,7 +296,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 
