@@ -228,6 +228,46 @@ public static class OperatorEndpoints
             }
         });
 
+        group.MapGet("/incidents/{id}/postmortem", (string id, IStatusStore store, HttpContext http) =>
+        {
+            var state = store.Snapshot();
+            var incident = state.Incidents.Concat(state.ScheduledMaintenances)
+                .FirstOrDefault(i => i.Id == id);
+            if (incident is null)
+            {
+                return Results.NotFound(new { error = $"Unknown incident '{id}'." });
+            }
+
+            if (!OperatorAuth.IsOperator(http)
+                && PostmortemRules.IsInternalOnly(incident, state, store.ListChecks()))
+            {
+                return Results.NotFound(new { error = $"Unknown incident '{id}'." });
+            }
+
+            return Results.Json(PostmortemJson(incident));
+        });
+
+        group.MapPut("/incidents/{id}/postmortem", (string id, WritePostmortemJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                var updated = store.SavePostmortem(id, body.ToRequest());
+                var action = updated.Postmortem?.Published == true
+                    ? "incident.postmortem.publish"
+                    : "incident.postmortem.save";
+                OperatorAuth.Audit(http, audit, action, updated.Id);
+                return Results.Json(PostmortemJson(updated));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
         group.MapGet("/templates", (IIncidentTemplateStore templates) =>
             Results.Json(templates.List().Select(TemplateJson)));
 
@@ -316,7 +356,22 @@ public static class OperatorEndpoints
         autoFromChecks = incident.AutoFromChecks,
         scheduledFor = PublicApiMapper.Iso(incident.ScheduledFor),
         scheduledUntil = PublicApiMapper.Iso(incident.ScheduledUntil),
-        updatedAt = PublicApiMapper.Iso(incident.UpdatedAt)
+        updatedAt = PublicApiMapper.Iso(incident.UpdatedAt),
+        postmortem = incident.Postmortem is null ? null : PostmortemBody(incident.Postmortem)
+    };
+
+    private static object PostmortemJson(Incident incident) => new
+    {
+        id = incident.Id,
+        postmortem = incident.Postmortem is null ? null : PostmortemBody(incident.Postmortem)
+    };
+
+    private static object PostmortemBody(IncidentPostmortem postmortem) => new
+    {
+        body = postmortem.Body,
+        published = postmortem.Published,
+        updatedAt = PublicApiMapper.Iso(postmortem.UpdatedAt),
+        publishedAt = PublicApiMapper.Iso(postmortem.PublishedAt)
     };
 
     private static object TemplateJson(IncidentTemplate template) => new
@@ -376,6 +431,14 @@ public sealed class UpdateIncidentJson
     public Dictionary<string, string>? ComponentStatuses { get; set; }
 
     public UpdateIncidentRequest ToRequest() => new(Status, Body ?? "", ComponentIds, ComponentStatuses);
+}
+
+public sealed class WritePostmortemJson
+{
+    public string? Body { get; set; }
+    public bool? Published { get; set; }
+
+    public WritePostmortemRequest ToRequest() => new(Body ?? "", Published == true);
 }
 
 public sealed class WriteWebhookJson

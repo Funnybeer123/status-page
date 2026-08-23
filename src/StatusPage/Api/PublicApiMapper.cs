@@ -85,6 +85,7 @@ public static class PublicApiMapper
         var state = store.Snapshot();
         MapCheckStatuses(state, store.ComponentCheckStatuses());
         ComponentVisibility.RemoveInternal(state, store.ListChecks());
+        PostmortemRules.PreparePublic(state, store.ListChecks());
         return state;
     }
 
@@ -176,7 +177,24 @@ public static class PublicApiMapper
             incident_updates = incident.Updates
                 .OrderByDescending(u => u.DisplayAt)
                 .Select(u => IncidentUpdate(u, affected)),
-            components = affected.Select(c => Component(state.Page.Id, c))
+            components = affected.Select(c => Component(state.Page.Id, c)),
+            postmortem = PublicPostmortem(incident)
+        };
+    }
+
+    private static object? PublicPostmortem(Incident incident)
+    {
+        if (incident.Postmortem is not { Published: true } published)
+        {
+            return null;
+        }
+
+        return new
+        {
+            body = published.Body,
+            published = true,
+            updated_at = Iso(published.UpdatedAt),
+            published_at = Iso(published.PublishedAt)
         };
     }
 

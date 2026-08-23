@@ -190,6 +190,19 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         });
     }
 
+    public IActionResult OnPostSavePostmortem(string id, string? body, bool published)
+    {
+        return Guarded(() =>
+        {
+            var updated = store.SavePostmortem(id, new WritePostmortemRequest(body ?? "", published));
+            var action = updated.Postmortem?.Published == true
+                ? "incident.postmortem.publish"
+                : "incident.postmortem.save";
+            OperatorAuth.Audit(HttpContext, audit, action, updated.Id);
+            return RedirectToPage();
+        });
+    }
+
     public IActionResult OnPostAddWebhook(string? url)
     {
         return Guarded(() =>

@@ -272,7 +272,7 @@
 
     <section class="operator-card" id="incidents">
         <h2>Incidents and maintenance</h2>
-        <p class="muted">Operator incidents do not override check rollup. under_maintenance is PATCH-only.</p>
+        <p class="muted">Operator incidents do not override check rollup. under_maintenance is PATCH-only. After resolve, write a markdown postmortem (unpublished by default). StatusViewer can read unpublished notes; only StatusOperator can write or publish. Publishing does not make an internal-only incident public.</p>
         <table>
             <thead>
                 <tr>
@@ -298,6 +298,28 @@
                                 <input type="hidden" name="status" value="@(incident.ScheduledFor is null ? "resolved" : "completed")" />
                                 <input type="hidden" name="body" value="Resolved from operator admin." />
                                 <button class="btn-secondary" type="submit">Resolve</button>
+                            </form>
+                        }
+                        @if (incident.Postmortem is { } postmortem)
+                        {
+                            <div class="muted">Postmortem @(postmortem.Published ? "published" : "unpublished")</div>
+                            @if (!Model.CanWrite)
+                            {
+                                <pre class="operator-snippet">@postmortem.Body</pre>
+                            }
+                        }
+                        @if (Model.CanWrite && PostmortemRules.AllowsWrite(incident))
+                        {
+                            <form method="post" asp-page-handler="SavePostmortem" class="operator-form">
+                                <input type="hidden" name="id" value="@incident.Id" />
+                                <label>Postmortem markdown
+                                    <textarea name="body" rows="6" required>@incident.Postmortem?.Body</textarea>
+                                </label>
+                                <label class="postmortem-publish">
+                                    <input type="checkbox" name="published" value="true" @(incident.Postmortem?.Published == true ? "checked" : null) />
+                                    Publish to the public incident page
+                                </label>
+                                <button class="btn-secondary" type="submit">Save postmortem</button>
                             </form>
                         }
                     </td>

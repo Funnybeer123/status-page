@@ -37,6 +37,7 @@ Anonymous. Shows public components only.
 - Active incidents with timestamped updates
 - Upcoming or in-progress scheduled maintenance
 - Past incidents for the last 15 days
+- Published postmortems on the public incident page (stored markdown; HTML in the source is escaped and never executed)
 
 Internal `host:port` leaves (loopback, RFC1918, `*.internal` / `*.local`) are hidden here. Sign in at `/operator` to see them. Entra login is for operators and those private components only.
 
@@ -55,7 +56,7 @@ curl -s http://localhost:5080/incidents.atom
 curl -s http://localhost:5080/maintenance.ics
 ```
 
-These stay anonymous and omit internal host:port leaves. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`).
+These stay anonymous and omit internal host:port leaves. Unpublished postmortems never appear on anonymous `/` or v2 JSON. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`). A published postmortem is included as `postmortem` (markdown body, no check targets / host:port / result errors). Publishing a postmortem on an internal-only incident does not make that incident public.
 
 Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only.
 
@@ -212,6 +213,7 @@ Page admin (operator UI and `/api/operator/*`, not public `/`):
 
 - Component and group CRUD
 - Incident open / update / resolve (operator incidents never override checked components except `under_maintenance` PATCH)
+- Postmortem markdown after resolve (default unpublished; StatusViewer can read; only StatusOperator can write or publish)
 - Scheduled maintenance
 - Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
 - Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key` or Entra object ID — never an email)
@@ -224,6 +226,7 @@ curl -s -X PATCH http://localhost:5080/api/operator/page \
   -d '{"name":"Local brand"}'
 curl -s http://localhost:5080/api/operator/components -H "X-Api-Key: dev-key"
 curl -s http://localhost:5080/api/operator/incidents -H "X-Api-Key: dev-key"
+curl -s http://localhost:5080/api/operator/incidents/<id>/postmortem -H "X-Api-Key: dev-key"
 curl -s http://localhost:5080/api/operator/templates -H "X-Api-Key: dev-key"
 ```
 
@@ -231,7 +234,9 @@ Incident templates (operator-only create/edit/delete) store title, impact, and d
 
 ## Operator incidents
 
-Operator APIs and `/operator` accept **either** an Entra user who is an operator **or** `X-Api-Key` (header or Development login cookie). An Entra sign-in alone is not enough: write access requires the `StatusOperator` app role (roles/wids claim) or an object ID listed in `AzureAd__AllowedObjectIds`. `StatusViewer` is read-only (GET lists, audit, history, export of public checks). Authenticated Entra users with neither role get **403**. `AllowedObjectIds` are operators (write), not viewers. Development default API key is `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
+Operator APIs and `/operator` accept **either** an Entra user who is an operator **or** `X-Api-Key` (header or Development login cookie). An Entra sign-in alone is not enough: write access requires the `StatusOperator` app role (roles/wids claim) or an object ID listed in `AzureAd__AllowedObjectIds`. `StatusViewer` is read-only (GET lists, audit, history, export of public checks, unpublished postmortems). Authenticated Entra users with neither role get **403**. `AllowedObjectIds` are operators (write), not viewers. Development default API key is `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
+
+After resolve, `PUT /api/operator/incidents/{id}/postmortem` stores markdown (`published` defaults false). Publishing rejects (or the public snapshot strips) check targets, `host:port`, and result error strings. Unpublished notes stay off anonymous `/` and v2 JSON. Publishing does not change internal-only visibility. There are no new check APIs.
 
 ```bash
 curl -s -X PATCH http://localhost:5080/api/operator/components/azure-status \
@@ -243,6 +248,11 @@ curl -s -X POST http://localhost:5080/api/operator/incidents \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"name":"Azure regional advisory","status":"investigating","impact":"minor","body":"Watching Azure public status.","componentIds":["azure-status"]}'
+
+curl -s -X PUT http://localhost:5080/api/operator/incidents/<id>/postmortem \
+  -H "X-Api-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{"body":"## What happened\\nTimeouts recovered after a vendor advisory.","published":false}'
 ```
 
 Seeded leaf ids: `azure-status`, `azure-devops-status`, `github-status`, `local-health`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
@@ -296,7 +306,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, and publishing on an internal-only incident leaving it anonymous-404. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

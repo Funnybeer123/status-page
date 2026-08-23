@@ -19,7 +19,9 @@ public class IncidentModel(IStatusStore store) : PageModel
             return NotFound();
         }
 
-        if (!OperatorAuth.IsOperator(HttpContext) && incident.ComponentIds.Count > 0)
+        var isOperator = OperatorAuth.IsOperator(HttpContext);
+        var isStaff = OperatorAuth.IsStaff(HttpContext);
+        if (!isOperator && incident.ComponentIds.Count > 0)
         {
             var checks = store.ListChecks();
             var publicIds = incident.ComponentIds.Where(componentId =>
@@ -31,6 +33,15 @@ public class IncidentModel(IStatusStore store) : PageModel
             {
                 return NotFound();
             }
+        }
+
+        if (incident.Postmortem is { Published: false } && !isStaff)
+        {
+            incident.Postmortem = null;
+        }
+        else if (incident.Postmortem is { Published: true } published)
+        {
+            published.Body = PostmortemRules.PublicBody(published.Body, store.ListChecks());
         }
 
         Incident = incident;
