@@ -27,6 +27,7 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
         LeafUptime = leaves.ToDictionary(l => l.Id, StringComparer.Ordinal);
         PublicUptimePercent = PublicUptime.Percent(leaves.Sum(l => l.Ok), leaves.Sum(l => l.Fail));
         PageInfo = state.Page;
+        ViewData["PageTimeZone"] = state.Page.TimeZone;
         Overall = StatusRollup.FromComponents(state.Components);
         ActiveIncidents = PublicApiMapper.ActiveIncidents(state).ToList();
         ScheduledMaintenances = PublicApiMapper.ActiveMaintenances(state).ToList();

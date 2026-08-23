@@ -61,11 +61,11 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         return RedirectToPage("/OperatorLogin");
     }
 
-    public IActionResult OnPostSavePage(string? name, string? logoUrl)
+    public IActionResult OnPostSavePage(string? name, string? logoUrl, string? timeZone)
     {
         return Guarded(() =>
         {
-            var page = store.UpdatePage(name, string.IsNullOrWhiteSpace(logoUrl) ? null : logoUrl);
+            var page = store.UpdatePage(name, string.IsNullOrWhiteSpace(logoUrl) ? null : logoUrl, timeZone);
             OperatorAuth.Audit(HttpContext, audit, "page.branding", page.Id);
             return RedirectToPage();
         });

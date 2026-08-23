@@ -1,5 +1,6 @@
 using System.Text;
 using StatusPage.Domain;
+using StatusPage.Services;
 
 namespace StatusPage.Api;
 
@@ -23,6 +24,7 @@ public static class MaintenanceCalendar
         Line(sb, "CALSCALE:GREGORIAN");
         Line(sb, "METHOD:PUBLISH");
         Fold(sb, "X-WR-CALNAME", $"{page.Name} scheduled maintenance");
+        Fold(sb, "X-WR-TIMEZONE", string.IsNullOrWhiteSpace(page.TimeZone) ? PageTimeZone.DefaultId : page.TimeZone);
         foreach (var item in items)
         {
             var start = item.ScheduledFor ?? item.CreatedAt;

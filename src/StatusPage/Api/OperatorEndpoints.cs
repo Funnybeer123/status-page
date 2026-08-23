@@ -21,16 +21,22 @@ public static class OperatorEndpoints
         group.MapGet("/page", (IStatusStore store) =>
         {
             var page = store.Snapshot().Page;
-            return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl, updatedAt = PublicApiMapper.Iso(page.UpdatedAt) });
+            return Results.Json(new
+            {
+                name = page.Name,
+                logoUrl = page.LogoUrl,
+                timeZone = page.TimeZone,
+                updatedAt = PublicApiMapper.Iso(page.UpdatedAt)
+            });
         });
 
         group.MapPatch("/page", (WritePageJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
-                var page = store.UpdatePage(body.Name, body.LogoUrl);
+                var page = store.UpdatePage(body.Name, body.LogoUrl, body.TimeZone);
                 OperatorAuth.Audit(http, audit, "page.branding", page.Id);
-                return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl });
+                return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl, timeZone = page.TimeZone });
             }
             catch (ArgumentException ex)
             {
@@ -59,7 +65,7 @@ public static class OperatorEndpoints
                 var url = BrandingFiles.Save(dir, file);
                 var page = store.UpdatePage(null, url);
                 OperatorAuth.Audit(request.HttpContext, audit, "page.logo", page.Id);
-                return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl });
+                return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl, timeZone = page.TimeZone });
             }
             catch (ArgumentException ex)
             {
@@ -388,6 +394,7 @@ public sealed class WritePageJson
 {
     public string? Name { get; set; }
     public string? LogoUrl { get; set; }
+    public string? TimeZone { get; set; }
 }
 
 public sealed class WriteComponentJson

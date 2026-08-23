@@ -9,10 +9,13 @@ namespace StatusPage.Pages;
 public class IncidentModel(IStatusStore store) : PageModel
 {
     public Incident Incident { get; private set; } = new();
+    public StatusPageInfo PageInfo { get; private set; } = new();
 
     public IActionResult OnGet(string id)
     {
         var state = store.Snapshot();
+        PageInfo = state.Page;
+        ViewData["PageTimeZone"] = state.Page.TimeZone;
         var incident = state.Incidents.Concat(state.ScheduledMaintenances).FirstOrDefault(i => i.Id == id);
         if (incident is null)
         {

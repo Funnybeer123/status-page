@@ -15,7 +15,10 @@
             <p class="incident-copy">@latest.Body</p>
         }
         <p class="incident-date">
-            <time datetime="@Model.UpdatedAt.ToUniversalTime().ToString("o")">@Model.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</time>
+            @{
+                var zone = ViewData["PageTimeZone"] as string ?? PageTimeZone.DefaultId;
+            }
+            <time datetime="@Model.UpdatedAt.ToUniversalTime().ToString("o")">@PageTimeZone.Label(Model.UpdatedAt, zone)</time>
             · @services
         </p>
     </div>

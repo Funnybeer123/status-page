@@ -35,12 +35,15 @@
 
     <section class="operator-card" id="branding">
         <h2>Local branding</h2>
-        <p class="muted">Title and logo are stored locally. Logo files go under data/branding (gitignored). Not a paid CDN.</p>
+        <p class="muted">Title, IANA time zone, and logo are stored locally. The zone labels public /, embed, ICS, and RSS only. Probes, mute windows, check-results.json, and 15-day uptime stay UTC. Logo files go under data/branding (gitignored). Not a paid CDN.</p>
         @if (Model.CanWrite)
         {
         <form method="post" asp-page-handler="SavePage" class="operator-form operator-form-grid">
             <label>Page title
                 <input name="name" value="@Model.PageInfo.Name" required />
+            </label>
+            <label>IANA time zone (display labels)
+                <input name="timeZone" value="@Model.PageInfo.TimeZone" required />
             </label>
             <label>Logo URL (local /branding/… or http(s))
                 <input name="logoUrl" value="@Model.PageInfo.LogoUrl" />

@@ -32,6 +32,8 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.True(page.TryGetProperty("id", out _));
         Assert.True(page.TryGetProperty("name", out _));
         Assert.True(page.TryGetProperty("url", out _));
+        Assert.True(page.TryGetProperty("time_zone", out var timeZone));
+        Assert.Equal("Etc/UTC", timeZone.GetString());
         Assert.True(page.TryGetProperty("updated_at", out _));
 
         Assert.True(root.TryGetProperty("status", out var status));
