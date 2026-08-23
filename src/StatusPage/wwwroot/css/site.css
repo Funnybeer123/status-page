@@ -445,6 +445,17 @@ a:hover { text-decoration: underline; }
     font: inherit;
 }
 .operator-error { color: #b42318; font-weight: 700; }
+.operator-muted { color: #145f9c; font-weight: 700; }
+.operator-mute-next { font-weight: 700; color: #145f9c; }
+.mute-window { font-size: 12px; color: var(--muted); }
+.mute-edit { display: grid; gap: 6px; margin-top: 8px; }
+.mute-edit input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font: inherit;
+}
 .btn-primary, .btn-secondary {
     display: inline-block;
     border: 0;

@@ -73,7 +73,9 @@ public static class CheckConfigStore
             : null,
         Dns = check.Type == CheckType.Dns
             ? new DnsCheckDocument { ExpectedAddresses = [.. check.Dns.ExpectedAddresses] }
-            : null
+            : null,
+        MutedFrom = check.MutedFrom,
+        MutedUntil = check.MutedUntil
     };
 
     public static StatusCheck ToCheck(CheckDocument document, DateTimeOffset now)
@@ -128,7 +130,9 @@ public static class CheckConfigStore
             },
             State = CheckState.Up,
             NextRunAt = now,
-            CreatedAt = now
+            CreatedAt = now,
+            MutedFrom = document.MutedFrom?.ToUniversalTime(),
+            MutedUntil = document.MutedUntil?.ToUniversalTime()
         };
     }
 

@@ -185,6 +185,8 @@ app.MapGet("/incidents.rss", (IStatusStore store) =>
     Results.Content(PublicFeeds.Rss(PublicApiMapper.ForPublic(store)), "application/rss+xml; charset=utf-8"));
 app.MapGet("/incidents.atom", (IStatusStore store) =>
     Results.Content(PublicFeeds.Atom(PublicApiMapper.ForPublic(store)), "application/atom+xml; charset=utf-8"));
+app.MapGet("/maintenance.ics", (IStatusStore store) =>
+    Results.Text(MaintenanceCalendar.Build(PublicApiMapper.ForPublic(store)), "text/calendar; charset=utf-8"));
 
 app.MapCheckApi();
 app.MapOperatorApi();

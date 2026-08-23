@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using StatusPage.Contracts;
 using StatusPage.Domain;
 using StatusPage.Services;
@@ -121,6 +122,18 @@ public static class CheckEndpoints
             if (CheckTarget.HasTargetFields(requested) && !CheckTarget.SameProbeHost(check.Target, requested!))
             {
                 return Results.BadRequest(new { error = "Run uses the stored target only. A new host is not allowed." });
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            if (CheckMute.IsActive(check, now))
+            {
+                return Results.Json(new
+                {
+                    error = "Check is muted.",
+                    muted = true,
+                    mutedFrom = PublicApiMapper.Iso(check.MutedFrom),
+                    mutedUntil = PublicApiMapper.Iso(check.MutedUntil)
+                }, statusCode: StatusCodes.Status409Conflict);
             }
 
             var result = await runner.RunAsync(check, cancellationToken);
@@ -251,6 +264,29 @@ public sealed class CheckPatchJson
     public HttpPatchJson? Http { get; set; }
     public TlsCheckDocument? Tls { get; set; }
     public DnsCheckDocument? Dns { get; set; }
+    public DateTimeOffset? MutedFrom
+    {
+        get => _mutedFrom;
+        set
+        {
+            _mutedFrom = value;
+            MutedFromSpecified = true;
+        }
+    }
+    public DateTimeOffset? MutedUntil
+    {
+        get => _mutedUntil;
+        set
+        {
+            _mutedUntil = value;
+            MutedUntilSpecified = true;
+        }
+    }
+
+    private DateTimeOffset? _mutedFrom;
+    private DateTimeOffset? _mutedUntil;
+    public bool MutedFromSpecified { get; private set; }
+    public bool MutedUntilSpecified { get; private set; }
 
     public PatchCheckRequest ToRequest() => new(
         Enabled,
@@ -280,7 +316,11 @@ public sealed class CheckPatchJson
                 Http.ExpectedJsonValue,
                 Http.ExpectedJsonValueSpecified),
         Tls is null ? null : new TlsCheckSpec { Days = Tls.Days },
-        Dns is null ? null : Dns.ExpectedAddresses);
+        Dns is null ? null : Dns.ExpectedAddresses,
+        MutedFrom,
+        MutedFromSpecified,
+        MutedUntil,
+        MutedUntilSpecified);
 }
 
 public sealed class HttpPatchJson
@@ -350,6 +390,9 @@ public static class CheckJson
         state = check.State.ApiValue(),
         consecutiveFailures = check.ConsecutiveFailures,
         consecutiveSuccesses = check.ConsecutiveSuccesses,
+        mutedFrom = PublicApiMapper.Iso(check.MutedFrom),
+        mutedUntil = PublicApiMapper.Iso(check.MutedUntil),
+        muted = check.IsMuted(DateTimeOffset.UtcNow),
         lastResult = check.LastResult is null ? null : ResultJson.From(check.LastResult)
     };
 
@@ -385,7 +428,9 @@ public static class CheckJson
                 headers = includeHeaders ? SecretHeaders.RedactValues(check.Http.Headers) : null
             },
         tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
-        dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null
+        dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null,
+        mutedFrom = PublicApiMapper.Iso(check.MutedFrom),
+        mutedUntil = PublicApiMapper.Iso(check.MutedUntil)
     };
 }
 

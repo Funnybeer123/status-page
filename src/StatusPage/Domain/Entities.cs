@@ -92,8 +92,14 @@ public sealed class StatusCheck
     /// <summary>Display title of a create-if-missing leaf. Never the probe <see cref="Name"/>.</summary>
     public string? ComponentName { get; set; }
     public string? ComponentGroupId { get; set; }
+    /// <summary>UTC mute window. Not under_maintenance and does not change component status.</summary>
+    public DateTimeOffset? MutedFrom { get; set; }
+    public DateTimeOffset? MutedUntil { get; set; }
 
     public CheckResult? LastResult => Results.Count == 0 ? null : Results[0];
+
+    public bool IsMuted(DateTimeOffset now) =>
+        MutedFrom is { } from && MutedUntil is { } until && now >= from && now <= until;
 
     public string DisplayTarget =>
         !string.IsNullOrWhiteSpace(Target.Url)
@@ -208,4 +214,8 @@ public sealed record PatchCheckRequest(
     CheckTargetSpec? Target,
     HttpPatchSpec? Http,
     TlsCheckSpec? Tls,
-    IReadOnlyList<string>? DnsExpectedAddresses);
+    IReadOnlyList<string>? DnsExpectedAddresses,
+    DateTimeOffset? MutedFrom = null,
+    bool MutedFromSpecified = false,
+    DateTimeOffset? MutedUntil = null,
+    bool MutedUntilSpecified = false);

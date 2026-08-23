@@ -1,14 +1,30 @@
 (() => {
     const checksApi = "/api/checks";
     const errorEl = document.getElementById("check-admin-error");
+    const mutedEl = document.getElementById("check-admin-muted");
 
     function showError(message) {
+        if (mutedEl) {
+            mutedEl.hidden = true;
+        }
         if (!errorEl) {
             window.alert(message);
             return;
         }
         errorEl.hidden = false;
         errorEl.textContent = message;
+    }
+
+    function showMuted(message) {
+        if (errorEl) {
+            errorEl.hidden = true;
+        }
+        if (!mutedEl) {
+            window.alert(message);
+            return;
+        }
+        mutedEl.hidden = false;
+        mutedEl.textContent = message;
     }
 
     async function send(method, url, body) {
@@ -26,6 +42,11 @@
             payload = await response.json();
         } catch {
             payload = null;
+        }
+        if (response.status === 409) {
+            const err = new Error((payload && payload.error) || "Check is muted.");
+            err.name = "MutedError";
+            throw err;
         }
         if (!response.ok) {
             throw new Error((payload && payload.error) || response.statusText || "Request failed");
@@ -104,6 +125,15 @@
                 await send("PATCH", `${checksApi}/${id}`, { enabled });
             } else if (action === "run") {
                 await send("POST", `${checksApi}/${id}/run`, {});
+            } else if (action === "mute") {
+                const from = document.querySelector(`[data-mute-from="${id}"]`);
+                const until = document.querySelector(`[data-mute-until="${id}"]`);
+                await send("PATCH", `${checksApi}/${id}`, {
+                    mutedFrom: from && from.value.trim() ? from.value.trim() : null,
+                    mutedUntil: until && until.value.trim() ? until.value.trim() : null
+                });
+            } else if (action === "clear-mute") {
+                await send("PATCH", `${checksApi}/${id}`, { mutedFrom: null, mutedUntil: null });
             } else if (action === "delete") {
                 await send("DELETE", `${checksApi}/${id}`);
             } else {
@@ -111,6 +141,10 @@
             }
             window.location = "/operator#checks";
         } catch (err) {
+            if (err && err.name === "MutedError") {
+                showMuted(err.message || "Check is muted.");
+                return;
+            }
             showError(err.message || String(err));
         }
     }

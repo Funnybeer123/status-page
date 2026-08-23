@@ -6,6 +6,7 @@ namespace StatusPage.Contracts;
 /// Locked v1 Status Check Builder contract. ICMP, subscribe, and connector-as-probe are out of scope.
 /// Probes never emit degraded_performance; that status is operator-only.
 /// Check types: http, https, tcp, tls_expiry, dns.
+/// Mute windows (mutedFrom/mutedUntil UTC) skip probes; they are not under_maintenance.
 /// </summary>
 public static class CheckContract
 {
@@ -56,6 +57,8 @@ public sealed class CheckDocument
     public HttpCheckDocument? Http { get; set; }
     public TlsCheckDocument? Tls { get; set; }
     public DnsCheckDocument? Dns { get; set; }
+    public DateTimeOffset? MutedFrom { get; set; }
+    public DateTimeOffset? MutedUntil { get; set; }
 }
 
 public sealed class CheckTargetDocument
