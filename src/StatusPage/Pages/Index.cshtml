@@ -61,6 +61,7 @@
                                 {
                                     <div class="service-meta">@component.Description</div>
                                 }
+                                <partial name="_LeafUptime" model="Model.LeafUptime.GetValueOrDefault(component.Id)" />
                             </div>
                             <span class="pill pill-@pill">@PillLabel(pill)</span>
                             <span class="chevron" aria-hidden="true">›</span>
@@ -91,11 +92,18 @@
 
     <section class="block history-panel">
         <h2>Past incidents</h2>
-        <p class="muted">Last 15 days</p>
+        <p class="muted history-uptime">
+            Last 15 days
+            @if (StatusPage.Services.PublicUptime.FormatPercent(Model.PublicUptimePercent) is { } percent)
+            {
+                <span class="uptime-percent">@percent</span>
+            }
+        </p>
         <div class="uptime-bars" aria-hidden="true">
             @foreach (var day in Model.History)
             {
-                <span class="uptime-bar @(day.ProbeFailed ? "bad" : "good")" title="@day.Day.ToString("yyyy-MM-dd")"></span>
+                var cls = !day.HasSamples ? "" : day.ProbeFailed ? "bad" : "good";
+                <span class="uptime-bar @cls" title="@day.Day.ToString("yyyy-MM-dd")"></span>
             }
         </div>
         @foreach (var day in Model.History)

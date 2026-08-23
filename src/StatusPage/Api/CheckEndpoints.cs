@@ -177,6 +177,30 @@ public static class CheckEndpoints
                     UpdatedAtUtc = s.UpdatedAtUtc
                 }));
         });
+
+        app.MapGet("/api/status/uptime", (IStatusStore store, ICheckResultStore results) =>
+        {
+            var state = PublicApiMapper.ForPublic(store);
+            var leaves = PublicUptime.ForPublicLeaves(state, store.ListChecks(), results.List(), DateTimeOffset.UtcNow);
+            return Results.Json(new PublicUptimeDocument
+            {
+                WindowDays = CheckResultStore.PublicBarDays,
+                Components = leaves.Select(leaf => new LeafUptimeDocument
+                {
+                    Id = leaf.Id,
+                    Name = leaf.Name,
+                    Ok = leaf.Ok,
+                    Fail = leaf.Fail,
+                    UptimePercent = leaf.UptimePercent,
+                    Days = leaf.Days.Select(day => new DayUptimeDocument
+                    {
+                        Date = day.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+                        Ok = day.Ok,
+                        Fail = day.Fail
+                    }).ToList()
+                }).ToList()
+            });
+        });
     }
 }
 

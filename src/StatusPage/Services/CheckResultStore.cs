@@ -152,21 +152,3 @@ public sealed class CheckResultStore : ICheckResultStore
         public List<CheckResultSample> Results { get; set; } = [];
     }
 }
-
-public static class PublicUptime
-{
-    public static bool DayFailed(
-        IEnumerable<CheckResultSample> samples,
-        IEnumerable<StatusCheck> checks,
-        DateOnly day)
-    {
-        var publicIds = checks
-            .Where(c => !InternalHost.IsInternalCheck(c))
-            .Select(c => c.Id)
-            .ToHashSet(StringComparer.Ordinal);
-        return samples.Any(sample =>
-            publicIds.Contains(sample.CheckId)
-            && DateOnly.FromDateTime(sample.CheckedAtUtc.UtcDateTime) == day
-            && sample.ResultStatus == CheckResultStatus.Fail);
-    }
-}

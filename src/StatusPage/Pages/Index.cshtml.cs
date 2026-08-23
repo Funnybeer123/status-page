@@ -13,6 +13,9 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
     public IReadOnlyList<Incident> ActiveIncidents { get; private set; } = [];
     public IReadOnlyList<Incident> ScheduledMaintenances { get; private set; } = [];
     public IReadOnlyList<HistoryDay> History { get; private set; } = [];
+    public IReadOnlyDictionary<string, LeafUptime> LeafUptime { get; private set; } =
+        new Dictionary<string, LeafUptime>(StringComparer.Ordinal);
+    public double? PublicUptimePercent { get; private set; }
 
     public void OnGet()
     {
@@ -20,6 +23,11 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
         PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
         ComponentVisibility.RemoveInternal(state, store.ListChecks());
         var now = DateTimeOffset.UtcNow;
+        var samples = results.List();
+        var checks = store.ListChecks();
+        var leaves = PublicUptime.ForPublicLeaves(state, checks, samples, now);
+        LeafUptime = leaves.ToDictionary(l => l.Id, StringComparer.Ordinal);
+        PublicUptimePercent = PublicUptime.Percent(leaves.Sum(l => l.Ok), leaves.Sum(l => l.Fail));
         PageInfo = state.Page;
         Overall = StatusRollup.FromComponents(state.Components);
         ActiveIncidents = PublicApiMapper.ActiveIncidents(state).ToList();
@@ -51,15 +59,13 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
         ComponentGroups = groups;
 
         var past = PublicApiMapper.PastIncidents(state, now, CheckResultStore.PublicBarDays).ToList();
-        var samples = results.List();
-        var publicChecks = store.ListChecks();
-        History = Enumerable.Range(0, CheckResultStore.PublicBarDays)
-            .Select(offset =>
+        History = PublicUptime.UtcDays(now)
+            .Select(day =>
             {
-                var day = DateOnly.FromDateTime(now.UtcDateTime.Date.AddDays(-offset));
                 var items = past.Where(i => DateOnly.FromDateTime((i.ResolvedAt ?? i.UpdatedAt).UtcDateTime) == day).ToList();
-                var probeFailed = PublicUptime.DayFailed(samples, publicChecks, day);
-                return new HistoryDay(day, items, probeFailed);
+                var probeFailed = PublicUptime.DayFailed(samples, checks, day);
+                var hasSamples = PublicUptime.DayHasSamples(samples, checks, day);
+                return new HistoryDay(day, items, probeFailed, hasSamples);
             })
             .ToList();
     }
@@ -67,4 +73,4 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
 
 public sealed record ComponentGroupView(Component Group, IReadOnlyList<Component> Children);
 
-public sealed record HistoryDay(DateOnly Day, IReadOnlyList<Incident> Incidents, bool ProbeFailed);
+public sealed record HistoryDay(DateOnly Day, IReadOnlyList<Incident> Incidents, bool ProbeFailed, bool HasSamples);

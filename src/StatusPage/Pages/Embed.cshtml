@@ -18,6 +18,7 @@
         var pill = PillKey(component.Status);
         <li>
             <span>@component.Name</span>
+            <partial name="_LeafUptime" model="Model.LeafUptime.GetValueOrDefault(component.Id)" />
             <span class="pill pill-@pill">@PillLabel(pill)</span>
         </li>
     }

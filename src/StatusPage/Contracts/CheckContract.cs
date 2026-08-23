@@ -106,3 +106,26 @@ public sealed class ComponentCheckStatusDocument
     public int DownCount { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
 }
+
+public sealed class PublicUptimeDocument
+{
+    public int WindowDays { get; set; } = 15;
+    public List<LeafUptimeDocument> Components { get; set; } = [];
+}
+
+public sealed class LeafUptimeDocument
+{
+    public string Id { get; set; } = "";
+    public string Name { get; set; } = "";
+    public int Ok { get; set; }
+    public int Fail { get; set; }
+    public double? UptimePercent { get; set; }
+    public List<DayUptimeDocument> Days { get; set; } = [];
+}
+
+public sealed class DayUptimeDocument
+{
+    public string Date { get; set; } = "";
+    public int Ok { get; set; }
+    public int Fail { get; set; }
+}

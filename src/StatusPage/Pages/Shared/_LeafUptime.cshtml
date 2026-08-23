@@ -1,0 +1,24 @@
+@model StatusPage.Services.LeafUptime?
+<div class="service-uptime">
+    <div class="uptime-bars uptime-bars-leaf" aria-hidden="true">
+        @if (Model is { Days.Count: > 0 } leaf)
+        {
+            foreach (var day in leaf.Days)
+            {
+                var cls = !day.HasSamples ? "" : day.Failed ? "bad" : "good";
+                <span class="uptime-bar @cls" title="@day.Date.ToString("yyyy-MM-dd")"></span>
+            }
+        }
+        else
+        {
+            for (var i = 0; i < StatusPage.Services.CheckResultStore.PublicBarDays; i++)
+            {
+                <span class="uptime-bar"></span>
+            }
+        }
+    </div>
+    @if (StatusPage.Services.PublicUptime.FormatPercent(Model?.UptimePercent) is { } percent)
+    {
+        <span class="uptime-percent">@percent</span>
+    }
+</div>
