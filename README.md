@@ -51,6 +51,7 @@ curl -s http://localhost:5080/api/v2/scheduled-maintenances.json
 curl -s http://localhost:5080/api/status/components
 curl -s http://localhost:5080/incidents.rss
 curl -s http://localhost:5080/incidents.atom
+curl -s http://localhost:5080/maintenance.ics
 ```
 
 These stay anonymous and omit internal host:port leaves. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`).
@@ -75,6 +76,8 @@ Anonymous `/embed` shows overall status plus public components using the same `F
 ## Public incident feeds
 
 `/incidents.rss` and `/incidents.atom` list public incidents with the same visibility as `/api/v2/incidents.json`. Incidents that only touch internal leaves are omitted. Mixed incidents keep public component names only. Feeds do not include check targets or probe errors.
+
+`GET /maintenance.ics` is scheduled maintenance only, using the same `ForPublic` filter. Internal-only items are omitted. Check mute windows are not public maintenance and do not appear here.
 
 ## Status checks (any public URL or internal host)
 
@@ -122,6 +125,7 @@ Probe rules:
 - DNS: hostname must resolve to at least one address; if `expectedAddresses` is set, those IPs must be present.
 - Result: `ok|fail`, `httpStatus?`, `latencyMs`, `error?`, `checkedAtUtc`.
 - Check state hysteresis: 3 consecutive fails → `Down`; 2 consecutive oks → `Up`; otherwise keep last state. Initial state is `Up`.
+- Mute window: `mutedFrom` / `mutedUntil` UTC on the check. While now is inside the window the worker does not probe, hysteresis and auto-incidents do not move, and last component state stays. Mute is not `under_maintenance` and does not change component status by itself. `POST /api/checks/{id}/run` during an active mute returns **409** (not a probe fail). `PATCH` sets or clears the window.
 - Component from enabled checks: all Up → `operational`; mix → `partial_outage`; all Down → `major_outage`; zero checks → leave operator status.
 - Probes never emit `degraded_performance`. That and `under_maintenance` are operator-only.
 - When a check-driven component leaves operational, an auto incident (Investigating) is opened. It is resolved when all checks recover. Operator-written incidents are never auto-resolved. Connector imports are not check-driven.
@@ -150,6 +154,11 @@ curl -s -X PATCH http://localhost:5080/api/checks/<id> \
   -H "Content-Type: application/json" \
   -d '{"enabled":false}'
 
+curl -s -X PATCH http://localhost:5080/api/checks/<id> \
+  -H "X-Api-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{"mutedFrom":"2026-08-23T16:00:00Z","mutedUntil":"2026-08-23T18:00:00Z"}'
+
 curl -s -X PUT http://localhost:5080/api/checks/<id> \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
@@ -177,10 +186,12 @@ Check admin (APIs + UI):
 - List every probe, including internal host:port
 - Create/edit: URL or host:port; type `http` / `https` / `tcp` / `tls_expiry` / `dns`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId`
 - Enable/disable via `PATCH /api/checks/{id}` (disabled leaves rollup immediately, not delete)
+- Set or clear `mutedFrom` / `mutedUntil` via the same PATCH
 - Full edit via `PUT /api/checks/{id}`
-- One-shot `POST /api/checks/{id}/run` against the stored target only (a new host is rejected)
+- One-shot `POST /api/checks/{id}/run` against the stored target only (a new host is rejected; active mute returns 409, not a fail)
 - Delete
 - Last result plus consecutive fail/success counts
+- Next mute window on the checks section and on each check row (not a public maintenance banner)
 
 The operator check UI calls these APIs (it does not post check writes through Razor page handlers).
 
@@ -274,7 +285,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, incident templates rejecting internal component ids, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

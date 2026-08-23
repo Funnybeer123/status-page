@@ -126,9 +126,18 @@
 
     <section class="operator-card" id="checks">
         <h2>Checks</h2>
-        <p class="muted">@(Model.CanWrite ? "All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Header values are never shown." : "Public probes only. Internal host:port checks are hidden. Header values are never shown.")</p>
+        <p class="muted">@(Model.CanWrite ? "All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Mute skips probes; it is not under_maintenance. Header values are never shown." : "Public probes only. Internal host:port checks are hidden. Header values are never shown.")</p>
         <p><a href="/api/checks/export">Export checks</a> (authenticated). StatusViewer export is public checks only and includes no headers.</p>
+        @if (Model.NextMute is { } nextMute)
+        {
+            <p class="operator-mute-next">Next mute window: @nextMute.Name · @OperatorModel.UtcWindow(nextMute.MutedFrom, nextMute.MutedUntil)</p>
+        }
+        else
+        {
+            <p class="muted">No upcoming mute window.</p>
+        }
         <p id="check-admin-error" class="operator-error" hidden></p>
+        <p id="check-admin-muted" class="operator-muted" hidden></p>
         <table>
             <thead>
                 <tr>
@@ -136,6 +145,7 @@
                     <th>Type</th>
                     <th>Target</th>
                     <th>Last result</th>
+                    <th>Mute window</th>
                     <th>Counts</th>
                     <th></th>
                 </tr>
@@ -144,6 +154,7 @@
             @foreach (var check in Model.Checks)
             {
                 var latest = check.LastResult;
+                var mutedNow = check.IsMuted(DateTimeOffset.UtcNow);
                 <tr>
                     <td>
                         <strong>@check.Name</strong>
@@ -159,6 +170,25 @@
                         else
                         {
                             <span>@latest.Status.ApiValue() @(latest.Error)</span>
+                        }
+                    </td>
+                    <td>
+                        @if (check.MutedFrom is null && check.MutedUntil is null)
+                        {
+                            <span class="muted">—</span>
+                        }
+                        else
+                        {
+                            <div class="mute-window">@(mutedNow ? "Muted now" : "Next mute") · @OperatorModel.UtcWindow(check.MutedFrom, check.MutedUntil)</div>
+                        }
+                        @if (Model.CanWrite)
+                        {
+                        <div class="mute-edit">
+                            <input type="text" data-mute-from="@check.Id" value="@OperatorModel.IsoUtc(check.MutedFrom)" placeholder="mutedFrom UTC" autocomplete="off" />
+                            <input type="text" data-mute-until="@check.Id" value="@OperatorModel.IsoUtc(check.MutedUntil)" placeholder="mutedUntil UTC" autocomplete="off" />
+                            <button type="button" class="btn-secondary" data-check-action="mute" data-check-id="@check.Id">Set mute</button>
+                            <button type="button" class="btn-secondary" data-check-action="clear-mute" data-check-id="@check.Id">Clear mute</button>
+                        </div>
                         }
                     </td>
                     <td>fail @check.ConsecutiveFailures · ok @check.ConsecutiveSuccesses</td>

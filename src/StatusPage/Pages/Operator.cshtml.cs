@@ -28,6 +28,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     public string PrefillName { get; private set; } = "";
     public string PrefillImpact { get; private set; } = "";
     public string PrefillComponentIds { get; private set; } = "";
+    public StatusCheck? NextMute { get; private set; }
 
     public IActionResult OnGet(string? editCheck = null, string? applyTemplate = null)
     {
@@ -295,6 +296,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             Checks = allChecks;
         }
 
+        NextMute = CheckMute.NextWindow(Checks, DateTimeOffset.UtcNow);
         Connectors = store.ListConnectorSnapshots();
         PageInfo = state.Page;
         Groups = state.Components.Where(c => c.Group).OrderBy(c => c.Position).ThenBy(c => c.Name).ToList();
@@ -328,6 +330,19 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);
         }
+    }
+
+    public static string IsoUtc(DateTimeOffset? value) =>
+        value is null ? "" : value.Value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'");
+
+    public static string UtcWindow(DateTimeOffset? from, DateTimeOffset? until)
+    {
+        if (from is null && until is null)
+        {
+            return "—";
+        }
+
+        return $"{IsoUtc(from)} – {IsoUtc(until)} UTC";
     }
 }
 

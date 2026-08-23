@@ -186,6 +186,8 @@ public sealed class InMemoryStatusStore : IStatusStore
             next.ConsecutiveSuccesses = existing.ConsecutiveSuccesses;
             next.Results = existing.Results;
             next.CreatedAt = existing.CreatedAt;
+            next.MutedFrom = existing.MutedFrom;
+            next.MutedUntil = existing.MutedUntil;
             var index = _state.Checks.IndexOf(existing);
             _state.Checks[index] = next;
             ApplyCheckRollup(previousComponent, DateTimeOffset.UtcNow);
@@ -283,6 +285,16 @@ public sealed class InMemoryStatusStore : IStatusStore
                 [
                     .. addresses.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim())
                 ];
+            }
+
+            if (request.MutedFromSpecified || request.MutedUntilSpecified)
+            {
+                CheckMute.Apply(
+                    check,
+                    request.MutedFrom,
+                    request.MutedFromSpecified,
+                    request.MutedUntil,
+                    request.MutedUntilSpecified);
             }
 
             if (check.IntervalSeconds < CheckContract.MinIntervalSeconds || check.IntervalSeconds > 86_400)
@@ -646,6 +658,11 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             var check = _state.Checks.FirstOrDefault(c => c.Id == checkId);
             if (check is null)
+            {
+                return;
+            }
+
+            if (CheckMute.IsActive(check, result.CheckedAtUtc))
             {
                 return;
             }
@@ -1311,6 +1328,8 @@ public sealed class InMemoryStatusStore : IStatusStore
         ConsecutiveSuccesses = check.ConsecutiveSuccesses,
         NextRunAt = check.NextRunAt,
         CreatedAt = check.CreatedAt,
+        MutedFrom = check.MutedFrom,
+        MutedUntil = check.MutedUntil,
         Results = check.Results.Select(r => new CheckResult
         {
             Status = r.Status,
