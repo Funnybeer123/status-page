@@ -26,24 +26,34 @@ public static class CheckTarget
             return false;
         }
 
+        if (IsCidrOrIpRange(value))
+        {
+            error = "Target must be a single host or URL. CIDR and ranges are not allowed.";
+            return false;
+        }
+
         CheckType? explicitType = null;
         if (!string.IsNullOrWhiteSpace(rawType))
         {
-            if (rawType.Trim().Equals("icmp", StringComparison.OrdinalIgnoreCase)
-                || rawType.Trim().Equals("ping", StringComparison.OrdinalIgnoreCase)
+            if (rawType.Trim().Equals("ping", StringComparison.OrdinalIgnoreCase)
                 || rawType.Trim().Equals("connector", StringComparison.OrdinalIgnoreCase))
             {
-                error = "Type must be http, https, tcp, tls_expiry, or dns. ICMP and connectors are not probes.";
+                error = "Type must be http, https, tcp, tls_expiry, dns, or icmp. Connectors are not probes.";
                 return false;
             }
 
             if (!DomainEnums.TryParseCheckType(rawType, out var parsedType))
             {
-                error = "Type must be http, https, tcp, tls_expiry, or dns.";
+                error = "Type must be http, https, tcp, tls_expiry, dns, or icmp.";
                 return false;
             }
 
             explicitType = parsedType;
+        }
+
+        if (explicitType == CheckType.Icmp)
+        {
+            return TryParseIcmpHost(value, out target, out error);
         }
 
         if (value.Contains("://", StringComparison.Ordinal)
@@ -95,7 +105,7 @@ public static class CheckTarget
 
         if (value.Contains("://", StringComparison.Ordinal))
         {
-            error = "Only http, https, host, or host:port TCP targets are allowed.";
+            error = "Only http, https, host, host:port TCP, or ICMP host targets are allowed.";
             return false;
         }
 
@@ -149,6 +159,95 @@ public static class CheckTarget
 
         target = new ResolvedCheckTarget(CheckType.Tcp, host, port, null);
         return true;
+    }
+
+    public static bool IsCidrOrIpRange(string value)
+    {
+        var trimmed = value.Trim();
+        var slash = trimmed.IndexOf('/');
+        if (slash > 0 && slash < trimmed.Length - 1)
+        {
+            var network = trimmed[..slash].Trim().Trim('[', ']');
+            var prefix = trimmed[(slash + 1)..].Trim();
+            if (IPAddress.TryParse(network, out _)
+                && int.TryParse(prefix, out var bits)
+                && bits is >= 0 and <= 128)
+            {
+                return true;
+            }
+        }
+
+        var hyphen = trimmed.IndexOf('-');
+        if (hyphen > 0 && hyphen < trimmed.Length - 1)
+        {
+            var left = trimmed[..hyphen].Trim().Trim('[', ']');
+            var right = trimmed[(hyphen + 1)..].Trim().Trim('[', ']');
+            if (IPAddress.TryParse(left, out _)
+                && (IPAddress.TryParse(right, out _) || int.TryParse(right, out _)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryParseIcmpHost(string value, out ResolvedCheckTarget target, out string error)
+    {
+        target = default!;
+        error = "";
+
+        if (value.Contains("://", StringComparison.Ordinal) || value.Contains('*') || value.Contains('?'))
+        {
+            error = "ICMP target must be a single explicit host. URLs, wildcards, CIDR, and ranges are not allowed.";
+            return false;
+        }
+
+        if (IsCidrOrIpRange(value))
+        {
+            error = "ICMP target must be a single explicit host. CIDR and ranges are not allowed.";
+            return false;
+        }
+
+        if (TryParseHostPort(value, out _, out _))
+        {
+            error = "ICMP target must be a single host (no port, CIDR, or range).";
+            return false;
+        }
+
+        var host = value.Trim().Trim('[', ']');
+        if (!IsPlausibleHost(host) || !IsExplicitUnicastHost(host))
+        {
+            error = "ICMP target must be a single hostname or unicast IP.";
+            return false;
+        }
+
+        target = new ResolvedCheckTarget(CheckType.Icmp, host, 0, null);
+        return true;
+    }
+
+    private static bool IsExplicitUnicastHost(string host)
+    {
+        if (!IPAddress.TryParse(host, out var address))
+        {
+            return true;
+        }
+
+        if (address.Equals(IPAddress.Any)
+            || address.Equals(IPAddress.IPv6Any)
+            || address.Equals(IPAddress.Broadcast))
+        {
+            return false;
+        }
+
+        if (address.AddressFamily == AddressFamily.InterNetwork)
+        {
+            var first = address.GetAddressBytes()[0];
+            return first is < 224 or > 239;
+        }
+
+        return address.AddressFamily != AddressFamily.InterNetworkV6
+               || (address.GetAddressBytes()[0] != 0xFF);
     }
 
     public static bool TryParseHostPort(string value, out string host, out int port)

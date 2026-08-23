@@ -1020,14 +1020,13 @@ public sealed class InMemoryStatusStore : IStatusStore
             else if (!string.IsNullOrWhiteSpace(request.Type))
             {
                 var raw = request.Type.Trim();
-                if (raw.Equals("icmp", StringComparison.OrdinalIgnoreCase)
-                    || raw.Equals("ping", StringComparison.OrdinalIgnoreCase)
+                if (raw.Equals("ping", StringComparison.OrdinalIgnoreCase)
                     || raw.Equals("connector", StringComparison.OrdinalIgnoreCase))
                 {
-                    throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns. ICMP and connectors are not probes.");
+                    throw new ArgumentException("Type must be http, https, tcp, tls_expiry, dns, or icmp. Connectors are not probes.");
                 }
 
-                throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns.");
+                throw new ArgumentException("Type must be http, https, tcp, tls_expiry, dns, or icmp.");
             }
             else
             {

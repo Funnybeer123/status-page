@@ -45,7 +45,8 @@ public enum CheckType
     Https,
     Tcp,
     TlsExpiry,
-    Dns
+    Dns,
+    Icmp
 }
 
 public enum CheckResultStatus
@@ -112,6 +113,7 @@ public static class DomainEnums
         CheckType.Tcp => "tcp",
         CheckType.TlsExpiry => "tls_expiry",
         CheckType.Dns => "dns",
+        CheckType.Icmp => "icmp",
         _ => "http"
     };
 
@@ -191,10 +193,11 @@ public static class DomainEnums
             "tcp" => CheckType.Tcp,
             "tls_expiry" => CheckType.TlsExpiry,
             "dns" => CheckType.Dns,
+            "icmp" => CheckType.Icmp,
             _ => default
         };
         return value is not null && value.Trim().ToLowerInvariant() is
-            "http" or "https" or "tcp" or "tls_expiry" or "dns";
+            "http" or "https" or "tcp" or "tls_expiry" or "dns" or "icmp";
     }
 
     public static bool IsUnresolvedIncident(this IncidentStatus status) =>

@@ -13,7 +13,8 @@ public class ConnectorTests
     public void Connector_is_not_a_check_type()
     {
         Assert.False(DomainEnums.TryParseCheckType("connector", out _));
-        Assert.False(DomainEnums.TryParseCheckType("icmp", out _));
+        Assert.True(DomainEnums.TryParseCheckType("icmp", out var icmp));
+        Assert.Equal(CheckType.Icmp, icmp);
         Assert.True(DomainEnums.TryParseCheckType("tls_expiry", out var tls));
         Assert.Equal(CheckType.TlsExpiry, tls);
         Assert.True(DomainEnums.TryParseCheckType("dns", out var dns));

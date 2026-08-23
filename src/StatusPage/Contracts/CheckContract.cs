@@ -3,9 +3,10 @@ using StatusPage.Domain;
 namespace StatusPage.Contracts;
 
 /// <summary>
-/// Locked v1 Status Check Builder contract. ICMP, subscribe, and connector-as-probe are out of scope.
+/// Locked v1 Status Check Builder contract. Subscribe and connector-as-probe are out of scope.
 /// Probes never emit degraded_performance; that status is operator-only.
-/// Check types: http, https, tcp, tls_expiry, dns.
+/// Check types: http, https, tcp, tls_expiry, dns, icmp.
+/// ICMP is a single explicit host only (no CIDR, ranges, or discovery). Fail closed if ping cannot run.
 /// Mute windows (mutedFrom/mutedUntil UTC) skip probes; they are not under_maintenance.
 /// A parent leaf that is Down skips child probes the same way; last child state sticks.
 /// </summary>
@@ -24,6 +25,7 @@ public static class CheckContract
     public const string TypeTcp = "tcp";
     public const string TypeTlsExpiry = "tls_expiry";
     public const string TypeDns = "dns";
+    public const string TypeIcmp = "icmp";
 
     public const string ResultOk = "ok";
     public const string ResultFail = "fail";
@@ -39,6 +41,7 @@ public static class CheckContract
 /// TCP: target.host + target.port.
 /// TLS expiry: https URL or host (port 443 default).
 /// DNS: hostname.
+/// ICMP: target.host (single hostname or IP; no CIDR, range, or port).
 /// Connectors are not check types.
 /// </summary>
 public sealed class CheckDocument

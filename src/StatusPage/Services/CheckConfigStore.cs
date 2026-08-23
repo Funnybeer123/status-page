@@ -58,7 +58,7 @@ public static class CheckConfigStore
             Port = check.Target.Port,
             Path = check.Target.Path
         },
-        Http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
+        Http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry or CheckType.Icmp
             ? null
             : new HttpCheckDocument
             {

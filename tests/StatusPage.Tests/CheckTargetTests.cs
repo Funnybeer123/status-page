@@ -12,6 +12,8 @@ public class CheckTargetTests
     [InlineData("db.internal:5432", null, CheckType.Tcp)]
     [InlineData("localhost", "dns", CheckType.Dns)]
     [InlineData("https://example.com", "tls_expiry", CheckType.TlsExpiry)]
+    [InlineData("203.0.113.10", "icmp", CheckType.Icmp)]
+    [InlineData("localhost", "icmp", CheckType.Icmp)]
     public void Parses_supported_targets(string target, string? type, CheckType expected)
     {
         Assert.True(CheckTarget.TryParse(target, type, out var resolved, out var error), error);
@@ -33,8 +35,8 @@ public class CheckTargetTests
 
     [Theory]
     [InlineData("connector")]
-    [InlineData("icmp")]
-    public void Rejects_connector_and_icmp_types(string type)
+    [InlineData("ping")]
+    public void Rejects_connector_and_ping_alias_types(string type)
     {
         Assert.False(CheckTarget.TryParse("https://example.com", type, out _, out var error));
         Assert.Contains("not probes", error, StringComparison.OrdinalIgnoreCase);

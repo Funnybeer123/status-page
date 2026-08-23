@@ -121,6 +121,7 @@ builder.Services.AddSingleton<IStatusStore>(sp =>
             Console.Error.WriteLine($"Could not persist page.json: {ex.Message}");
         }
     }, resultStore, sp.GetRequiredService<IWebhookSender>()));
+builder.Services.AddSingleton<IIcmpSender, SystemIcmpSender>();
 builder.Services.AddSingleton<CheckRunner>();
 builder.Services.AddHttpClient("StatusChecks", client =>
 {

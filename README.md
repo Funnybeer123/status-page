@@ -8,7 +8,7 @@ Local ASP.NET Core (.NET 10 LTS) Razor Pages app. Checks are stored as local JSO
 
 - Local only: `dotnet run` or `docker compose up`.
 - No Azure spend, Terraform, paid hostname, secrets, or PATs in this repo.
-- Probe only targets Evan configured. There is no network scanner. ICMP is later.
+- Probe only targets Evan configured. There is no network scanner. ICMP is a single explicit host (no CIDR, ranges, or discovery).
 - Connectors are read-only imports, not probes. The SWA snapshot never receives connector tokens.
 
 ## Run locally
@@ -102,7 +102,7 @@ Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/check
   "componentId": "existing-or-new-leaf-slug",
   "componentName": "required when creating a leaf",
   "groupId": "optional-existing-group-id",
-  "type": "http | https | tcp | tls_expiry | dns",
+  "type": "http | https | tcp | tls_expiry | dns | icmp",
   "enabled": true,
   "intervalSeconds": 60,
   "timeoutSeconds": 10,
@@ -123,7 +123,7 @@ Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/check
 
 `name` is the probe label only and is never the public leaf title. Bind to an existing `componentId`, or send a new slug plus `componentName` to create an operational leaf (`groupId` optional; otherwise ungrouped).
 
-TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. DNS target is a hostname. Optional `dns.expectedAddresses` fails the probe if those IPs are missing. `tls_expiry` is an `https://` URL or host (port 443 default) and fails when the certificate is invalid or expires within `tls.days` (default 14).
+TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. DNS target is a hostname. Optional `dns.expectedAddresses` fails the probe if those IPs are missing. `tls_expiry` is an `https://` URL or host (port 443 default) and fails when the certificate is invalid or expires within `tls.days` (default 14). ICMP target is a single hostname or IP (`{ "host": "203.0.113.10" }`). CIDR, ranges, lists, and unprompted discovery are rejected. If the process cannot ping (missing capability, not permitted, or exception) the result is **fail** — never ok/Up.
 
 Defaults: interval 60s (min 15), timeout 10s (must be `<` interval), failureThreshold 3, successThreshold 2, method GET, expectedStatus `[200,201,204]`.
 
@@ -135,6 +135,7 @@ Probe rules:
 - TCP: connect to host:port, then close. No payload.
 - TLS expiry: certificate must be currently valid and not expiring within N days.
 - DNS: hostname must resolve to at least one address; if `expectedAddresses` is set, those IPs must be present.
+- ICMP: echo request to one operator-supplied host. Fail closed when ping cannot run. Same 3/2 hysteresis, mute windows, parent-down skip, and `ForPublic` rules as other probes. Public unicast ICMP leaves appear on `/` and rollup. RFC1918 / localhost ICMP stays operator-only.
 - Result: `ok|fail`, `httpStatus?`, `latencyMs`, `error?`, `checkedAtUtc`.
 - Check state hysteresis: 3 consecutive fails → `Down`; 2 consecutive oks → `Up`; otherwise keep last state. Initial state is `Up`.
 - Mute window: `mutedFrom` / `mutedUntil` UTC on the check. While now is inside the window the worker does not probe, hysteresis and auto-incidents do not move, and last component state stays. Mute is not `under_maintenance` and does not change component status by itself. `POST /api/checks/{id}/run` during an active mute returns **409** (not a probe fail). `PATCH` sets or clears the window.
@@ -199,7 +200,7 @@ Check admin (APIs + UI):
 
 - Export/import check config (`GET /api/checks/export`, `POST /api/checks/import`). Export never includes secret header values. Import is write-only.
 - List every probe, including internal host:port
-- Create/edit: URL or host:port; type `http` / `https` / `tcp` / `tls_expiry` / `dns`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId` + optional `parentId` (parent must be a leaf)
+- Create/edit: URL, host:port, or ICMP host; type `http` / `https` / `tcp` / `tls_expiry` / `dns` / `icmp`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId` + optional `parentId` (parent must be a leaf)
 - Enable/disable via `PATCH /api/checks/{id}` (disabled leaves rollup immediately, not delete)
 - Set or clear `mutedFrom` / `mutedUntil` via the same PATCH
 - Full edit via `PUT /api/checks/{id}`
@@ -329,7 +330,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, default `page.time_zone` `Etc/UTC`, valid IANA zone on summary plus public/embed/ICS/RSS labels, invalid zone **400**, samples still stored UTC with unshifted 15-day UTC uptime buckets, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, parent-leaf-down skipping child probes and auto-incidents without inventing a public child outage, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, inbound `POST /api/hooks/incidents` (unset/disabled secret → 404; bad secret → 401; internal ids → 400; checked leaf not overridden; audit actor `webhook`), authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, publishing on an internal-only incident leaving it anonymous-404, anonymous `POST /api/reports` creating an operator-only report hidden from `summary.json` and `/`, persisted `data/reports.json` reload without raw IPs, hashed rate-limit key **429**, StatusOperator promote creating a public incident (internal component ids rejected; audit actor `api-key` or Entra `oid`), and StatusViewer reading reports but **403** on promote. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, default `page.time_zone` `Etc/UTC`, valid IANA zone on summary plus public/embed/ICS/RSS labels, invalid zone **400**, samples still stored UTC with unshifted 15-day UTC uptime buckets, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), ICMP fail-closed when ping cannot run plus CIDR/range reject and internal ICMP hidden from the public summary, hysteresis, mute windows skipping probes and auto-incidents, parent-leaf-down skipping child probes and auto-incidents without inventing a public child outage, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, inbound `POST /api/hooks/incidents` (unset/disabled secret → 404; bad secret → 401; internal ids → 400; checked leaf not overridden; audit actor `webhook`), authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, publishing on an internal-only incident leaving it anonymous-404, anonymous `POST /api/reports` creating an operator-only report hidden from `summary.json` and `/`, persisted `data/reports.json` reload without raw IPs, hashed rate-limit key **429**, StatusOperator promote creating a public incident (internal component ids rejected; audit actor `api-key` or Entra `oid`), and StatusViewer reading reports but **403** on promote. Unit tests do not hit the three public health hosts and do not send ICMP to random hosts.
 
 ## Static snapshot (no paid compute)
 
@@ -346,7 +347,6 @@ Scheduled Actions only run on the repository default branch.
 ## Out of scope
 
 - Email / SMS subscribe
-- ICMP
 - Connector-as-probe check types
 - Creating Azure resources, ACR/ACA/App Service, or custom domains
 - Probing hosts that were not explicitly configured
