@@ -51,6 +51,8 @@ public sealed class Incident
     public DateTimeOffset? ScheduledFor { get; set; }
     public DateTimeOffset? ScheduledUntil { get; set; }
     public bool AutoFromChecks { get; set; }
+    /// <summary>Read-only connector import that opened this incident. Not a probe.</summary>
+    public string? ConnectorId { get; set; }
 }
 
 public sealed class IncidentUpdate
@@ -77,6 +79,7 @@ public sealed class StatusCheck
     public int SuccessThreshold { get; set; } = 2;
     public CheckTargetSpec Target { get; set; } = new();
     public HttpCheckSpec Http { get; set; } = new();
+    public TlsCheckSpec Tls { get; set; } = new();
     public CheckState State { get; set; } = CheckState.Up;
     public int ConsecutiveFailures { get; set; }
     public int ConsecutiveSuccesses { get; set; }
@@ -110,6 +113,14 @@ public sealed class HttpCheckSpec
     public string Method { get; set; } = "GET";
     public List<int> ExpectedStatus { get; set; } = [200, 201, 204];
     public string? BodyContains { get; set; }
+    public string? JsonPath { get; set; }
+    public string? ExpectedJsonValue { get; set; }
+    public Dictionary<string, string> Headers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class TlsCheckSpec
+{
+    public int Days { get; set; } = 14;
 }
 
 public sealed class CheckResult
@@ -138,7 +149,8 @@ public sealed record CreateCheckRequest(
     CheckTargetSpec Target,
     HttpCheckSpec? Http,
     string? ComponentName = null,
-    string? GroupId = null);
+    string? GroupId = null,
+    TlsCheckSpec? Tls = null);
 
 public sealed record CreateIncidentRequest(
     string Name,

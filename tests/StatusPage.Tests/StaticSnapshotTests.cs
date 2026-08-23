@@ -13,6 +13,9 @@ public class StaticSnapshotTests
         Assert.Contains("https://status.dev.azure.com/_apis/status/health?api-version=7.1-preview.1", script);
         Assert.Contains("https://www.githubstatus.com/api/v2/status.json", script);
         Assert.Contains("exit 0", script);
+        Assert.Contains("unset GITHUB_TOKEN", script);
+        Assert.Contains("unset AZURE_DEVOPS_PAT", script);
+        Assert.Contains("unset AzureAd__ClientSecret", script);
         Assert.DoesNotContain("devopsinc-status-fb123.azurestaticapps.net", script);
         Assert.DoesNotContain("management.azure.com", script);
 
@@ -22,6 +25,9 @@ public class StaticSnapshotTests
         Assert.Contains("AZURE_STATIC_WEB_APPS_API_TOKEN is not set; skipping Static Web Apps deploy.", workflow);
         Assert.DoesNotContain("github_pat_", workflow);
         Assert.DoesNotContain("00000", workflow);
+        Assert.DoesNotContain("secrets.GITHUB_TOKEN", workflow);
+        Assert.Contains("GITHUB_TOKEN: \"\"", workflow);
+        Assert.Contains("AZURE_DEVOPS_PAT: \"\"", workflow);
     }
 
     private static string FindRepoRoot()

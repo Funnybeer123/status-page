@@ -1,0 +1,152 @@
+@page "/operator"
+@model OperatorModel
+@{
+    ViewData["Title"] = "Operator";
+}
+
+<div class="wrap operator">
+    <header class="operator-head">
+        <div>
+            <p class="eyebrow-ink">OPERATOR</p>
+            <h1>Status checks</h1>
+            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. Internal host:port leaves stay on this page.</p>
+        </div>
+        <form method="post" asp-page-handler="Logout">
+            <button type="submit" class="btn-secondary">Sign out</button>
+        </form>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Error))
+    {
+        <p class="operator-error">@Model.Error</p>
+    }
+
+    <section class="operator-card">
+        <h2>Components</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Component</th>
+                    <th>Status</th>
+                    <th>Visibility</th>
+                    <th>Latest probe</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Components)
+            {
+                <tr>
+                    <td>
+                        <strong>@row.Component.Name</strong>
+                        <div class="muted">@row.Component.Id</div>
+                    </td>
+                    <td>@row.Component.Status.ApiValue()</td>
+                    <td>@(row.Internal ? "internal" : "public")</td>
+                    <td>
+                        @if (row.Checks.Count == 0)
+                        {
+                            <span class="muted">No checks (operator status)</span>
+                        }
+                        else
+                        {
+                            foreach (var check in row.Checks)
+                            {
+                                var latest = check.LastResult;
+                                <div>
+                                    <code>@check.Type.ApiValue()</code> @check.Name
+                                    @if (latest is null)
+                                    {
+                                        <span class="muted"> · no result yet</span>
+                                    }
+                                    else
+                                    {
+                                        <span> · @latest.Status.ApiValue() @(latest.Error)</span>
+                                    }
+                                </div>
+                            }
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="operator-card">
+        <h2>Connector imports</h2>
+        <p class="muted">Read-only vendor events. Not probes. Tokens stay in env, never in git or the SWA snapshot.</p>
+        @if (Model.Connectors.Count == 0)
+        {
+            <p class="muted">No import has run yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var connector in Model.Connectors)
+                {
+                    <li>
+                        <strong>@connector.DisplayName</strong>
+                        → @connector.ComponentId · @connector.Status.ApiValue()
+                        <span class="muted">@connector.Detail</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <section class="operator-card">
+        <h2>Add a check</h2>
+        <p class="muted">Any public URL or host:port. Probe name is not the leaf title. Create-if-missing uses component id + component name.</p>
+        <form method="post" asp-page-handler="CreateCheck" class="operator-form">
+            <label>Probe name
+                <input name="name" placeholder="probe label only" required />
+            </label>
+            <label>Component id
+                <input name="componentId" placeholder="billing-warehouse" required />
+            </label>
+            <label>Component name (required for a new leaf)
+                <input name="componentName" placeholder="Billing warehouse" />
+            </label>
+            <label>Group id (optional)
+                <input name="groupId" placeholder="cloud-cost-agent" />
+            </label>
+            <label>Type
+                <select name="type">
+                    <option value="https">https</option>
+                    <option value="http">http</option>
+                    <option value="tcp">tcp</option>
+                    <option value="tls_expiry">tls_expiry</option>
+                    <option value="dns">dns</option>
+                </select>
+            </label>
+            <label>URL or host:port
+                <input name="target" placeholder="https://example.com/health or db.internal:5432" required />
+            </label>
+            <label>Expected status list (optional)
+                <input name="expectedStatus" placeholder="200,201,204" />
+            </label>
+            <label>Body contains (optional)
+                <input name="bodyContains" />
+            </label>
+            <label>JSON path (optional)
+                <input name="jsonPath" placeholder="$.status.indicator" />
+            </label>
+            <label>Expected JSON value (optional)
+                <input name="expectedJsonValue" placeholder="none" />
+            </label>
+            <label>TLS expiry days (tls_expiry)
+                <input name="tlsDays" type="number" min="1" max="3650" placeholder="14" />
+            </label>
+            <label>Custom header name (optional)
+                <input name="headerName" placeholder="Authorization" />
+            </label>
+            <label>Custom header value (stored in gitignored checks.json only)
+                <input name="headerValue" />
+            </label>
+            <button type="submit" class="btn-primary">Create check</button>
+        </form>
+    </section>
+
+    <p class="muted">@(Model.EntraConfigured ? "Entra is configured; API key still works." : "Entra is not configured; API key login is active.")</p>
+    <p><a href="/">Public status page</a></p>
+</div>

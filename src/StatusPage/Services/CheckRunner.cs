@@ -1,6 +1,9 @@
 using System.Diagnostics;
+using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using StatusPage.Contracts;
 using StatusPage.Domain;
 
@@ -18,9 +21,13 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
 
         try
         {
-            return check.Type == CheckType.Tcp
-                ? await RunTcpAsync(target, check.TimeoutSeconds, cancellationToken)
-                : await RunHttpAsync(target, check, cancellationToken);
+            return check.Type switch
+            {
+                CheckType.Tcp => await RunTcpAsync(target, check.TimeoutSeconds, cancellationToken),
+                CheckType.Dns => await RunDnsAsync(target, check.TimeoutSeconds, cancellationToken),
+                CheckType.TlsExpiry => await RunTlsExpiryAsync(target, check, cancellationToken),
+                _ => await RunHttpAsync(target, check, cancellationToken)
+            };
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -39,7 +46,9 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         IReadOnlyList<int> expectedStatus,
         string? bodyContains,
         int latencyMs,
-        DateTimeOffset checkedAtUtc)
+        DateTimeOffset checkedAtUtc,
+        string? jsonPath = null,
+        string? expectedJsonValue = null)
     {
         var expected = expectedStatus.Count == 0 ? CheckContract.DefaultExpectedStatus : expectedStatus;
         if (!expected.Contains(statusCode))
@@ -52,11 +61,34 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             return Fail(checkedAtUtc, latencyMs, $"Response did not contain '{bodyContains}'", statusCode);
         }
 
+        if (!string.IsNullOrWhiteSpace(jsonPath))
+        {
+            if (!JsonPathMatcher.Matches(body, jsonPath, expectedJsonValue, out _, out var jsonError))
+            {
+                return Fail(checkedAtUtc, latencyMs, jsonError, statusCode);
+            }
+        }
+
         return new CheckResult
         {
             Status = CheckResultStatus.Ok,
             HttpStatus = statusCode,
             LatencyMs = latencyMs,
+            CheckedAtUtc = checkedAtUtc
+        };
+    }
+
+    public static CheckResult EvaluateDns(IReadOnlyList<IPAddress> addresses, DateTimeOffset checkedAtUtc)
+    {
+        if (addresses.Count == 0)
+        {
+            return Fail(checkedAtUtc, 0, "DNS lookup returned no addresses.");
+        }
+
+        return new CheckResult
+        {
+            Status = CheckResultStatus.Ok,
+            LatencyMs = 0,
             CheckedAtUtc = checkedAtUtc
         };
     }
@@ -79,6 +111,28 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             return CheckTarget.TryParse(url, check.Type.ApiValue(), out target, out error);
         }
 
+        if (check.Type == CheckType.Dns)
+        {
+            var host = check.Target.Host;
+            if (string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(check.Target.Url))
+            {
+                host = check.Target.Url;
+            }
+
+            return CheckTarget.TryParse(host, "dns", out target, out error);
+        }
+
+        if (check.Type == CheckType.TlsExpiry)
+        {
+            var raw = check.Target.Url;
+            if (string.IsNullOrWhiteSpace(raw) && !string.IsNullOrWhiteSpace(check.Target.Host))
+            {
+                raw = check.Target.Port is > 0 ? $"{check.Target.Host}:{check.Target.Port}" : check.Target.Host;
+            }
+
+            return CheckTarget.TryParse(raw, "tls_expiry", out target, out error);
+        }
+
         if (!string.IsNullOrWhiteSpace(check.Target.Host) && check.Target.Port is > 0 and <= 65535)
         {
             return CheckTarget.TryParse($"{check.Target.Host}:{check.Target.Port}", "tcp", out target, out error);
@@ -99,6 +153,7 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         var method = new HttpMethod(string.IsNullOrWhiteSpace(check.Http.Method) ? "GET" : check.Http.Method);
         using var request = new HttpRequestMessage(method, target.Uri);
         request.Headers.UserAgent.Add(new ProductInfoHeaderValue("status-page-check", "1.0"));
+        ApplyHeaders(request, check.Http.Headers);
 
         var clock = Stopwatch.StartNew();
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token);
@@ -111,7 +166,26 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             check.Http.ExpectedStatus,
             check.Http.BodyContains,
             (int)clock.ElapsedMilliseconds,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            check.Http.JsonPath,
+            check.Http.ExpectedJsonValue);
+    }
+
+    private static void ApplyHeaders(HttpRequestMessage request, Dictionary<string, string> headers)
+    {
+        foreach (var (name, value) in headers)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            if (!request.Headers.TryAddWithoutValidation(name, value))
+            {
+                request.Content ??= new StringContent("");
+                request.Content.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
     }
 
     private static async Task<CheckResult> RunTcpAsync(
@@ -132,6 +206,66 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             LatencyMs = (int)clock.ElapsedMilliseconds,
             CheckedAtUtc = DateTimeOffset.UtcNow
         };
+    }
+
+    private static async Task<CheckResult> RunDnsAsync(
+        ResolvedCheckTarget target,
+        int timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 1, 120)));
+        var clock = Stopwatch.StartNew();
+        var addresses = await Dns.GetHostAddressesAsync(target.Host, timeout.Token);
+        clock.Stop();
+        var result = EvaluateDns(addresses, DateTimeOffset.UtcNow);
+        result.LatencyMs = (int)clock.ElapsedMilliseconds;
+        return result;
+    }
+
+    private static async Task<CheckResult> RunTlsExpiryAsync(
+        ResolvedCheckTarget target,
+        StatusCheck check,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(check.TimeoutSeconds, 1, 120)));
+        var clock = Stopwatch.StartNew();
+        X509Certificate2? cert = null;
+        using var client = new TcpClient();
+        await client.ConnectAsync(target.Host, target.Port == 0 ? 443 : target.Port, timeout.Token);
+        await using var ssl = new SslStream(client.GetStream(), false, (_, certificate, _, _) =>
+        {
+            if (certificate is not null)
+            {
+                cert = new X509Certificate2(certificate);
+            }
+
+            return true;
+        });
+        var options = new SslClientAuthenticationOptions
+        {
+            TargetHost = target.Host,
+            CertificateRevocationCheckMode = X509RevocationMode.NoCheck
+        };
+        await ssl.AuthenticateAsClientAsync(options, timeout.Token);
+        clock.Stop();
+
+        if (cert is null)
+        {
+            return Fail(DateTimeOffset.UtcNow, (int)clock.ElapsedMilliseconds, "TLS handshake returned no certificate.");
+        }
+
+        using (cert)
+        {
+            var evaluated = TlsExpiryEvaluator.Evaluate(
+                new DateTimeOffset(cert.NotBefore.ToUniversalTime(), TimeSpan.Zero),
+                new DateTimeOffset(cert.NotAfter.ToUniversalTime(), TimeSpan.Zero),
+                TlsExpiryEvaluator.NormalizeDays(check.Tls.Days),
+                DateTimeOffset.UtcNow);
+            evaluated.LatencyMs = (int)clock.ElapsedMilliseconds;
+            return evaluated;
+        }
     }
 
     private static CheckResult Fail(DateTimeOffset at, int latencyMs, string error, int? httpStatus = null) => new()

@@ -57,14 +57,20 @@ public static class CheckConfigStore
             Port = check.Target.Port,
             Path = check.Target.Path
         },
-        Http = check.Type == CheckType.Tcp
+        Http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
             ? null
             : new HttpCheckDocument
             {
                 Method = check.Http.Method,
                 ExpectedStatus = [.. check.Http.ExpectedStatus],
-                BodyContains = check.Http.BodyContains
-            }
+                BodyContains = check.Http.BodyContains,
+                JsonPath = check.Http.JsonPath,
+                ExpectedJsonValue = check.Http.ExpectedJsonValue,
+                Headers = check.Http.Headers.Count == 0 ? null : new Dictionary<string, string>(check.Http.Headers, StringComparer.OrdinalIgnoreCase)
+            },
+        Tls = check.Type == CheckType.TlsExpiry
+            ? new TlsCheckDocument { Days = TlsExpiryEvaluator.NormalizeDays(check.Tls.Days) }
+            : null
     };
 
     public static StatusCheck ToCheck(CheckDocument document, DateTimeOffset now)
@@ -100,7 +106,16 @@ public static class CheckConfigStore
                 ExpectedStatus = document.Http?.ExpectedStatus is { Count: > 0 } statuses
                     ? [.. statuses]
                     : [.. CheckContract.DefaultExpectedStatus],
-                BodyContains = document.Http?.BodyContains
+                BodyContains = document.Http?.BodyContains,
+                JsonPath = document.Http?.JsonPath,
+                ExpectedJsonValue = document.Http?.ExpectedJsonValue,
+                Headers = document.Http?.Headers is { Count: > 0 } headers
+                    ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            },
+            Tls = new TlsCheckSpec
+            {
+                Days = TlsExpiryEvaluator.NormalizeDays(document.Tls?.Days)
             },
             State = CheckState.Up,
             NextRunAt = now,

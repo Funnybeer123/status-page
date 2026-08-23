@@ -7,18 +7,20 @@ public static class OperatorEndpoints
 {
     public static void MapOperatorApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/operator").AddEndpointFilter(OperatorAuth.RequireApiKey);
+        var group = app.MapGroup("/api/operator").AddEndpointFilter(OperatorAuth.RequireOperator);
 
         group.MapGet("/components", (IStatusStore store) =>
         {
             var state = store.Snapshot();
+            var checks = store.ListChecks();
             return Results.Json(state.Components.Select(c => new
             {
                 id = c.Id,
                 name = c.Name,
                 status = c.Status.ApiValue(),
                 group = c.Group,
-                group_id = c.GroupId
+                group_id = c.GroupId,
+                @internal = !c.Group && ComponentVisibility.IsInternalLeaf(c, checks)
             }));
         });
 

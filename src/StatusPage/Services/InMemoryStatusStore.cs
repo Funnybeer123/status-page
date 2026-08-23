@@ -17,6 +17,8 @@ public interface IStatusStore
     Component UpdateComponentStatus(string id, ComponentStatus status);
     void RecordCheckResult(string checkId, CheckResult result);
     IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses();
+    void ApplyConnectorImport(ConnectorSnapshot snapshot);
+    IReadOnlyList<ConnectorSnapshot> ListConnectorSnapshots();
 }
 
 public sealed record ComponentCheckStatus(
@@ -26,11 +28,29 @@ public sealed record ComponentCheckStatus(
     int DownCount,
     DateTimeOffset UpdatedAtUtc);
 
+/// <summary>Last read-only connector import. Connectors are not probes.</summary>
+public sealed record ConnectorSnapshot(
+    string ConnectorId,
+    string DisplayName,
+    string ComponentId,
+    ComponentStatus Status,
+    string Detail,
+    DateTimeOffset ImportedAtUtc,
+    IReadOnlyList<ConnectorMappedEvent> Events);
+
+public sealed record ConnectorMappedEvent(
+    string ExternalId,
+    string Title,
+    string Detail,
+    ComponentStatus Status,
+    DateTimeOffset OccurredAt);
+
 public sealed class InMemoryStatusStore : IStatusStore
 {
     private readonly object _gate = new();
     private readonly StatusPageState _state;
     private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
+    private readonly Dictionary<string, ConnectorSnapshot> _connectorSnapshots = new(StringComparer.Ordinal);
 
     public InMemoryStatusStore(StatusPageState state, Action<IReadOnlyList<StatusCheck>>? persistChecks = null)
     {
@@ -339,6 +359,105 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
+    public void ApplyConnectorImport(ConnectorSnapshot snapshot)
+    {
+        lock (_gate)
+        {
+            _connectorSnapshots[snapshot.ConnectorId] = snapshot;
+            var component = _state.Components.FirstOrDefault(c => c.Id == snapshot.ComponentId);
+            if (component is null || component.Group)
+            {
+                return;
+            }
+
+            var now = snapshot.ImportedAtUtc == default ? DateTimeOffset.UtcNow : snapshot.ImportedAtUtc;
+            var existing = _state.Incidents.FirstOrDefault(i =>
+                i.ConnectorId == snapshot.ConnectorId
+                && i.ComponentIds.Contains(component.Id)
+                && i.Status.IsUnresolvedIncident());
+
+            if (snapshot.Status is ComponentStatus.PartialOutage or ComponentStatus.MajorOutage)
+            {
+                if (existing is null)
+                {
+                    var incident = new Incident
+                    {
+                        Id = NewId(),
+                        Name = $"{component.Name}: {snapshot.DisplayName}",
+                        Status = IncidentStatus.Investigating,
+                        Impact = snapshot.Status == ComponentStatus.MajorOutage
+                            ? IncidentImpact.Critical
+                            : IncidentImpact.Major,
+                        ComponentIds = [component.Id],
+                        AutoFromChecks = false,
+                        ConnectorId = snapshot.ConnectorId,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    incident.Updates.Add(NewUpdate(
+                        incident.Id,
+                        IncidentStatus.Investigating,
+                        string.IsNullOrWhiteSpace(snapshot.Detail)
+                            ? $"{snapshot.DisplayName} reported {snapshot.Status.ApiValue()}."
+                            : snapshot.Detail,
+                        now));
+                    _state.Incidents.Add(incident);
+                }
+                else
+                {
+                    existing.UpdatedAt = now;
+                    existing.Impact = snapshot.Status == ComponentStatus.MajorOutage
+                        ? IncidentImpact.Critical
+                        : IncidentImpact.Major;
+                    existing.Updates.Insert(0, NewUpdate(
+                        existing.Id,
+                        IncidentStatus.Investigating,
+                        string.IsNullOrWhiteSpace(snapshot.Detail)
+                            ? $"{snapshot.DisplayName} still reports {snapshot.Status.ApiValue()}."
+                            : snapshot.Detail,
+                        now));
+                }
+            }
+            else if (existing is not null && snapshot.Status == ComponentStatus.Operational)
+            {
+                existing.Status = IncidentStatus.Resolved;
+                existing.ResolvedAt = now;
+                existing.UpdatedAt = now;
+                existing.Updates.Insert(0, NewUpdate(
+                    existing.Id,
+                    IncidentStatus.Resolved,
+                    $"{snapshot.DisplayName} reports recovered.",
+                    now));
+            }
+
+            if (component.ManualStatus == ComponentStatus.UnderMaintenance
+                || component.Status == ComponentStatus.UnderMaintenance)
+            {
+                RefreshGroupStatuses(now);
+                _state.Page.UpdatedAt = now;
+                return;
+            }
+
+            if (!HasEnabledChecks(component.Id))
+            {
+                component.ManualStatus = snapshot.Status;
+                component.Status = snapshot.Status;
+                component.UpdatedAt = now;
+            }
+
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+        }
+    }
+
+    public IReadOnlyList<ConnectorSnapshot> ListConnectorSnapshots()
+    {
+        lock (_gate)
+        {
+            return _connectorSnapshots.Values.ToList();
+        }
+    }
+
     public IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses()
     {
         lock (_gate)
@@ -456,7 +575,15 @@ public sealed class InMemoryStatusStore : IStatusStore
             }
             else if (!string.IsNullOrWhiteSpace(request.Type))
             {
-                throw new ArgumentException("Type must be http, https, or tcp.");
+                var raw = request.Type.Trim();
+                if (raw.Equals("icmp", StringComparison.OrdinalIgnoreCase)
+                    || raw.Equals("ping", StringComparison.OrdinalIgnoreCase)
+                    || raw.Equals("connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns. ICMP and connectors are not probes.");
+                }
+
+                throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns.");
             }
             else
             {
@@ -490,7 +617,16 @@ public sealed class InMemoryStatusStore : IStatusStore
                 ExpectedStatus = request.Http?.ExpectedStatus is { Count: > 0 } statuses
                     ? [.. statuses]
                     : [.. CheckContract.DefaultExpectedStatus],
-                BodyContains = request.Http?.BodyContains
+                BodyContains = request.Http?.BodyContains,
+                JsonPath = request.Http?.JsonPath,
+                ExpectedJsonValue = request.Http?.ExpectedJsonValue,
+                Headers = request.Http?.Headers is { Count: > 0 } headers
+                    ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            },
+            Tls = new TlsCheckSpec
+            {
+                Days = TlsExpiryEvaluator.NormalizeDays(request.Tls?.Days)
             },
             NextRunAt = DateTimeOffset.UtcNow
         };
@@ -701,7 +837,8 @@ public sealed class InMemoryStatusStore : IStatusStore
         ResolvedAt = incident.ResolvedAt,
         ScheduledFor = incident.ScheduledFor,
         ScheduledUntil = incident.ScheduledUntil,
-        AutoFromChecks = incident.AutoFromChecks
+        AutoFromChecks = incident.AutoFromChecks,
+        ConnectorId = incident.ConnectorId
     };
 
     private static StatusCheck Clone(StatusCheck check) => new()
@@ -728,8 +865,12 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             Method = check.Http.Method,
             ExpectedStatus = [.. check.Http.ExpectedStatus],
-            BodyContains = check.Http.BodyContains
+            BodyContains = check.Http.BodyContains,
+            JsonPath = check.Http.JsonPath,
+            ExpectedJsonValue = check.Http.ExpectedJsonValue,
+            Headers = new Dictionary<string, string>(check.Http.Headers, StringComparer.OrdinalIgnoreCase)
         },
+        Tls = new TlsCheckSpec { Days = check.Tls.Days },
         State = check.State,
         ConsecutiveFailures = check.ConsecutiveFailures,
         ConsecutiveSuccesses = check.ConsecutiveSuccesses,

@@ -18,6 +18,7 @@ public class IndexModel(IStatusStore store) : PageModel
     {
         var state = store.Snapshot();
         PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
+        ComponentVisibility.RemoveInternal(state, store.ListChecks());
         var now = DateTimeOffset.UtcNow;
         PageInfo = state.Page;
         Overall = StatusRollup.FromComponents(state.Components);

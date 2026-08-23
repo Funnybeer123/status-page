@@ -244,33 +244,53 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
 
         using var statusComponents = await client.GetAsync("/api/status/components");
         using var statusDoc = JsonDocument.Parse(await statusComponents.Content.ReadAsStringAsync());
-        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
-            row => row.GetProperty("componentId").GetString() == "billing-warehouse"
-                   && row.GetProperty("status").GetString() == "operational");
-        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
+        Assert.DoesNotContain(statusDoc.RootElement.EnumerateArray(),
+            row => row.GetProperty("componentId").GetString() == "billing-warehouse");
+        Assert.DoesNotContain(statusDoc.RootElement.EnumerateArray(),
             row => row.GetProperty("componentId").GetString() == "cca-warehouse-feed");
 
-        using var summary = await client.GetAsync("/api/v2/summary.json");
-        using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
-        var billing = doc.RootElement.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "billing-warehouse");
+        using var operatorComponents = await client.GetAsync("/api/operator/components");
+        using var opDoc = JsonDocument.Parse(await operatorComponents.Content.ReadAsStringAsync());
+        var billing = opDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "billing-warehouse");
         Assert.Equal("Billing warehouse", billing.GetProperty("name").GetString());
         Assert.NotEqual("probe-label-only", billing.GetProperty("name").GetString());
-        Assert.Equal(JsonValueKind.Null, billing.GetProperty("group_id").ValueKind);
-        Assert.False(billing.GetProperty("group").GetBoolean());
-        Assert.Equal("operational", billing.GetProperty("status").GetString());
-
-        var feed = doc.RootElement.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "cca-warehouse-feed");
+        Assert.True(billing.GetProperty("internal").GetBoolean());
+        var feed = opDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "cca-warehouse-feed");
         Assert.Equal("Warehouse feed", feed.GetProperty("name").GetString());
         Assert.NotEqual("ingest-probe-label", feed.GetProperty("name").GetString());
         Assert.Equal("cloud-cost-agent", feed.GetProperty("group_id").GetString());
+        Assert.True(feed.GetProperty("internal").GetBoolean());
+
+        using var publicLeaf = await client.PostAsync("/api/checks", JsonContent.Create(new
+        {
+            name = "docs-probe-label",
+            componentId = "learn-docs",
+            componentName = "Learn docs",
+            type = "https",
+            intervalSeconds = 60,
+            timeoutSeconds = 10,
+            target = new { url = "https://learn.microsoft.com" },
+            http = new { expectedStatus = new[] { 200 } }
+        }));
+        Assert.Equal(HttpStatusCode.Created, publicLeaf.StatusCode);
+
+        using var summary = await client.GetAsync("/api/v2/summary.json");
+        using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var ids = doc.RootElement.GetProperty("components").EnumerateArray().Select(c => c.GetProperty("id").GetString()).ToList();
+        Assert.DoesNotContain("billing-warehouse", ids);
+        Assert.DoesNotContain("cca-warehouse-feed", ids);
+        var docs = doc.RootElement.GetProperty("components").EnumerateArray()
+            .Single(c => c.GetProperty("id").GetString() == "learn-docs");
+        Assert.Equal("Learn docs", docs.GetProperty("name").GetString());
+        Assert.NotEqual("docs-probe-label", docs.GetProperty("name").GetString());
+        Assert.Equal("operational", docs.GetProperty("status").GetString());
 
         using var home = await client.GetAsync("/");
         var html = await home.Content.ReadAsStringAsync();
-        Assert.Contains("Billing warehouse", html);
-        Assert.Contains("Warehouse feed", html);
+        Assert.DoesNotContain("Billing warehouse", html);
+        Assert.DoesNotContain("Warehouse feed", html);
         Assert.DoesNotContain("probe-label-only", html);
+        Assert.Contains("Learn docs", html);
     }
 
     private static void AssertStatuspageIncidentPayload(JsonElement incident)
@@ -352,6 +372,7 @@ public class StatusPageFactory : WebApplicationFactory<Program>
     {
         var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
+        builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
         builder.UseSetting("StatusPage:ChecksPath", checksPath);
         builder.UseEnvironment("Development");
@@ -360,8 +381,11 @@ public class StatusPageFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["StatusPage:EnableCheckWorker"] = "false",
+                ["StatusPage:EnableConnectorWorker"] = "false",
                 ["StatusPage:ApiKey"] = "dev-key",
-                ["StatusPage:ChecksPath"] = checksPath
+                ["StatusPage:ChecksPath"] = checksPath,
+                ["AzureAd:TenantId"] = "",
+                ["AzureAd:ClientId"] = ""
             });
         });
     }

@@ -12,3 +12,5 @@ data/checks.json
 .nuget/
 *.log
 static/
+appsettings.*.local.json
+*.pfx

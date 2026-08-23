@@ -8,7 +8,7 @@ public static class CheckEndpoints
 {
     public static void MapCheckApi(this IEndpointRouteBuilder app)
     {
-        var checks = app.MapGroup("/api/checks").AddEndpointFilter(OperatorAuth.RequireApiKey);
+        var checks = app.MapGroup("/api/checks").AddEndpointFilter(OperatorAuth.RequireOperator);
         checks.MapGet("/", (IStatusStore store) => Results.Json(store.ListChecks().Select(CheckJson.From)));
         checks.MapGet("/{id}", (string id, IStatusStore store) =>
         {
@@ -70,14 +70,23 @@ public static class CheckEndpoints
         });
 
         app.MapGet("/api/status/components", (IStatusStore store) =>
-            Results.Json(store.ComponentCheckStatuses().Select(s => new ComponentCheckStatusDocument
-            {
-                ComponentId = s.ComponentId,
-                Status = s.Status.ApiValue(),
-                CheckCount = s.CheckCount,
-                DownCount = s.DownCount,
-                UpdatedAtUtc = s.UpdatedAtUtc
-            })));
+        {
+            var checksList = store.ListChecks();
+            return Results.Json(store.ComponentCheckStatuses()
+                .Where(s =>
+                {
+                    var component = store.FindComponent(s.ComponentId);
+                    return component is null || !ComponentVisibility.IsInternalLeaf(component, checksList);
+                })
+                .Select(s => new ComponentCheckStatusDocument
+                {
+                    ComponentId = s.ComponentId,
+                    Status = s.Status.ApiValue(),
+                    CheckCount = s.CheckCount,
+                    DownCount = s.DownCount,
+                    UpdatedAtUtc = s.UpdatedAtUtc
+                }));
+        });
     }
 }
 
@@ -95,6 +104,7 @@ public sealed class CheckWriteJson
     public int? SuccessThreshold { get; set; }
     public CheckTargetDocument Target { get; set; } = new();
     public HttpCheckDocument? Http { get; set; }
+    public TlsCheckDocument? Tls { get; set; }
 
     public CreateCheckRequest ToRequest() => new(
         Name ?? "",
@@ -118,10 +128,16 @@ public sealed class CheckWriteJson
             {
                 Method = Http.Method,
                 ExpectedStatus = [.. Http.ExpectedStatus],
-                BodyContains = Http.BodyContains
+                BodyContains = Http.BodyContains,
+                JsonPath = Http.JsonPath,
+                ExpectedJsonValue = Http.ExpectedJsonValue,
+                Headers = Http.Headers is { Count: > 0 } headers
+                    ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             },
         ComponentName,
-        GroupId);
+        GroupId,
+        Tls is null ? null : new TlsCheckSpec { Days = Tls.Days });
 }
 
 public static class CheckJson
@@ -144,17 +160,41 @@ public static class CheckJson
             port = check.Target.Port,
             path = check.Target.Path
         },
-        http = check.Type == CheckType.Tcp
+        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
             ? null
             : new
             {
                 method = check.Http.Method,
                 expectedStatus = check.Http.ExpectedStatus,
-                bodyContains = check.Http.BodyContains
+                bodyContains = check.Http.BodyContains,
+                jsonPath = check.Http.JsonPath,
+                expectedJsonValue = check.Http.ExpectedJsonValue,
+                headers = RedactHeaders(check.Http.Headers)
             },
+        tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
         state = check.State.ApiValue(),
         lastResult = check.LastResult is null ? null : ResultJson.From(check.LastResult)
     };
+
+    private static Dictionary<string, string>? RedactHeaders(Dictionary<string, string> headers)
+    {
+        if (headers.Count == 0)
+        {
+            return null;
+        }
+
+        return headers.ToDictionary(
+            kv => kv.Key,
+            kv => IsSensitive(kv.Key) ? "(set)" : kv.Value,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool IsSensitive(string name) =>
+        name.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("Proxy-Authorization", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("secret", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("token", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("key", StringComparison.OrdinalIgnoreCase);
 }
 
 public static class ResultJson
