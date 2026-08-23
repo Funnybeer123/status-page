@@ -72,6 +72,8 @@ var resultsPath = builder.Configuration["StatusPage:ResultsPath"]
                   ?? Path.Combine(builder.Environment.ContentRootPath, "data", "check-results.json");
 var auditPath = builder.Configuration["StatusPage:AuditPath"]
                 ?? Path.Combine(builder.Environment.ContentRootPath, "data", "audit.jsonl");
+var webhooksPath = builder.Configuration["StatusPage:WebhooksPath"]
+                   ?? Path.Combine(builder.Environment.ContentRootPath, "data", "webhooks.json");
 var checks = File.Exists(runtimePath)
     ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
     : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
@@ -83,7 +85,9 @@ resultStore.Hydrate(checks);
 
 builder.Services.AddSingleton<ICheckResultStore>(resultStore);
 builder.Services.AddSingleton<IAuditLog>(_ => new FileAuditLog(auditPath));
-builder.Services.AddSingleton<IStatusStore>(_ =>
+builder.Services.AddSingleton<IWebhookStore>(_ => new FileWebhookStore(webhooksPath));
+builder.Services.AddSingleton<IWebhookSender, WebhookSender>();
+builder.Services.AddSingleton<IStatusStore>(sp =>
     new InMemoryStatusStore(seed, persist =>
     {
         try
@@ -104,7 +108,7 @@ builder.Services.AddSingleton<IStatusStore>(_ =>
         {
             Console.Error.WriteLine($"Could not persist page.json: {ex.Message}");
         }
-    }, resultStore));
+    }, resultStore, sp.GetRequiredService<IWebhookSender>()));
 builder.Services.AddSingleton<CheckRunner>();
 builder.Services.AddHttpClient("StatusChecks", client =>
 {
@@ -115,6 +119,11 @@ builder.Services.AddHttpClient("StatusConnectors", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("status-page-connector/1.0");
+});
+builder.Services.AddHttpClient(WebhookSender.HttpClientName, client =>
+{
+    client.Timeout = WebhookSender.Timeout;
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("status-page-webhook/1.0");
 });
 
 builder.Services.AddSingleton<IStatusConnector>(sp =>
@@ -162,17 +171,11 @@ app.UseAuthorization();
 app.MapGet("/health", () => Results.Text("ok", "text/plain"));
 app.MapGet("/branding/{file}", (string file) => BrandingFiles.Serve(brandingDir, file));
 
-app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicApiMapper.Summary(ForPublic(store))));
-app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(ForPublic(store))));
-app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(ForPublic(store))));
-
-static StatusPageState ForPublic(IStatusStore store)
-{
-    var state = store.Snapshot();
-    PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
-    ComponentVisibility.RemoveInternal(state, store.ListChecks());
-    return state;
-}
+app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicApiMapper.Summary(PublicApiMapper.ForPublic(store))));
+app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(PublicApiMapper.ForPublic(store))));
+app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(PublicApiMapper.ForPublic(store))));
+app.MapGet("/api/v2/incidents.json", (IStatusStore store) => Results.Json(PublicApiMapper.Incidents(PublicApiMapper.ForPublic(store))));
+app.MapGet("/api/v2/scheduled-maintenances.json", (IStatusStore store) => Results.Json(PublicApiMapper.ScheduledMaintenances(PublicApiMapper.ForPublic(store))));
 
 app.MapCheckApi();
 app.MapOperatorApi();

@@ -9,7 +9,7 @@ using StatusPage.Services;
 
 namespace StatusPage.Pages;
 
-public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit) : PageModel
+public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit, IWebhookStore webhooks) : PageModel
 {
     public IReadOnlyList<Component> Groups { get; private set; } = [];
     public IReadOnlyList<OperatorComponentRow> Components { get; private set; } = [];
@@ -17,6 +17,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     public IReadOnlyList<Incident> Incidents { get; private set; } = [];
     public IReadOnlyList<ConnectorSnapshot> Connectors { get; private set; } = [];
     public IReadOnlyList<AuditEntry> AuditEntries { get; private set; } = [];
+    public IReadOnlyList<WebhookRecord> Webhooks { get; private set; } = [];
     public StatusPageInfo PageInfo { get; private set; } = new();
     public StatusCheck? EditingCheck { get; private set; }
     public string? AuthLabel { get; private set; }
@@ -183,6 +184,26 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         });
     }
 
+    public IActionResult OnPostAddWebhook(string? url)
+    {
+        return Guarded(() =>
+        {
+            var created = webhooks.Add(url ?? "");
+            OperatorAuth.Audit(HttpContext, audit, "webhook.create", created.Id);
+            return RedirectToPage();
+        });
+    }
+
+    public IActionResult OnPostDeleteWebhook(string id)
+    {
+        return Guarded(() =>
+        {
+            webhooks.Delete(id);
+            OperatorAuth.Audit(HttpContext, audit, "webhook.delete", id);
+            return RedirectToPage();
+        });
+    }
+
     private IActionResult Guarded(Func<IActionResult> action)
     {
         if (OperatorAuth.IsDeniedEntraUser(HttpContext))
@@ -240,6 +261,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             .OrderByDescending(i => i.UpdatedAt)
             .ToList();
         AuditEntries = audit.Recent(FileAuditLog.RecentDefault);
+        Webhooks = webhooks.List();
         if (!string.IsNullOrWhiteSpace(editCheck))
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);

@@ -64,6 +64,50 @@ public static class PublicApiMapper
         components = state.Components.OrderBy(c => c.Position).ThenBy(c => c.Name).Select(c => Component(state.Page.Id, c))
     };
 
+    public static object Incidents(StatusPageState state) => new
+    {
+        page = Page(state.Page),
+        incidents = state.Incidents.OrderByDescending(i => i.UpdatedAt).Select(i => Incident(state, i))
+    };
+
+    public static object ScheduledMaintenances(StatusPageState state) => new
+    {
+        page = Page(state.Page),
+        scheduled_maintenances = state.ScheduledMaintenances
+            .OrderBy(i => i.ScheduledFor ?? i.UpdatedAt)
+            .Select(i => Incident(state, i))
+    };
+
+    public static object IncidentDocument(StatusPageState state, Incident incident) => Incident(state, incident);
+
+    public static StatusPageState ForPublic(IStatusStore store)
+    {
+        var state = store.Snapshot();
+        MapCheckStatuses(state, store.ComponentCheckStatuses());
+        ComponentVisibility.RemoveInternal(state, store.ListChecks());
+        return state;
+    }
+
+    /// <summary>
+    /// Public incident plus public component status only. Null when the
+    /// incident is omitted from the anonymous snapshot (internal-only).
+    /// </summary>
+    public static object? WebhookPayload(StatusPageState publicState, string incidentId, string eventType)
+    {
+        var incident = publicState.Incidents.Concat(publicState.ScheduledMaintenances)
+            .FirstOrDefault(i => i.Id == incidentId);
+        if (incident is null)
+        {
+            return null;
+        }
+
+        return new
+        {
+            @event = eventType,
+            incident = Incident(publicState, incident)
+        };
+    }
+
     public static IEnumerable<Incident> ActiveIncidents(StatusPageState state) =>
         state.Incidents.Where(i => i.Status.IsUnresolvedIncident()).OrderByDescending(i => i.UpdatedAt);
 

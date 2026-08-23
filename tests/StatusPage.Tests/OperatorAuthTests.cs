@@ -82,6 +82,7 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         Assert.Contains("Add a check", html);
         Assert.Contains("OPERATOR ADMIN", html);
         Assert.Contains("Audit log", html);
+        Assert.Contains("Outbound webhooks", html);
         Assert.Contains("Save branding", html);
         Assert.Contains("Run now", html);
         Assert.Contains("/js/operator-checks.js", html);
@@ -104,6 +105,8 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         Assert.Contains("Business Systems", html);
         Assert.DoesNotContain("Add a check", html);
         Assert.DoesNotContain("Operator sign-in", html);
+        Assert.DoesNotContain("Outbound webhooks", html);
+        Assert.DoesNotContain("example.com/hooks/status", html);
     }
 
     [Fact]
@@ -219,7 +222,12 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         var state = DemoSeed.Create("http://localhost:5080", DateTimeOffset.UtcNow);
         var store = new InMemoryStatusStore(state);
         var http = EntraHttp(EntraPrincipal(oid: "77777777-7777-7777-7777-777777777777"));
-        var page = new StatusPage.Pages.OperatorModel(store, Config(), new TestHostEnvironment(), new FileAuditLog(Path.GetTempFileName()))
+        var page = new StatusPage.Pages.OperatorModel(
+            store,
+            Config(),
+            new TestHostEnvironment(),
+            new FileAuditLog(Path.GetTempFileName()),
+            new FileWebhookStore(Path.Combine(Path.GetTempPath(), $"op-webhooks-{Guid.NewGuid():N}.json")))
         {
             PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext
             {
@@ -315,6 +323,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         var brandingPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-brand-{Guid.NewGuid():N}");
         var resultsPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-results-{Guid.NewGuid():N}.json");
         var auditPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-audit-{Guid.NewGuid():N}.jsonl");
+        var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-webhooks-{Guid.NewGuid():N}.json");
         builder.UseEnvironment("Development");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
@@ -324,6 +333,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:BrandingPath", brandingPath);
         builder.UseSetting("StatusPage:ResultsPath", resultsPath);
         builder.UseSetting("StatusPage:AuditPath", auditPath);
+        builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -336,6 +346,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
                 ["StatusPage:BrandingPath"] = brandingPath,
                 ["StatusPage:ResultsPath"] = resultsPath,
                 ["StatusPage:AuditPath"] = auditPath,
+                ["StatusPage:WebhooksPath"] = webhooksPath,
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
                 ["AzureAd:TenantId"] = "test-tenant",
                 ["AzureAd:ClientId"] = "test-client",

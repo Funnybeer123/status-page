@@ -134,6 +134,37 @@ public static class OperatorEndpoints
             }
         });
 
+        group.MapGet("/webhooks", (IWebhookStore webhooks) =>
+            Results.Json(webhooks.List().Select(h => new { id = h.Id, url = h.Url, createdAt = PublicApiMapper.Iso(h.CreatedAt) })));
+
+        group.MapPost("/webhooks", (WriteWebhookJson body, IWebhookStore webhooks, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                var created = webhooks.Add(body.Url ?? "");
+                OperatorAuth.Audit(http, audit, "webhook.create", created.Id);
+                return Results.Created($"/api/operator/webhooks/{created.Id}", new { id = created.Id, url = created.Url });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
+        group.MapDelete("/webhooks/{id}", (string id, IWebhookStore webhooks, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                webhooks.Delete(id);
+                OperatorAuth.Audit(http, audit, "webhook.delete", id);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+        });
+
         group.MapGet("/incidents", (IStatusStore store) =>
         {
             var state = store.Snapshot();
@@ -253,4 +284,9 @@ public sealed class UpdateIncidentJson
     public Dictionary<string, string>? ComponentStatuses { get; set; }
 
     public UpdateIncidentRequest ToRequest() => new(Status, Body ?? "", ComponentIds, ComponentStatuses);
+}
+
+public sealed class WriteWebhookJson
+{
+    public string? Url { get; set; }
 }

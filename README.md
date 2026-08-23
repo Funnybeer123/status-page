@@ -46,10 +46,12 @@ Internal `host:port` leaves (loopback, RFC1918, `*.internal` / `*.local`) are hi
 curl -s http://localhost:5080/api/v2/summary.json
 curl -s http://localhost:5080/api/v2/status.json
 curl -s http://localhost:5080/api/v2/components.json
+curl -s http://localhost:5080/api/v2/incidents.json
+curl -s http://localhost:5080/api/v2/scheduled-maintenances.json
 curl -s http://localhost:5080/api/status/components
 ```
 
-These stay anonymous and omit internal host:port leaves. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`.
+These stay anonymous and omit internal host:port leaves. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`).
 
 Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only.
 
@@ -167,6 +169,7 @@ Page admin (operator UI and `/api/operator/*`, not public `/`):
 - Scheduled maintenance
 - Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
 - Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key` or Entra object ID — never an email)
+- Outbound webhooks: operator add/delete URLs in gitignored `data/webhooks.json`. Loopback, link-local, RFC1918, and cloud metadata (`169.254.169.254`, `metadata.google.internal`) are rejected. On incident create/update the app POSTs the **public** incident plus **public** component status only (5s timeout, best-effort — a failed POST never fails the request). Payloads never include check targets, internal-leaf ids, probe errors, bodies, or headers. The public page does not list webhook URLs.
 
 ```bash
 curl -s http://localhost:5080/api/operator/page -H "X-Api-Key: dev-key"
@@ -243,7 +246,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

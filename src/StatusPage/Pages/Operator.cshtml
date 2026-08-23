@@ -22,6 +22,7 @@
         <a href="#checks">Checks</a>
         <a href="#incidents">Incidents</a>
         <a href="#audit">Audit</a>
+        <a href="#webhooks">Webhooks</a>
         <a href="#connectors">Connectors</a>
         <a href="/">Public page</a>
     </nav>
@@ -323,6 +324,46 @@
                 </tbody>
             </table>
         }
+    </section>
+
+    <section class="operator-card" id="webhooks">
+        <h2>Outbound webhooks</h2>
+        <p class="muted">Stored in gitignored data/webhooks.json. POSTs public incident + public component status only. Loopback, RFC1918, and cloud metadata URLs are rejected.</p>
+        @if (Model.Webhooks.Count == 0)
+        {
+            <p class="muted">No webhook URLs.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var hook in Model.Webhooks)
+                {
+                    <tr>
+                        <td><code>@hook.Url</code></td>
+                        <td>
+                            <form method="post" asp-page-handler="DeleteWebhook">
+                                <input type="hidden" name="id" value="@hook.Id" />
+                                <button class="btn-secondary btn-danger" type="submit">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        <form method="post" asp-page-handler="AddWebhook" class="operator-form">
+            <label>Webhook URL
+                <input name="url" placeholder="https://example.com/hooks/status" required />
+            </label>
+            <button type="submit" class="btn-primary">Add webhook</button>
+        </form>
     </section>
 
     <section class="operator-card" id="connectors">

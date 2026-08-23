@@ -58,18 +58,22 @@ public sealed class InMemoryStatusStore : IStatusStore
     private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
     private readonly Action<StatusPageState>? _persistPage;
     private readonly ICheckResultStore? _results;
+    private readonly IWebhookSender? _webhooks;
+    private readonly List<(string Id, string Event)> _pendingWebhooks = [];
     private readonly Dictionary<string, ConnectorSnapshot> _connectorSnapshots = new(StringComparer.Ordinal);
 
     public InMemoryStatusStore(
         StatusPageState state,
         Action<IReadOnlyList<StatusCheck>>? persistChecks = null,
         Action<StatusPageState>? persistPage = null,
-        ICheckResultStore? results = null)
+        ICheckResultStore? results = null,
+        IWebhookSender? webhooks = null)
     {
         _state = state;
         _persistChecks = persistChecks;
         _persistPage = persistPage;
         _results = results;
+        _webhooks = webhooks;
         _results?.Hydrate(_state.Checks);
         EnsureLeavesForChecks();
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
@@ -294,6 +298,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             throw new ArgumentException("Invalid incident impact.");
         }
 
+        Incident created;
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
@@ -325,8 +330,12 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
-            return Clone(incident);
+            QueueWebhook(incident.Id, "incident.created");
+            created = Clone(incident);
         }
+
+        FlushWebhooks();
+        return created;
     }
 
     public Incident UpdateIncident(string id, UpdateIncidentRequest request)
@@ -336,6 +345,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             throw new ArgumentException("Update body is required.");
         }
 
+        Incident updated;
         lock (_gate)
         {
             var incident = _state.Incidents.Concat(_state.ScheduledMaintenances)
@@ -419,8 +429,12 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
-            return Clone(incident);
+            QueueWebhook(incident.Id, "incident.updated");
+            updated = Clone(incident);
         }
+
+        FlushWebhooks();
+        return updated;
     }
 
     public Component UpdateComponentStatus(string id, ComponentStatus status)
@@ -629,6 +643,8 @@ public sealed class InMemoryStatusStore : IStatusStore
                 // History persist must not fail the probe write.
             }
         }
+
+        FlushWebhooks();
     }
 
     public void ApplyConnectorImport(ConnectorSnapshot snapshot)
@@ -674,6 +690,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                             : snapshot.Detail,
                         now));
                     _state.Incidents.Add(incident);
+                    QueueWebhook(incident.Id, "incident.created");
                 }
                 else
                 {
@@ -688,6 +705,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                             ? $"{snapshot.DisplayName} still reports {snapshot.Status.ApiValue()}."
                             : snapshot.Detail,
                         now));
+                    QueueWebhook(existing.Id, "incident.updated");
                 }
             }
             else if (existing is not null && snapshot.Status == ComponentStatus.Operational)
@@ -700,6 +718,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                     IncidentStatus.Resolved,
                     $"{snapshot.DisplayName} reports recovered.",
                     now));
+                QueueWebhook(existing.Id, "incident.updated");
             }
 
             if (component.ManualStatus == ComponentStatus.UnderMaintenance
@@ -720,6 +739,8 @@ public sealed class InMemoryStatusStore : IStatusStore
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
         }
+
+        FlushWebhooks();
     }
 
     public IReadOnlyList<ConnectorSnapshot> ListConnectorSnapshots()
@@ -993,6 +1014,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                     at));
                 _state.Incidents.Add(incident);
                 component.AutoIncidentId = incident.Id;
+                QueueWebhook(incident.Id, "incident.created");
             }
             else
             {
@@ -1004,6 +1026,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                     $"Update: automated checks now report {component.Name} is {next.ApiValue()}.",
                     at));
                 component.AutoIncidentId = existing.Id;
+                QueueWebhook(existing.Id, "incident.updated");
             }
         }
 
@@ -1020,9 +1043,42 @@ public sealed class InMemoryStatusStore : IStatusStore
                     IncidentStatus.Resolved,
                     $"Resolved: all enabled checks for {component.Name} are Up.",
                     at));
+                QueueWebhook(incident.Id, "incident.updated");
             }
 
             component.AutoIncidentId = null;
+        }
+    }
+
+    private void QueueWebhook(string incidentId, string eventType)
+    {
+        if (_webhooks is null)
+        {
+            return;
+        }
+
+        _pendingWebhooks.Add((incidentId, eventType));
+    }
+
+    private void FlushWebhooks()
+    {
+        if (_webhooks is null || _pendingWebhooks.Count == 0)
+        {
+            return;
+        }
+
+        var batch = _pendingWebhooks.ToList();
+        _pendingWebhooks.Clear();
+        foreach (var (id, eventType) in batch)
+        {
+            try
+            {
+                _webhooks.Enqueue(id, eventType);
+            }
+            catch
+            {
+                // Outbound webhooks are best-effort and must not fail the write.
+            }
         }
     }
 
