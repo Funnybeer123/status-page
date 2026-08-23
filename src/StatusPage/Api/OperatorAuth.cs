@@ -10,6 +10,7 @@ public static class OperatorAuth
     public const string ApiKeyCookieName = "statuspage.api-key";
     public const string ApiKeyClaim = "statuspage.apikey";
     public const string DefaultOperatorRole = "StatusOperator";
+    public const string DefaultViewerRole = "StatusViewer";
     public const string ObjectIdClaim = "oid";
     public const string ObjectIdClaimLong = "http://schemas.microsoft.com/identity/claims/objectidentifier";
 
@@ -24,6 +25,12 @@ public static class OperatorAuth
     {
         var role = config["AzureAd:OperatorRole"];
         return string.IsNullOrWhiteSpace(role) ? DefaultOperatorRole : role.Trim();
+    }
+
+    public static string ViewerRoleName(IConfiguration config)
+    {
+        var role = config["AzureAd:ViewerRole"];
+        return string.IsNullOrWhiteSpace(role) ? DefaultViewerRole : role.Trim();
     }
 
     public static string? ExpectedApiKey(IConfiguration config, IHostEnvironment env)
@@ -103,13 +110,49 @@ public static class OperatorAuth
         return ObjectIdClaims(user).Any(allowed.Contains);
     }
 
+    /// <summary>
+    /// Entra StatusViewer on roles/wids only. AllowedObjectIds stay write operators.
+    /// </summary>
+    public static bool HasViewerRole(ClaimsPrincipal user, IConfiguration config)
+    {
+        if (user.Identity?.IsAuthenticated != true || user.HasClaim(ApiKeyClaim, "true"))
+        {
+            return false;
+        }
+
+        var role = ViewerRoleName(config);
+        return RoleOrWidClaims(user).Any(value => string.Equals(value, role, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static bool IsViewer(HttpContext http)
+    {
+        if (IsOperator(http))
+        {
+            return false;
+        }
+
+        var config = http.RequestServices.GetRequiredService<IConfiguration>();
+        return IsAzureAdConfigured(config) && HasViewerRole(http.User, config);
+    }
+
+    public static bool IsStaff(HttpContext http)
+    {
+        if (IsOperator(http))
+        {
+            return true;
+        }
+
+        var config = http.RequestServices.GetRequiredService<IConfiguration>();
+        return IsAzureAdConfigured(config) && HasViewerRole(http.User, config);
+    }
+
     public static bool IsDeniedEntraUser(HttpContext http)
     {
         var config = http.RequestServices.GetRequiredService<IConfiguration>();
         return IsAzureAdConfigured(config)
                && http.User.Identity?.IsAuthenticated == true
                && !http.User.HasClaim(ApiKeyClaim, "true")
-               && !IsOperator(http);
+               && !IsStaff(http);
     }
 
     public static IReadOnlySet<string> AllowedObjectIds(IConfiguration config)
@@ -205,13 +248,50 @@ public static class OperatorAuth
             return await next(context);
         }
 
-        if (IsDeniedEntraUser(http))
+        if (IsViewer(http) || IsDeniedEntraUser(http))
         {
             return Results.Json(
                 new { error = "Authenticated but not an operator. Requires the StatusOperator app role or an allowed object ID." },
                 statusCode: StatusCodes.Status403Forbidden);
         }
 
+        return Unauthorized(http);
+    }
+
+    /// <summary>
+    /// GET/HEAD: StatusOperator, StatusViewer, API key, or AllowedObjectIds.
+    /// Writes: StatusOperator, AllowedObjectIds, or API key only.
+    /// Anonymous is always 401. Export is never public.
+    /// </summary>
+    public static async ValueTask<object?> RequireStaffReadOrOperatorWrite(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        var http = context.HttpContext;
+        AttachApiKeyIdentity(http);
+        var read = HttpMethods.IsGet(http.Request.Method) || HttpMethods.IsHead(http.Request.Method);
+        if (read)
+        {
+            if (IsStaff(http))
+            {
+                return await next(context);
+            }
+
+            if (IsDeniedEntraUser(http))
+            {
+                return Results.Json(
+                    new { error = "Authenticated but not a StatusOperator or StatusViewer." },
+                    statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            return Unauthorized(http);
+        }
+
+        return await RequireOperator(context, next);
+    }
+
+    private static IResult Unauthorized(HttpContext http)
+    {
         var env = http.RequestServices.GetRequiredService<IHostEnvironment>();
         var config = http.RequestServices.GetRequiredService<IConfiguration>();
         if (!IsAzureAdConfigured(config) && string.IsNullOrWhiteSpace(ExpectedApiKey(config, env)))

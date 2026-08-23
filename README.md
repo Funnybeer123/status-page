@@ -144,12 +144,15 @@ curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key
 
 `GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for public leaves only.
 
+`GET /api/checks/export` is always authenticated (anonymous → **401**). `StatusOperator` (or `AllowedObjectIds` / API key) gets every check, including internals, with `Authorization` and other secret header values redacted. `StatusViewer` gets **public checks only** and **no headers at all**. `POST /api/checks/import` is StatusOperator-only: create-if-missing like `POST /api/checks`, and an existing id keeps its stored host unless the imported host is the same. Viewers cannot import, PATCH, PUT, or `/run`.
+
 ## Operator admin
 
-`/operator` is the product admin. It is not on the public page. Auth is the same as operator APIs: `StatusOperator` or `AllowedObjectIds`, else `X-Api-Key` when AzureAd is unset.
+`/operator` is the product admin. It is not on the public page. Writes use `StatusOperator` or `AllowedObjectIds`, else `X-Api-Key` when AzureAd is unset. `StatusViewer` can read operator lists, audit, history, and public+internal status views, but cannot mutate. Header values are never rendered on operator HTML.
 
 Check admin (APIs + UI):
 
+- Export/import check config (`GET /api/checks/export`, `POST /api/checks/import`). Export never includes secret header values. Import is write-only.
 - List every probe, including internal host:port
 - Create/edit: URL or host:port; type `http` / `https` / `tcp` / `tls_expiry` / `dns`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId`
 - Enable/disable via `PATCH /api/checks/{id}` (disabled leaves rollup immediately, not delete)
@@ -182,7 +185,7 @@ curl -s http://localhost:5080/api/operator/incidents -H "X-Api-Key: dev-key"
 
 ## Operator incidents
 
-Operator APIs and `/operator` accept **either** an Entra user who is an operator **or** `X-Api-Key` (header or Development login cookie). An Entra sign-in alone is not enough: the user must have the `StatusOperator` app role (roles/wids claim) or their object ID must be listed in `AzureAd__AllowedObjectIds`. Authenticated Entra users with neither get **403**. Development default API key is `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
+Operator APIs and `/operator` accept **either** an Entra user who is an operator **or** `X-Api-Key` (header or Development login cookie). An Entra sign-in alone is not enough: write access requires the `StatusOperator` app role (roles/wids claim) or an object ID listed in `AzureAd__AllowedObjectIds`. `StatusViewer` is read-only (GET lists, audit, history, export of public checks). Authenticated Entra users with neither role get **403**. `AllowedObjectIds` are operators (write), not viewers. Development default API key is `dev-key`. Override with `STATUSPAGE_API_KEY`. If AzureAd is not configured, API key still works (local-first). Unset key outside Development with no AzureAd config disables writes (401).
 
 ```bash
 curl -s -X PATCH http://localhost:5080/api/operator/components/azure-status \
@@ -210,8 +213,9 @@ Set from the environment only (never commit a client secret or tenant-specific v
 | `AzureAd__TenantId` | Directory (tenant) ID from your app registration |
 | `AzureAd__ClientId` | Application (client) ID |
 | `AzureAd__ClientSecret` | Client secret from Certificates & secrets |
-| `AzureAd__OperatorRole` | App role value to require. Default `StatusOperator` |
-| `AzureAd__AllowedObjectIds` | Fallback only: comma-separated Entra **object IDs**. Emails and UPNs are ignored |
+| `AzureAd__OperatorRole` | App role value for write access. Default `StatusOperator` |
+| `AzureAd__ViewerRole` | App role value for read-only access. Default `StatusViewer` |
+| `AzureAd__AllowedObjectIds` | Fallback only: comma-separated Entra **object IDs** (write operators, not viewers). Emails and UPNs are ignored |
 
 If `TenantId` or `ClientId` is empty, Entra is off and `X-Api-Key` is used.
 
@@ -222,8 +226,8 @@ If `TenantId` or `ClientId` is empty, Entra is off and `X-Api-Key` is used.
 3. Add a **Web** redirect URI: `https://<your-host>/signin-oidc` (local: `http://localhost:5080/signin-oidc`).
 4. Open **Certificates & secrets** → **New client secret**. Copy the value into `AzureAd__ClientSecret` in the process environment. Do not put it in git.
 5. Copy **Application (client) ID** and **Directory (tenant) ID** into `AzureAd__ClientId` and `AzureAd__TenantId`.
-6. Open **App roles** → **Create app role**. Allowed member types: Users/Groups. **Value** must be `StatusOperator`. Enable the role.
-7. Open **Enterprise applications** → this app → **Users and groups** → **Add user/group** and assign the `StatusOperator` role. The ID token `roles` (and `wids` when present) must carry that value.
+6. Open **App roles** → **Create app role**. Allowed member types: Users/Groups. Create `StatusOperator` (write) and `StatusViewer` (read-only). Enable both.
+7. Open **Enterprise applications** → this app → **Users and groups** → **Add user/group** and assign `StatusOperator` or `StatusViewer`. The ID token `roles` (and `wids` when present) must carry that value.
 8. Optional fallback: set `AzureAd__AllowedObjectIds` to one or more object IDs from the user's Entra profile (`oid` claim). Do not put emails or UPNs here.
 
 This repo does not invent or ship a tenant ID. It does not treat every user in the tenant as an operator.
@@ -246,7 +250,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

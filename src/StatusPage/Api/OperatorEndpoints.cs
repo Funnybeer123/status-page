@@ -7,7 +7,16 @@ public static class OperatorEndpoints
 {
     public static void MapOperatorApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/operator").AddEndpointFilter(OperatorAuth.RequireOperator);
+        var group = app.MapGroup("/api/operator").AddEndpointFilter(OperatorAuth.RequireStaffReadOrOperatorWrite);
+
+        group.MapGet("/audit", (IAuditLog audit) =>
+            Results.Json(audit.Recent().Select(e => new
+            {
+                at = PublicApiMapper.Iso(e.At),
+                actor = e.Actor,
+                action = e.Action,
+                targetId = e.TargetId
+            })));
 
         group.MapGet("/page", (IStatusStore store) =>
         {

@@ -8,7 +8,37 @@ public static class CheckEndpoints
 {
     public static void MapCheckApi(this IEndpointRouteBuilder app)
     {
-        var checks = app.MapGroup("/api/checks").AddEndpointFilter(OperatorAuth.RequireOperator);
+        var checks = app.MapGroup("/api/checks").AddEndpointFilter(OperatorAuth.RequireStaffReadOrOperatorWrite);
+        checks.MapGet("/export", (IStatusStore store, HttpContext http) =>
+        {
+            var operatorExport = OperatorAuth.IsOperator(http);
+            var listed = store.ListChecks().Where(check =>
+                operatorExport || !InternalHost.IsInternalCheck(check));
+            return Results.Json(new
+            {
+                checks = listed.Select(check => CheckJson.Export(check, includeHeaders: operatorExport))
+            });
+        });
+        checks.MapPost("/import", (CheckImportJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                var imported = new List<object>();
+                foreach (var item in body.Checks ?? [])
+                {
+                    var existing = string.IsNullOrWhiteSpace(item.Id) ? null : store.FindCheck(item.Id);
+                    var created = store.ImportCheck(item.Id, item.ToImportRequest(existing));
+                    OperatorAuth.Audit(http, audit, existing is null ? "check.create" : "check.edit", created.Id);
+                    imported.Add(CheckJson.From(created));
+                }
+
+                return Results.Json(new { imported = imported.Count, checks = imported });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
         checks.MapGet("/", (IStatusStore store) => Results.Json(store.ListChecks().Select(CheckJson.From)));
         checks.MapGet("/{id}", (string id, IStatusStore store) =>
         {
@@ -137,6 +167,7 @@ public static class CheckEndpoints
 
 public sealed class CheckWriteJson
 {
+    public string? Id { get; set; }
     public string? Name { get; set; }
     public string? ComponentId { get; set; }
     public string? ComponentName { get; set; }
@@ -185,6 +216,25 @@ public sealed class CheckWriteJson
         GroupId,
         Tls is null ? null : new TlsCheckSpec { Days = Tls.Days },
         Dns is null ? null : new DnsCheckSpec { ExpectedAddresses = [.. Dns.ExpectedAddresses] });
+
+    public CreateCheckRequest ToImportRequest(StatusCheck? existing)
+    {
+        var request = ToRequest();
+        var headers = SecretHeaders.MergeImport(Http?.Headers, existing?.Http.Headers);
+        if (request.Http is null && headers.Count == 0)
+        {
+            return request;
+        }
+
+        var http = request.Http ?? new HttpCheckSpec();
+        http.Headers = headers;
+        return request with { Http = http };
+    }
+}
+
+public sealed class CheckImportJson
+{
+    public List<CheckWriteJson>? Checks { get; set; }
 }
 
 public sealed class CheckPatchJson
@@ -291,7 +341,7 @@ public static class CheckJson
                 bodyContains = check.Http.BodyContains,
                 jsonPath = check.Http.JsonPath,
                 expectedJsonValue = check.Http.ExpectedJsonValue,
-                headers = RedactHeaders(check.Http.Headers)
+                headers = SecretHeaders.RedactValues(check.Http.Headers)
             },
         tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
         dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null,
@@ -301,25 +351,40 @@ public static class CheckJson
         lastResult = check.LastResult is null ? null : ResultJson.From(check.LastResult)
     };
 
-    private static Dictionary<string, string>? RedactHeaders(Dictionary<string, string> headers)
+    public static object Export(StatusCheck check, bool includeHeaders) => new
     {
-        if (headers.Count == 0)
+        id = check.Id,
+        name = check.Name,
+        componentId = check.ComponentId,
+        componentName = check.ComponentName,
+        groupId = check.ComponentGroupId,
+        type = check.Type.ApiValue(),
+        enabled = check.Enabled,
+        intervalSeconds = check.IntervalSeconds,
+        timeoutSeconds = check.TimeoutSeconds,
+        failureThreshold = check.FailureThreshold,
+        successThreshold = check.SuccessThreshold,
+        target = new
         {
-            return null;
-        }
-
-        return headers.ToDictionary(
-            kv => kv.Key,
-            kv => IsSensitive(kv.Key) ? "(set)" : kv.Value,
-            StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static bool IsSensitive(string name) =>
-        name.Equals("Authorization", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("Proxy-Authorization", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("secret", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("token", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("key", StringComparison.OrdinalIgnoreCase);
+            url = check.Target.Url,
+            host = check.Target.Host,
+            port = check.Target.Port,
+            path = check.Target.Path
+        },
+        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
+            ? null
+            : new
+            {
+                method = check.Http.Method,
+                expectedStatus = check.Http.ExpectedStatus,
+                bodyContains = check.Http.BodyContains,
+                jsonPath = check.Http.JsonPath,
+                expectedJsonValue = check.Http.ExpectedJsonValue,
+                headers = includeHeaders ? SecretHeaders.RedactValues(check.Http.Headers) : null
+            },
+        tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
+        dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null
+    };
 }
 
 public static class ResultJson

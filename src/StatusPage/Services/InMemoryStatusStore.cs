@@ -10,6 +10,7 @@ public interface IStatusStore
     StatusCheck? FindCheck(string id);
     IReadOnlyList<StatusCheck> ListChecks();
     StatusCheck CreateCheck(CreateCheckRequest request);
+    StatusCheck ImportCheck(string? id, CreateCheckRequest request);
     StatusCheck UpdateCheck(string id, CreateCheckRequest request);
     StatusCheck PatchCheck(string id, PatchCheckRequest request);
     StatusCheck SetCheckEnabled(string id, bool enabled);
@@ -111,11 +112,53 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
-    public StatusCheck CreateCheck(CreateCheckRequest request)
+    public StatusCheck CreateCheck(CreateCheckRequest request) => CreateCheck(request, NewId());
+
+    /// <summary>
+    /// Create-if-missing by id, same leaf rules as POST /api/checks.
+    /// Existing ids keep their stored host unless the imported host is the same.
+    /// </summary>
+    public StatusCheck ImportCheck(string? id, CreateCheckRequest request)
     {
-        var check = BuildCheck(request, NewId());
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            var existing = FindCheck(id.Trim());
+            if (existing is not null)
+            {
+                var target = request.Target;
+                if (!CheckTarget.HasTargetFields(target) || !CheckTarget.SameProbeHost(existing.Target, target))
+                {
+                    request = request with
+                    {
+                        Target = new CheckTargetSpec
+                        {
+                            Url = existing.Target.Url,
+                            Host = existing.Target.Host,
+                            Port = existing.Target.Port,
+                            Path = existing.Target.Path
+                        }
+                    };
+                }
+
+                return UpdateCheck(existing.Id, request);
+            }
+
+            return CreateCheck(request, id.Trim());
+        }
+
+        return CreateCheck(request, NewId());
+    }
+
+    private StatusCheck CreateCheck(CreateCheckRequest request, string id)
+    {
+        var check = BuildCheck(request, id);
         lock (_gate)
         {
+            if (_state.Checks.Any(c => c.Id == check.Id))
+            {
+                throw new ArgumentException($"Check '{check.Id}' already exists.");
+            }
+
             var leaf = EnsureLeaf(check.ComponentId, request.ComponentName, request.GroupId);
             check.ComponentName = leaf.Name;
             check.ComponentGroupId = leaf.GroupId;

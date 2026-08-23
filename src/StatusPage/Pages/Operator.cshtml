@@ -9,7 +9,7 @@
         <div>
             <p class="eyebrow-ink">OPERATOR ADMIN</p>
             <h1>Status page admin</h1>
-            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. Internal host:port leaves stay on this page.</p>
+            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. Internal host:port leaves stay on this page.@(Model.CanWrite ? "" : " StatusViewer is read-only.")</p>
         </div>
         <form method="post" asp-page-handler="Logout">
             <button type="submit" class="btn-secondary">Sign out</button>
@@ -35,6 +35,8 @@
     <section class="operator-card" id="branding">
         <h2>Local branding</h2>
         <p class="muted">Title and logo are stored locally. Logo files go under data/branding (gitignored). Not a paid CDN.</p>
+        @if (Model.CanWrite)
+        {
         <form method="post" asp-page-handler="SavePage" class="operator-form operator-form-grid">
             <label>Page title
                 <input name="name" value="@Model.PageInfo.Name" required />
@@ -50,6 +52,7 @@
             </label>
             <button type="submit" class="btn-secondary">Upload logo</button>
         </form>
+        }
     </section>
 
     <section class="operator-card" id="components">
@@ -76,6 +79,8 @@
                     <td>@row.Component.Status.ApiValue()</td>
                     <td>@(row.Component.Group ? "—" : row.Internal ? "internal" : "public")</td>
                     <td class="inline-actions">
+                        @if (Model.CanWrite)
+                        {
                         <form method="post" asp-page-handler="SetStatus">
                             <input type="hidden" name="id" value="@row.Component.Id" />
                             <input type="hidden" name="status" value="under_maintenance" />
@@ -85,11 +90,14 @@
                             <input type="hidden" name="id" value="@row.Component.Id" />
                             <button class="btn-secondary btn-danger" type="submit">Delete</button>
                         </form>
+                        }
                     </td>
                 </tr>
             }
             </tbody>
         </table>
+        @if (Model.CanWrite)
+        {
         <h3>Create or edit</h3>
         <form method="post" asp-page-handler="SaveComponent" class="operator-form operator-form-grid">
             <label>Id (slug)
@@ -112,11 +120,13 @@
             </label>
             <div><button type="submit" class="btn-primary">Save component</button></div>
         </form>
+        }
     </section>
 
     <section class="operator-card" id="checks">
         <h2>Checks</h2>
-        <p class="muted">All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only.</p>
+        <p class="muted">All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Header values are never shown.</p>
+        <p><a href="/api/checks/export">Export checks</a> (authenticated). StatusViewer export is public checks only and includes no headers.</p>
         <p id="check-admin-error" class="operator-error" hidden></p>
         <table>
             <thead>
@@ -152,21 +162,24 @@
                     </td>
                     <td>fail @check.ConsecutiveFailures · ok @check.ConsecutiveSuccesses</td>
                     <td class="inline-actions">
+                        @if (Model.CanWrite)
+                        {
                         <a class="btn-secondary" href="/operator?editCheck=@check.Id#check-form">Edit</a>
                         <button type="button" class="btn-secondary" data-check-action="toggle" data-check-id="@check.Id" data-enabled="@(check.Enabled ? "false" : "true")">@(check.Enabled ? "Disable" : "Enable")</button>
                         <button type="button" class="btn-secondary" data-check-action="run" data-check-id="@check.Id">Run now</button>
                         <button type="button" class="btn-secondary btn-danger" data-check-action="delete" data-check-id="@check.Id">Delete</button>
+                        }
                     </td>
                 </tr>
             }
             </tbody>
         </table>
 
+        @if (Model.CanWrite)
+        {
         <h3 id="check-form">@(Model.EditingCheck is null ? "Add a check" : "Edit check")</h3>
         <p class="muted">Any public URL or host:port. Probe name is not the leaf title. Create-if-missing uses component id + component name. Full edit is PUT; enable/disable is PATCH.</p>
-        @{
-            var edit = Model.EditingCheck;
-        }
+        var edit = Model.EditingCheck;
         <form id="check-admin-form" class="operator-form operator-form-grid" data-check-id="@edit?.Id" data-enabled="@(edit is null || edit.Enabled ? "true" : "false")">
             <label>Probe name
                 <input name="name" value="@edit?.Name" placeholder="probe label only" required />
@@ -216,13 +229,14 @@
                 <input name="dnsExpected" value="@(edit is null ? "" : string.Join(",", edit.Dns.ExpectedAddresses))" placeholder="127.0.0.1" />
             </label>
             <label>Header name
-                <input name="headerName" placeholder="Authorization" />
+                <input name="headerName" placeholder="Authorization" autocomplete="off" />
             </label>
             <label>Header value
-                <input name="headerValue" />
+                <input name="headerValue" type="password" autocomplete="off" />
             </label>
             <div><button type="submit" class="btn-primary">@(edit is null ? "Create check" : "Save check")</button></div>
         </form>
+        }
     </section>
 
     <section class="operator-card" id="incidents">
@@ -246,7 +260,7 @@
                     </td>
                     <td>@incident.Status.ApiValue()</td>
                     <td>
-                        @if (incident.Status.IsUnresolvedIncident() || incident.Status.IsActiveMaintenance())
+                        @if (Model.CanWrite && (incident.Status.IsUnresolvedIncident() || incident.Status.IsActiveMaintenance()))
                         {
                             <form method="post" asp-page-handler="UpdateIncident" class="inline-actions">
                                 <input type="hidden" name="id" value="@incident.Id" />
@@ -260,6 +274,8 @@
             }
             </tbody>
         </table>
+        @if (Model.CanWrite)
+        {
         <h3>Open incident or maintenance</h3>
         <form method="post" asp-page-handler="CreateIncident" class="operator-form operator-form-grid">
             <label>Name
@@ -291,6 +307,7 @@
             </label>
             <div><button type="submit" class="btn-primary">Open</button></div>
         </form>
+        }
     </section>
 
     <section class="operator-card" id="audit">
@@ -348,22 +365,28 @@
                     <tr>
                         <td><code>@hook.Url</code></td>
                         <td>
+                            @if (Model.CanWrite)
+                            {
                             <form method="post" asp-page-handler="DeleteWebhook">
                                 <input type="hidden" name="id" value="@hook.Id" />
                                 <button class="btn-secondary btn-danger" type="submit">Delete</button>
                             </form>
+                            }
                         </td>
                     </tr>
                 }
                 </tbody>
             </table>
         }
+        @if (Model.CanWrite)
+        {
         <form method="post" asp-page-handler="AddWebhook" class="operator-form">
             <label>Webhook URL
                 <input name="url" placeholder="https://example.com/hooks/status" required />
             </label>
             <button type="submit" class="btn-primary">Add webhook</button>
         </form>
+        }
     </section>
 
     <section class="operator-card" id="connectors">
@@ -388,6 +411,9 @@
         }
     </section>
 
-    <p class="muted">@(Model.EntraConfigured ? "Entra requires StatusOperator or AllowedObjectIds." : "Entra is not configured; API key login is active.")</p>
+    <p class="muted">@(Model.EntraConfigured ? "Entra write requires StatusOperator or AllowedObjectIds. StatusViewer is read-only." : "Entra is not configured; API key login is active.")</p>
 </div>
+@if (Model.CanWrite)
+{
 <script src="~/js/operator-checks.js" asp-append-version="true"></script>
+}

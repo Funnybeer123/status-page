@@ -23,10 +23,11 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     public string? AuthLabel { get; private set; }
     public string? Error { get; private set; }
     public bool EntraConfigured { get; private set; }
+    public bool CanWrite { get; private set; }
 
     public IActionResult OnGet(string? editCheck = null)
     {
-        if (OperatorAuth.IsOperator(HttpContext))
+        if (OperatorAuth.IsStaff(HttpContext))
         {
             Load(editCheck);
             return Page();
@@ -69,7 +70,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     {
         if (!OperatorAuth.IsOperator(HttpContext))
         {
-            return OperatorAuth.IsDeniedEntraUser(HttpContext)
+            return OperatorAuth.IsViewer(HttpContext) || OperatorAuth.IsDeniedEntraUser(HttpContext)
                 ? StatusCode(StatusCodes.Status403Forbidden)
                 : RedirectToLogin();
         }
@@ -206,7 +207,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
 
     private IActionResult Guarded(Func<IActionResult> action)
     {
-        if (OperatorAuth.IsDeniedEntraUser(HttpContext))
+        if (OperatorAuth.IsViewer(HttpContext) || OperatorAuth.IsDeniedEntraUser(HttpContext))
         {
             return StatusCode(StatusCodes.Status403Forbidden);
         }
@@ -241,6 +242,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     private void Load(string? editCheck)
     {
         EntraConfigured = OperatorAuth.IsAzureAdConfigured(configuration);
+        CanWrite = OperatorAuth.IsOperator(HttpContext);
         AuthLabel = User.Identity?.Name ?? "operator";
         var state = store.Snapshot();
         PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());

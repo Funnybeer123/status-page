@@ -114,7 +114,22 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
     {
         var http = EntraHttp(EntraPrincipal(oid: "11111111-1111-1111-1111-111111111111"));
         Assert.False(OperatorAuth.IsOperator(http));
+        Assert.False(OperatorAuth.IsViewer(http));
+        Assert.False(OperatorAuth.IsStaff(http));
         Assert.True(OperatorAuth.IsDeniedEntraUser(http));
+        Assert.False(OperatorAuth.HasOperatorGrant(http.User, Config()));
+        Assert.False(OperatorAuth.HasViewerRole(http.User, Config()));
+    }
+
+    [Fact]
+    public void StatusViewer_is_read_only_staff_not_operator()
+    {
+        var http = EntraHttp(EntraPrincipal(roles: ["StatusViewer"]));
+        Assert.False(OperatorAuth.IsOperator(http));
+        Assert.True(OperatorAuth.IsViewer(http));
+        Assert.True(OperatorAuth.IsStaff(http));
+        Assert.False(OperatorAuth.IsDeniedEntraUser(http));
+        Assert.True(OperatorAuth.HasViewerRole(http.User, Config()));
         Assert.False(OperatorAuth.HasOperatorGrant(http.User, Config()));
     }
 
@@ -141,6 +156,7 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             EntraPrincipal(oid: oid),
             Config(allowedObjectIds: oid));
         Assert.True(OperatorAuth.IsOperator(http));
+        Assert.False(OperatorAuth.IsViewer(http));
         Assert.False(OperatorAuth.IsDeniedEntraUser(http));
     }
 
@@ -202,6 +218,89 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         using var page = await client.GetAsync("/operator");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         Assert.Contains("Add a check", await page.Content.ReadAsStringAsync());
+
+        using var write = await client.PostAsJsonAsync("/api/operator/incidents", new
+        {
+            name = "Operator write incident",
+            status = "investigating",
+            impact = "minor",
+            body = "StatusOperator can write."
+        });
+        Assert.Equal(HttpStatusCode.Created, write.StatusCode);
+    }
+
+    [Fact]
+    public async Task StatusViewer_reads_operator_lists_and_is_403_on_write()
+    {
+        using var factory = new EntraOperatorFactory();
+        factory.Users.User = EntraPrincipal(roles: ["StatusViewer"]);
+        using var client = factory.CreateClient();
+
+        using var page = await client.GetAsync("/operator");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.Contains("Audit log", html);
+        Assert.Contains("StatusViewer is read-only", html);
+        Assert.DoesNotContain("Add a check", html);
+
+        using var checks = await client.GetAsync("/api/checks");
+        Assert.Equal(HttpStatusCode.OK, checks.StatusCode);
+        using var components = await client.GetAsync("/api/operator/components");
+        Assert.Equal(HttpStatusCode.OK, components.StatusCode);
+        using var audit = await client.GetAsync("/api/operator/audit");
+        Assert.Equal(HttpStatusCode.OK, audit.StatusCode);
+        using var export = await client.GetAsync("/api/checks/export");
+        Assert.Equal(HttpStatusCode.OK, export.StatusCode);
+
+        using var create = await client.PostAsJsonAsync("/api/checks", new
+        {
+            name = "viewer-blocked",
+            componentId = "github-status",
+            type = "https",
+            target = new { url = "https://www.githubstatus.com/api/v2/status.json" }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, create.StatusCode);
+
+        using var import = await client.PostAsJsonAsync("/api/checks/import", new
+        {
+            checks = new[]
+            {
+                new
+                {
+                    name = "viewer-import",
+                    componentId = "github-status",
+                    type = "https",
+                    target = new { url = "https://www.githubstatus.com/api/v2/status.json" }
+                }
+            }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, import.StatusCode);
+
+        using var patch = await client.PatchAsJsonAsync("/api/checks/chk-github-status", new { enabled = false });
+        Assert.Equal(HttpStatusCode.Forbidden, patch.StatusCode);
+        using var put = await client.PutAsJsonAsync("/api/checks/chk-github-status", new
+        {
+            name = "blocked",
+            componentId = "github-status",
+            type = "https",
+            target = new { url = "https://www.githubstatus.com/api/v2/status.json" }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, put.StatusCode);
+        using var run = await client.PostAsJsonAsync("/api/checks/chk-github-status/run", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, run.StatusCode);
+        using var incident = await client.PostAsJsonAsync("/api/operator/incidents", new
+        {
+            name = "viewer blocked",
+            status = "investigating",
+            impact = "minor",
+            body = "Viewers cannot open incidents."
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, incident.StatusCode);
+        using var branding = await client.PatchAsJsonAsync("/api/operator/page", new { name = "blocked" });
+        Assert.Equal(HttpStatusCode.Forbidden, branding.StatusCode);
+        using var webhook = await client.PostAsJsonAsync("/api/operator/webhooks",
+            new { url = "https://example.com/hooks/status" });
+        Assert.Equal(HttpStatusCode.Forbidden, webhook.StatusCode);
     }
 
     [Fact]
@@ -284,6 +383,7 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             ["AzureAd:TenantId"] = "test-tenant",
             ["AzureAd:ClientId"] = "test-client",
             ["AzureAd:OperatorRole"] = OperatorAuth.DefaultOperatorRole,
+            ["AzureAd:ViewerRole"] = OperatorAuth.DefaultViewerRole,
             ["AzureAd:AllowedObjectIds"] = allowedObjectIds ?? ""
         }).Build();
 
@@ -351,6 +451,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
                 ["AzureAd:TenantId"] = "test-tenant",
                 ["AzureAd:ClientId"] = "test-client",
                 ["AzureAd:OperatorRole"] = OperatorAuth.DefaultOperatorRole,
+                ["AzureAd:ViewerRole"] = OperatorAuth.DefaultViewerRole,
                 ["AzureAd:AllowedObjectIds"] = _allowedObjectIds
             });
         });
