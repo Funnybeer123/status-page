@@ -57,13 +57,25 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
             Assert.True(component.TryGetProperty("group", out _));
         }
 
+        foreach (var incident in root.GetProperty("incidents").EnumerateArray())
+        {
+            AssertIso8601(incident, "started_at");
+            AssertStatuspageIncidentPayload(incident);
+        }
+
         var maintenances = root.GetProperty("scheduled_maintenances").EnumerateArray().ToList();
         Assert.NotEmpty(maintenances);
         foreach (var maintenance in maintenances)
         {
             Assert.True(maintenance.TryGetProperty("scheduled_for", out _));
             AssertIso8601(maintenance, "started_at");
+            Assert.NotEqual(JsonValueKind.Null, maintenance.GetProperty("started_at").ValueKind);
             AssertStatuspageIncidentPayload(maintenance);
+            Assert.Contains(maintenance.GetProperty("components").EnumerateArray(),
+                c => c.GetProperty("id").GetString() == "cca-ingestion"
+                     && c.TryGetProperty("page_id", out _)
+                     && c.TryGetProperty("showcase", out _)
+                     && c.TryGetProperty("only_show_if_degraded", out _));
         }
     }
 
@@ -156,6 +168,23 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.Equal("local-status", incidentComponent.GetProperty("page_id").GetString());
         var affected = testIncident.GetProperty("incident_updates")[0].GetProperty("affected_components");
         Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "cca-api");
+
+        using var openIncident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "No affected components",
+            status = "investigating",
+            impact = "none",
+            body = "Posted without a component list."
+        }));
+        Assert.Equal(HttpStatusCode.Created, openIncident.StatusCode);
+
+        using var summaryAfter = await client.GetAsync("/api/v2/summary.json");
+        using var afterDoc = JsonDocument.Parse(await summaryAfter.Content.ReadAsStringAsync());
+        var open = afterDoc.RootElement.GetProperty("incidents").EnumerateArray()
+            .Single(i => i.GetProperty("name").GetString() == "No affected components");
+        AssertIso8601(open, "started_at");
+        Assert.Equal(JsonValueKind.Null, open.GetProperty("incident_updates")[0].GetProperty("affected_components").ValueKind);
+        Assert.False(open.GetProperty("incident_updates")[0].GetProperty("deliver_notifications").GetBoolean());
     }
 
     private static void AssertStatuspageIncidentPayload(JsonElement incident)
@@ -170,10 +199,15 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         foreach (var update in updates.EnumerateArray())
         {
             Assert.True(update.TryGetProperty("affected_components", out var affected));
-            Assert.Equal(JsonValueKind.Array, affected.ValueKind);
+            Assert.True(affected.ValueKind is JsonValueKind.Array or JsonValueKind.Null);
             Assert.True(update.TryGetProperty("deliver_notifications", out var deliver));
-            Assert.Equal(JsonValueKind.False, deliver.ValueKind);
+            Assert.True(deliver.ValueKind is JsonValueKind.True or JsonValueKind.False);
             Assert.False(deliver.GetBoolean());
+
+            if (affected.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
 
             foreach (var row in affected.EnumerateArray())
             {
@@ -201,6 +235,9 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.False(string.IsNullOrWhiteSpace(component.GetProperty("page_id").GetString()));
         Assert.Contains(component.GetProperty("status").GetString(), ComponentStatuses);
         Assert.True(component.GetProperty("group").ValueKind is JsonValueKind.True or JsonValueKind.False);
+        Assert.True(component.GetProperty("showcase").ValueKind is JsonValueKind.True or JsonValueKind.False);
+        Assert.True(component.GetProperty("only_show_if_degraded").ValueKind is JsonValueKind.True or JsonValueKind.False);
+        Assert.True(component.GetProperty("start_date").ValueKind is JsonValueKind.Null or JsonValueKind.String);
         Assert.True(component.GetProperty("position").ValueKind == JsonValueKind.Number);
         AssertIso8601(component, "created_at");
         AssertIso8601(component, "updated_at");

@@ -114,7 +114,6 @@ public static class PublicApiMapper
     private static object Incident(StatusPageState state, Incident incident)
     {
         var affected = state.Components.Where(c => incident.ComponentIds.Contains(c.Id)).ToList();
-        var startedAt = incident.ScheduledFor ?? incident.CreatedAt;
         return new
         {
             id = incident.Id,
@@ -125,7 +124,7 @@ public static class PublicApiMapper
             updated_at = Iso(incident.UpdatedAt),
             monitoring_at = Iso(incident.MonitoringAt),
             resolved_at = Iso(incident.ResolvedAt),
-            started_at = Iso(startedAt),
+            started_at = Iso(incident.CreatedAt),
             scheduled_for = Iso(incident.ScheduledFor),
             scheduled_until = Iso(incident.ScheduledUntil),
             shortlink = $"{state.Page.Url.TrimEnd('/')}/incidents/{incident.Id}",
@@ -146,9 +145,12 @@ public static class PublicApiMapper
         created_at = Iso(update.CreatedAt),
         updated_at = Iso(update.UpdatedAt),
         display_at = Iso(update.DisplayAt),
-        affected_components = affected.Select(AffectedComponent),
+        affected_components = AffectedComponents(affected),
         deliver_notifications = false
     };
+
+    private static object? AffectedComponents(IReadOnlyList<Component> affected) =>
+        affected.Count == 0 ? null : affected.Select(AffectedComponent).ToArray();
 
     private static object AffectedComponent(Component component) => new
     {
