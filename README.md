@@ -88,9 +88,10 @@ Probe rules:
 
 Default seed probes real public health endpoints (expected HTTP 200, no body matcher):
 
-- `https://azure.status.microsoft/en-us/status` → `azure` (Microsoft Azure)
-- `https://status.dev.azure.com` → `azure-devops` (Azure DevOps)
-- `https://www.githubstatus.com/api/v2/status.json` → `github` (GitHub)
+- `https://azure.status.microsoft/status/feed/` → `azure-status` (Microsoft Azure)
+- `https://status.dev.azure.com/_apis/status/health?api-version=7.1-preview.1` → `azure-devops-status` (Azure DevOps)
+- `https://www.githubstatus.com/api/v2/status.json` → `github-status` (GitHub)
+- `__SELF_HEALTH__` → `local-health` (this process `/health` only; not a hosted SWA)
 
 Delete `src/StatusPage/data/checks.json` if a previous run cached toy checks. Tests do not hit these hosts.
 
@@ -102,7 +103,7 @@ curl -s http://localhost:5080/api/checks -H "X-Api-Key: dev-key"
 curl -s -X POST http://localhost:5080/api/checks \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"docs HTTPS","componentId":"azure","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
+  -d '{"name":"docs HTTPS","componentId":"azure-status","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
 
 curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key: dev-key"
 ```
@@ -114,7 +115,7 @@ curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key
 Header `X-Api-Key`. Development default `dev-key`. Override with `STATUSPAGE_API_KEY`. Unset key outside Development disables writes (401).
 
 ```bash
-curl -s -X PATCH http://localhost:5080/api/operator/components/azure \
+curl -s -X PATCH http://localhost:5080/api/operator/components/azure-status \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"status":"under_maintenance"}'
@@ -122,10 +123,10 @@ curl -s -X PATCH http://localhost:5080/api/operator/components/azure \
 curl -s -X POST http://localhost:5080/api/operator/incidents \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Azure regional advisory","status":"investigating","impact":"minor","body":"Watching Azure public status.","componentIds":["azure"]}'
+  -d '{"name":"Azure regional advisory","status":"investigating","impact":"minor","body":"Watching Azure public status.","componentIds":["azure-status"]}'
 ```
 
-Seeded leaf ids: `azure`, `azure-devops`, `github`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
+Seeded leaf ids: `azure-status`, `azure-devops-status`, `github-status`, `local-health`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
 
 ## Tests
 

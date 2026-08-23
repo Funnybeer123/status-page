@@ -119,7 +119,7 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
     {
         using var unauthorizedClient = _factory.CreateClient();
         using var denied = await unauthorizedClient.PostAsync("/api/checks",
-            JsonContent.Create(new { name = "x", componentId = "github", type = "tcp", target = new { host = "127.0.0.1", port = 9 } }));
+            JsonContent.Create(new { name = "x", componentId = "github-status", type = "tcp", target = new { host = "127.0.0.1", port = 9 } }));
         Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
 
         using var client = _factory.CreateClient();
@@ -128,7 +128,7 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         using var created = await client.PostAsync("/api/checks", JsonContent.Create(new
         {
             name = "portal tcp",
-            componentId = "github",
+            componentId = "github-status",
             type = "tcp",
             intervalSeconds = 15,
             timeoutSeconds = 2,
@@ -152,11 +152,11 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
             status = "investigating",
             impact = "minor",
             body = "Investigating a demo incident.",
-            componentIds = new[] { "azure" }
+            componentIds = new[] { "azure-status" }
         }));
         Assert.Equal(HttpStatusCode.Created, incident.StatusCode);
 
-        using var patch = await client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/api/operator/components/azure-devops")
+        using var patch = await client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/api/operator/components/azure-devops-status")
         {
             Content = JsonContent.Create(new { status = "degraded_performance" })
         });
@@ -166,21 +166,21 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
         Assert.Equal("operational",
             doc.RootElement.GetProperty("components").EnumerateArray()
-                .Single(c => c.GetProperty("id").GetString() == "azure")
+                .Single(c => c.GetProperty("id").GetString() == "azure-status")
                 .GetProperty("status").GetString());
         Assert.Equal("operational",
             doc.RootElement.GetProperty("components").EnumerateArray()
-                .Single(c => c.GetProperty("id").GetString() == "azure-devops")
+                .Single(c => c.GetProperty("id").GetString() == "azure-devops-status")
                 .GetProperty("status").GetString());
         var testIncident = doc.RootElement.GetProperty("incidents").EnumerateArray()
             .Single(i => i.GetProperty("name").GetString() == "Test incident");
         AssertIso8601(testIncident, "started_at");
         AssertStatuspageIncidentPayload(testIncident);
         var incidentComponent = testIncident.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "azure");
+            .Single(c => c.GetProperty("id").GetString() == "azure-status");
         Assert.Equal("local-status", incidentComponent.GetProperty("page_id").GetString());
         var affected = testIncident.GetProperty("incident_updates")[0].GetProperty("affected_components");
-        Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "azure");
+        Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "azure-status");
 
         using var openIncident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
         {

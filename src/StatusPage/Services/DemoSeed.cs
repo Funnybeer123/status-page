@@ -17,20 +17,22 @@ public static class DemoSeed
 
         var cloud = Group("cloud-cost-agent", "Cloud Cost Agent", 1, now,
             "FinOps agent that reads Azure spend and recommendations.");
-        var azure = Leaf("azure", "Microsoft Azure", cloud.Id, 1, now,
-            "Official public Azure status page.");
+        var azure = Leaf("azure-status", "Microsoft Azure", cloud.Id, 1, now,
+            "Official Azure status RSS feed.");
 
         var devops = Group("devops-eia-box", "DevOps Engineer-in-a-Box", 2, now,
             "Agent that drafts and applies changes through Azure DevOps and GitHub.");
-        var ado = Leaf("azure-devops", "Azure DevOps", devops.Id, 1, now,
-            "Official public Azure DevOps status page.");
-        var github = Leaf("github", "GitHub", devops.Id, 2, now,
+        var ado = Leaf("azure-devops-status", "Azure DevOps", devops.Id, 1, now,
+            "Official Azure DevOps public health API.");
+        var github = Leaf("github-status", "GitHub", devops.Id, 2, now,
             "GitHub public Statuspage v2 status API.");
+        var local = Leaf("local-health", "Local status page", null, 3, now,
+            "This process /health. Local-only; not a hosted SWA.");
 
         return new StatusPageState
         {
             Page = page,
-            Components = [cloud, azure, devops, ado, github],
+            Components = [cloud, azure, devops, ado, github, local],
             Incidents = [],
             ScheduledMaintenances = []
         };

@@ -31,15 +31,15 @@ public class CheckRollupTests
     public void Single_fail_does_not_map_onto_component_severity()
     {
         var store = EmptyStore();
-        store.CreateCheck(Check("only", "azure"));
+        store.CreateCheck(Check("only", "azure-status"));
         Fail(store, "only", 1);
 
         var check = store.ListChecks().Single(c => c.Name == "only");
         Assert.Equal(CheckResultStatus.Fail, check.LastResult!.Status);
         Assert.Equal(CheckState.Up, check.State);
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
         Assert.DoesNotContain(
-            store.ComponentCheckStatuses().Single(s => s.ComponentId == "azure").Status,
+            store.ComponentCheckStatuses().Single(s => s.ComponentId == "azure-status").Status,
             new[] { ComponentStatus.DegradedPerformance, ComponentStatus.PartialOutage, ComponentStatus.MajorOutage });
     }
 
@@ -81,27 +81,27 @@ public class CheckRollupTests
     public void Store_zero_checks_keeps_manual_status()
     {
         var store = EmptyStore();
-        store.UpdateComponentStatus("azure", ComponentStatus.DegradedPerformance);
-        Assert.Equal(ComponentStatus.DegradedPerformance, store.FindComponent("azure")!.Status);
+        store.UpdateComponentStatus("azure-status", ComponentStatus.DegradedPerformance);
+        Assert.Equal(ComponentStatus.DegradedPerformance, store.FindComponent("azure-status")!.Status);
     }
 
     [Fact]
     public void Store_rolls_up_n_checks_and_opens_auto_incident()
     {
         var store = EmptyStore();
-        store.CreateCheck(Check("a", "azure"));
-        store.CreateCheck(Check("b", "azure"));
+        store.CreateCheck(Check("a", "azure-status"));
+        store.CreateCheck(Check("b", "azure-status"));
 
         Fail(store, "a", 3);
-        Assert.Equal(ComponentStatus.PartialOutage, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.PartialOutage, store.FindComponent("azure-status")!.Status);
         Assert.Contains(store.Snapshot().Incidents, i => i.AutoFromChecks && i.Status == IncidentStatus.Investigating);
 
         Fail(store, "b", 3);
-        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure-status")!.Status);
 
         Succeed(store, "a", 2);
         Succeed(store, "b", 2);
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
         Assert.Contains(store.Snapshot().Incidents, i => i.AutoFromChecks && i.Status == IncidentStatus.Resolved);
     }
 
@@ -148,31 +148,31 @@ public class CheckRollupTests
     public void Operator_incident_does_not_override_check_rollup()
     {
         var store = EmptyStore();
-        store.CreateCheck(Check("api", "azure"));
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
+        store.CreateCheck(Check("api", "azure-status"));
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
 
         store.CreateIncident(new CreateIncidentRequest(
             "Operator outage note",
             "investigating",
             "critical",
             "Customers are reporting errors.",
-            ["azure"],
+            ["azure-status"],
             null,
             null), false);
 
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
 
         store.CreateIncident(new CreateIncidentRequest(
             "Operator maintenance note",
             "scheduled",
             "maintenance",
             "Window announced.",
-            ["azure"],
+            ["azure-status"],
             DateTimeOffset.UtcNow.AddHours(1),
             DateTimeOffset.UtcNow.AddHours(2)), true);
 
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
-        Assert.NotEqual(ComponentStatus.UnderMaintenance, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
+        Assert.NotEqual(ComponentStatus.UnderMaintenance, store.FindComponent("azure-status")!.Status);
     }
 
     [Fact]
@@ -184,10 +184,10 @@ public class CheckRollupTests
             "investigating",
             "minor",
             "Operator wrote this.",
-            ["github"],
+            ["github-status"],
             null,
             null), false);
-        store.CreateCheck(Check("dash", "github"));
+        store.CreateCheck(Check("dash", "github-status"));
         Fail(store, "dash", 3);
         Succeed(store, "dash", 2);
         Assert.Equal(IncidentStatus.Investigating, store.Snapshot().Incidents.First(i => i.Id == incident.Id).Status);
@@ -197,32 +197,32 @@ public class CheckRollupTests
     public void Only_under_maintenance_patch_overrides_enabled_checks()
     {
         var store = EmptyStore();
-        store.CreateCheck(Check("api", "azure"));
+        store.CreateCheck(Check("api", "azure-status"));
 
-        store.UpdateComponentStatus("azure", ComponentStatus.DegradedPerformance);
-        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure")!.Status);
+        store.UpdateComponentStatus("azure-status", ComponentStatus.DegradedPerformance);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
 
-        store.UpdateComponentStatus("azure", ComponentStatus.UnderMaintenance);
-        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("azure")!.Status);
+        store.UpdateComponentStatus("azure-status", ComponentStatus.UnderMaintenance);
+        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("azure-status")!.Status);
 
         Fail(store, "api", 3);
-        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("azure-status")!.Status);
     }
 
     [Fact]
     public void Resolving_operator_incident_does_not_override_check_rollup()
     {
         var store = EmptyStore();
-        store.CreateCheck(Check("api", "azure"));
+        store.CreateCheck(Check("api", "azure-status"));
         Fail(store, "api", 3);
-        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure-status")!.Status);
 
         var incident = store.CreateIncident(new CreateIncidentRequest(
             "Operator note",
             "investigating",
             "critical",
             "Filed while checks are down.",
-            ["azure"],
+            ["azure-status"],
             null,
             null), false);
 
@@ -233,7 +233,7 @@ public class CheckRollupTests
             null));
 
         Assert.Equal(IncidentStatus.Resolved, store.Snapshot().Incidents.First(i => i.Id == incident.Id).Status);
-        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure")!.Status);
+        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("azure-status")!.Status);
         Assert.Contains(
             store.Snapshot().Incidents,
             i => i.AutoFromChecks && i.Status == IncidentStatus.Investigating);
