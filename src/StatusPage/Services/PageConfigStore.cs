@@ -67,6 +67,7 @@ public static class PageConfigStore
             Description = document.Description,
             Group = document.Group,
             GroupId = document.GroupId,
+            ParentId = string.IsNullOrWhiteSpace(document.ParentId) ? null : document.ParentId.Trim(),
             Position = document.Position,
             Showcase = true,
             ManualStatus = manual,
@@ -83,6 +84,7 @@ public static class PageConfigStore
         Description = component.Description,
         Group = component.Group,
         GroupId = component.GroupId,
+        ParentId = component.ParentId,
         Position = component.Position,
         ManualStatus = component.ManualStatus.ApiValue()
     };
@@ -102,6 +104,7 @@ public static class PageConfigStore
         public string? Description { get; set; }
         public bool Group { get; set; }
         public string? GroupId { get; set; }
+        public string? ParentId { get; set; }
         public int Position { get; set; }
         public string? ManualStatus { get; set; }
     }

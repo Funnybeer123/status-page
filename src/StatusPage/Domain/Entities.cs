@@ -28,6 +28,8 @@ public sealed class Component
     public ComponentStatus Status { get; set; } = ComponentStatus.Operational;
     public bool Group { get; set; }
     public string? GroupId { get; set; }
+    /// <summary>Parent leaf id. Groups are display-only and cannot be parents.</summary>
+    public string? ParentId { get; set; }
     public int Position { get; set; }
     public bool Showcase { get; set; } = true;
     public bool OnlyShowIfDegraded { get; set; }
@@ -103,6 +105,8 @@ public sealed class StatusCheck
     /// <summary>Display title of a create-if-missing leaf. Never the probe <see cref="Name"/>.</summary>
     public string? ComponentName { get; set; }
     public string? ComponentGroupId { get; set; }
+    /// <summary>Parent leaf of this check's component. Groups are not parents.</summary>
+    public string? ComponentParentId { get; set; }
     /// <summary>UTC mute window. Not under_maintenance and does not change component status.</summary>
     public DateTimeOffset? MutedFrom { get; set; }
     public DateTimeOffset? MutedUntil { get; set; }
@@ -176,7 +180,8 @@ public sealed record CreateCheckRequest(
     string? ComponentName = null,
     string? GroupId = null,
     TlsCheckSpec? Tls = null,
-    DnsCheckSpec? Dns = null);
+    DnsCheckSpec? Dns = null,
+    string? ParentId = null);
 
 public sealed record CreateIncidentRequest(
     string Name,
@@ -204,7 +209,8 @@ public sealed record WriteComponentRequest(
     string? Description,
     bool Group,
     string? GroupId,
-    int? Position);
+    int? Position,
+    string? ParentId = null);
 
 public sealed record WritePageRequest(string? Name, string? LogoUrl, string? TimeZone = null);
 

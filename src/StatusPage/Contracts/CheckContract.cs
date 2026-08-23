@@ -7,6 +7,7 @@ namespace StatusPage.Contracts;
 /// Probes never emit degraded_performance; that status is operator-only.
 /// Check types: http, https, tcp, tls_expiry, dns.
 /// Mute windows (mutedFrom/mutedUntil UTC) skip probes; they are not under_maintenance.
+/// A parent leaf that is Down skips child probes the same way; last child state sticks.
 /// </summary>
 public static class CheckContract
 {
@@ -47,6 +48,7 @@ public sealed class CheckDocument
     public string ComponentId { get; set; } = "";
     public string? ComponentName { get; set; }
     public string? GroupId { get; set; }
+    public string? ParentId { get; set; }
     public string Type { get; set; } = CheckContract.TypeHttps;
     public bool Enabled { get; set; } = true;
     public int IntervalSeconds { get; set; } = CheckContract.DefaultIntervalSeconds;

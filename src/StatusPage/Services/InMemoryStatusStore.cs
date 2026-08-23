@@ -160,9 +160,10 @@ public sealed class InMemoryStatusStore : IStatusStore
                 throw new ArgumentException($"Check '{check.Id}' already exists.");
             }
 
-            var leaf = EnsureLeaf(check.ComponentId, request.ComponentName, request.GroupId);
+            var leaf = EnsureLeaf(check.ComponentId, request.ComponentName, request.GroupId, request.ParentId);
             check.ComponentName = leaf.Name;
             check.ComponentGroupId = leaf.GroupId;
+            check.ComponentParentId = leaf.ParentId;
             _state.Checks.Add(check);
             ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
             PersistChecks();
@@ -178,9 +179,10 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             var existing = _state.Checks.FirstOrDefault(c => c.Id == id)
                            ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
-            var leaf = EnsureLeaf(next.ComponentId, request.ComponentName, request.GroupId);
+            var leaf = EnsureLeaf(next.ComponentId, request.ComponentName, request.GroupId, request.ParentId);
             next.ComponentName = leaf.Name;
             next.ComponentGroupId = leaf.GroupId;
+            next.ComponentParentId = leaf.ParentId;
             var previousComponent = existing.ComponentId;
             next.State = existing.State;
             next.ConsecutiveFailures = existing.ConsecutiveFailures;
@@ -558,11 +560,18 @@ public sealed class InMemoryStatusStore : IStatusStore
                 {
                     throw new ArgumentException("A group cannot belong to another group.");
                 }
+
+                if (!string.IsNullOrWhiteSpace(request.ParentId))
+                {
+                    throw new ArgumentException("A group cannot have a parent leaf. Groups do not probe.");
+                }
             }
             else
             {
                 groupId = ResolveGroupId(request.GroupId);
             }
+
+            var parentId = request.Group ? null : ResolveParentLeafId(request.ParentId, id);
 
             var now = DateTimeOffset.UtcNow;
             var position = request.Position
@@ -574,6 +583,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 Group = request.Group,
                 GroupId = groupId,
+                ParentId = parentId,
                 Position = position,
                 Status = ComponentStatus.Operational,
                 ManualStatus = ComponentStatus.Operational,
@@ -605,9 +615,20 @@ public sealed class InMemoryStatusStore : IStatusStore
                 throw new ArgumentException("A group cannot belong to another group.");
             }
 
+            if (component.Group && !string.IsNullOrWhiteSpace(request.ParentId))
+            {
+                throw new ArgumentException("A group cannot have a parent leaf. Groups do not probe.");
+            }
+
             if (!component.Group)
             {
                 component.GroupId = ResolveGroupId(request.GroupId);
+                component.ParentId = ResolveParentLeafId(request.ParentId, component.Id);
+                foreach (var check in _state.Checks.Where(c => c.ComponentId == component.Id))
+                {
+                    check.ComponentParentId = component.ParentId;
+                    check.ComponentGroupId = component.GroupId;
+                }
             }
 
             var now = DateTimeOffset.UtcNow;
@@ -635,6 +656,11 @@ public sealed class InMemoryStatusStore : IStatusStore
             if (component.Group && _state.Components.Any(c => c.GroupId == component.Id))
             {
                 throw new ArgumentException("Delete or move child components before deleting a group.");
+            }
+
+            if (!component.Group && _state.Components.Any(c => c.ParentId == component.Id))
+            {
+                throw new ArgumentException("Delete or reassign child leaves before deleting a parent leaf.");
             }
 
             if (!component.Group && _state.Checks.Any(c => c.ComponentId == component.Id))
@@ -685,7 +711,8 @@ public sealed class InMemoryStatusStore : IStatusStore
                 return;
             }
 
-            if (CheckMute.IsActive(check, result.CheckedAtUtc))
+            if (CheckMute.IsActive(check, result.CheckedAtUtc)
+                || CheckParentSkip.IsActive(check, _state.Components, _state.Checks))
             {
                 return;
             }
@@ -904,11 +931,11 @@ public sealed class InMemoryStatusStore : IStatusStore
                 continue;
             }
 
-            EnsureLeaf(check.ComponentId, check.ComponentName, check.ComponentGroupId);
+            EnsureLeaf(check.ComponentId, check.ComponentName, check.ComponentGroupId, check.ComponentParentId);
         }
     }
 
-    private Component EnsureLeaf(string componentId, string? componentName, string? groupId)
+    private Component EnsureLeaf(string componentId, string? componentName, string? groupId, string? parentId)
     {
         var existing = _state.Components.FirstOrDefault(c => c.Id == componentId);
         if (existing is not null)
@@ -916,6 +943,11 @@ public sealed class InMemoryStatusStore : IStatusStore
             if (existing.Group)
             {
                 throw new ArgumentException("Checks must map to a leaf component, not a group.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(parentId))
+            {
+                existing.ParentId = ResolveParentLeafId(parentId, existing.Id);
             }
 
             return existing;
@@ -938,6 +970,8 @@ public sealed class InMemoryStatusStore : IStatusStore
             resolvedGroupId = group.Id;
         }
 
+        var resolvedParentId = ResolveParentLeafId(parentId, componentId);
+
         var now = DateTimeOffset.UtcNow;
         var position = _state.Components.Where(c => !c.Group).Select(c => c.Position).DefaultIfEmpty(0).Max() + 1;
         var leaf = new Component
@@ -948,6 +982,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             ManualStatus = ComponentStatus.Operational,
             Group = false,
             GroupId = resolvedGroupId,
+            ParentId = resolvedParentId,
             Position = position,
             Showcase = true,
             CreatedAt = now,
@@ -1007,6 +1042,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             ComponentId = componentId,
             ComponentName = string.IsNullOrWhiteSpace(request.ComponentName) ? null : request.ComponentName.Trim(),
             ComponentGroupId = string.IsNullOrWhiteSpace(request.GroupId) ? null : request.GroupId.Trim(),
+            ComponentParentId = string.IsNullOrWhiteSpace(request.ParentId) ? null : request.ParentId.Trim(),
             Type = type,
             Enabled = request.Enabled ?? true,
             IntervalSeconds = request.IntervalSeconds ?? CheckContract.DefaultIntervalSeconds,
@@ -1224,6 +1260,41 @@ public sealed class InMemoryStatusStore : IStatusStore
         return group.Id;
     }
 
+    private string? ResolveParentLeafId(string? parentId, string selfId)
+    {
+        if (string.IsNullOrWhiteSpace(parentId))
+        {
+            return null;
+        }
+
+        var parent = _state.Components.FirstOrDefault(c => c.Id == parentId.Trim());
+        if (parent is null || parent.Group)
+        {
+            throw new ArgumentException($"Unknown parent leaf '{parentId}'.");
+        }
+
+        if (string.Equals(parent.Id, selfId, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("A leaf cannot be its own parent.");
+        }
+
+        var seen = new HashSet<string>(StringComparer.Ordinal) { selfId };
+        var walk = parent;
+        while (walk is not null)
+        {
+            if (!seen.Add(walk.Id))
+            {
+                throw new ArgumentException("Parent leaf cycle is not allowed.");
+            }
+
+            walk = string.IsNullOrWhiteSpace(walk.ParentId)
+                ? null
+                : _state.Components.FirstOrDefault(c => c.Id == walk.ParentId);
+        }
+
+        return parent.Id;
+    }
+
     private static string RequireSlug(string? value, string field)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1312,6 +1383,7 @@ public sealed class InMemoryStatusStore : IStatusStore
         Status = component.Status,
         Group = component.Group,
         GroupId = component.GroupId,
+        ParentId = component.ParentId,
         Position = component.Position,
         Showcase = component.Showcase,
         OnlyShowIfDegraded = component.OnlyShowIfDegraded,
@@ -1364,6 +1436,7 @@ public sealed class InMemoryStatusStore : IStatusStore
         ComponentId = check.ComponentId,
         ComponentName = check.ComponentName,
         ComponentGroupId = check.ComponentGroupId,
+        ComponentParentId = check.ComponentParentId,
         Type = check.Type,
         Enabled = check.Enabled,
         IntervalSeconds = check.IntervalSeconds,

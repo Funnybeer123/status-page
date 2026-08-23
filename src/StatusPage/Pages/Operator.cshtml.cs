@@ -104,11 +104,11 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         }
     }
 
-    public IActionResult OnPostSaveComponent(string? id, string? name, string? description, string? groupId, bool isGroup)
+    public IActionResult OnPostSaveComponent(string? id, string? name, string? description, string? groupId, string? parentId, bool isGroup)
     {
         return Guarded(() =>
         {
-            var request = new WriteComponentRequest(id, name ?? "", description, isGroup, groupId, null);
+            var request = new WriteComponentRequest(id, name ?? "", description, isGroup, groupId, null, parentId);
             if (store.FindComponent(id ?? "") is null)
             {
                 var created = store.CreateComponent(request);

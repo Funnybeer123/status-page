@@ -347,6 +347,7 @@ public static class OperatorEndpoints
         status = component.Status.ApiValue(),
         group = component.Group,
         group_id = component.GroupId,
+        parentId = component.ParentId,
         position = component.Position,
         @internal = !component.Group && ComponentVisibility.IsInternalLeaf(component, checks)
     };
@@ -404,9 +405,10 @@ public sealed class WriteComponentJson
     public string? Description { get; set; }
     public bool Group { get; set; }
     public string? GroupId { get; set; }
+    public string? ParentId { get; set; }
     public int? Position { get; set; }
 
-    public WriteComponentRequest ToRequest() => new(Id, Name ?? "", Description, Group, GroupId, Position);
+    public WriteComponentRequest ToRequest() => new(Id, Name ?? "", Description, Group, GroupId, Position, ParentId);
 }
 
 public sealed class CreateIncidentJson
