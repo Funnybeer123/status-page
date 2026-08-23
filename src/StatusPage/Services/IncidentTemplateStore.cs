@@ -53,7 +53,10 @@ public static class IncidentTemplateRules
         return parsed.ApiValue();
     }
 
-    public static IReadOnlyList<string> NormalizePublicComponentIds(IEnumerable<string>? ids, IStatusStore store)
+    public static IReadOnlyList<string> NormalizePublicComponentIds(
+        IEnumerable<string>? ids,
+        IStatusStore store,
+        string subject = "Template")
     {
         var checks = store.ListChecks();
         var result = new List<string>();
@@ -69,12 +72,12 @@ public static class IncidentTemplateRules
                             ?? throw new ArgumentException($"Unknown component '{id}'.");
             if (component.Group)
             {
-                throw new ArgumentException($"Template cannot include group id '{id}'.");
+                throw new ArgumentException($"{subject} cannot include group id '{id}'.");
             }
 
             if (ComponentVisibility.IsInternalLeaf(component, checks))
             {
-                throw new ArgumentException($"Template cannot include internal component '{id}'.");
+                throw new ArgumentException($"{subject} cannot include internal component '{id}'.");
             }
 
             if (!result.Contains(id, StringComparer.Ordinal))
@@ -84,7 +87,7 @@ public static class IncidentTemplateRules
 
             if (result.Count > MaxComponentIds)
             {
-                throw new ArgumentException($"Template can list at most {MaxComponentIds} public component ids.");
+                throw new ArgumentException($"{subject} can list at most {MaxComponentIds} public component ids.");
             }
         }
 

@@ -124,6 +124,31 @@
             </div>
         }
     </section>
+
+    <section class="block" id="report">
+        <h2>Report a problem</h2>
+        <p class="muted">Operators review submissions privately. This does not open a public incident or change component status.</p>
+        @if (Model.ReportThanks)
+        {
+            <p class="report-thanks">Thanks. Operators will review this privately.</p>
+        }
+        else
+        {
+            @if (!string.IsNullOrWhiteSpace(Model.ReportError))
+            {
+                <p class="operator-error">@Model.ReportError</p>
+            }
+            <form method="post" asp-page-handler="Report" class="operator-form report-form">
+                <label>Title
+                    <input name="title" required maxlength="200" />
+                </label>
+                <label>Details
+                    <textarea name="body" required maxlength="4000" rows="4"></textarea>
+                </label>
+                <div><button type="submit" class="btn-primary">Submit report</button></div>
+            </form>
+        }
+    </section>
 </div>
 
 @functions {

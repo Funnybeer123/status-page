@@ -439,6 +439,8 @@ a:hover { text-decoration: underline; }
 }
 
 .muted { color: var(--muted); }
+.report-form { max-width: 560px; }
+.report-thanks { font-weight: 700; color: var(--green); }
 
 .subpage { padding: 0 0 80px; }
 .subpage .topbar { padding-top: 18px; }

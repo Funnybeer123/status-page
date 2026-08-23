@@ -21,6 +21,7 @@
         <a href="#components">Components</a>
         <a href="#checks">Checks</a>
         <a href="#incidents">Incidents</a>
+        <a href="#reports">Reports</a>
         <a href="#templates">Templates</a>
         <a href="#audit">Audit</a>
         <a href="#webhooks">Webhooks</a>
@@ -276,6 +277,61 @@
             </label>
             <div><button type="submit" class="btn-primary">@(edit is null ? "Create check" : "Save check")</button></div>
         </form>
+        }
+    </section>
+
+    <section class="operator-card" id="reports">
+        <h2>Problem reports</h2>
+        <p class="muted">Anonymous submissions. Not public incidents and they do not change component status. StatusViewer can read. Only StatusOperator can promote to a public incident (public component ids only).</p>
+        @if (Model.Reports.Count == 0)
+        {
+            <p class="muted">No problem reports.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Report</th>
+                        <th>Submitted</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var report in Model.Reports)
+                {
+                    <tr>
+                        <td>
+                            <strong>@report.Title</strong>
+                            <div class="muted">@report.Body</div>
+                            @if (report.PromotedIncidentId is { } incidentId)
+                            {
+                                <div class="muted">Promoted to <code>@incidentId</code></div>
+                            }
+                        </td>
+                        <td>@OperatorModel.IsoUtc(report.CreatedAt)</td>
+                        <td>
+                            @if (Model.CanWrite && report.PromotedIncidentId is null)
+                            {
+                                <form method="post" asp-page-handler="PromoteReport" class="operator-form">
+                                    <input type="hidden" name="id" value="@report.Id" />
+                                    <label>Public name
+                                        <input name="name" value="@report.Title" />
+                                    </label>
+                                    <label>Impact
+                                        <input name="impact" placeholder="minor" value="minor" />
+                                    </label>
+                                    <label>Public component ids (comma)
+                                        <input name="componentIds" placeholder="azure-status" />
+                                    </label>
+                                    <button class="btn-secondary" type="submit">Promote</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
         }
     </section>
 
