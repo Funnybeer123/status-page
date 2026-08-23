@@ -21,7 +21,7 @@ public sealed class SystemIcmpSender : IIcmpSender
         CancellationToken cancellationToken)
     {
         using var ping = new Ping();
-        var reply = await ping.SendPingAsync(host, timeoutMilliseconds, cancellationToken);
+        var reply = await ping.SendPingAsync(host, timeoutMilliseconds).WaitAsync(cancellationToken);
         return new IcmpSendResult(reply.Status, reply.RoundtripTime);
     }
 }
