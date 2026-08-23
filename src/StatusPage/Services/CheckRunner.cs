@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.NetworkInformation;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
@@ -9,8 +10,24 @@ using StatusPage.Domain;
 
 namespace StatusPage.Services;
 
-public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<CheckRunner> logger)
+public sealed class CheckRunner
 {
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<CheckRunner> _logger;
+    private readonly IIcmpSender _icmpSender;
+
+    public CheckRunner(IHttpClientFactory httpClientFactory, ILogger<CheckRunner> logger)
+        : this(httpClientFactory, logger, new SystemIcmpSender())
+    {
+    }
+
+    public CheckRunner(IHttpClientFactory httpClientFactory, ILogger<CheckRunner> logger, IIcmpSender icmpSender)
+    {
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+        _icmpSender = icmpSender;
+    }
+
     public async Task<CheckResult> RunAsync(StatusCheck check, CancellationToken cancellationToken)
     {
         var at = DateTimeOffset.UtcNow;
@@ -26,6 +43,7 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
                 CheckType.Tcp => await RunTcpAsync(target, check.TimeoutSeconds, cancellationToken),
                 CheckType.Dns => await RunDnsAsync(target, check, cancellationToken),
                 CheckType.TlsExpiry => await RunTlsExpiryAsync(target, check, cancellationToken),
+                CheckType.Icmp => await RunIcmpAsync(target, check, cancellationToken),
                 _ => await RunHttpAsync(target, check, cancellationToken)
             };
         }
@@ -35,7 +53,7 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Check {CheckId} failed", check.Id);
+            _logger.LogDebug(ex, "Check {CheckId} failed", check.Id);
             return Fail(DateTimeOffset.UtcNow, 0, Trim(ex.Message));
         }
     }
@@ -151,6 +169,17 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
             return CheckTarget.TryParse(raw, "tls_expiry", out target, out error);
         }
 
+        if (check.Type == CheckType.Icmp)
+        {
+            var host = check.Target.Host;
+            if (string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(check.Target.Url))
+            {
+                host = check.Target.Url;
+            }
+
+            return CheckTarget.TryParse(host, CheckContract.TypeIcmp, out target, out error);
+        }
+
         if (!string.IsNullOrWhiteSpace(check.Target.Host) && check.Target.Port is > 0 and <= 65535)
         {
             return CheckTarget.TryParse($"{check.Target.Host}:{check.Target.Port}", "tcp", out target, out error);
@@ -164,7 +193,7 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         StatusCheck check,
         CancellationToken cancellationToken)
     {
-        var client = httpClientFactory.CreateClient("StatusChecks");
+        var client = _httpClientFactory.CreateClient("StatusChecks");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(check.TimeoutSeconds, 1, 120)));
 
@@ -239,6 +268,75 @@ public sealed class CheckRunner(IHttpClientFactory httpClientFactory, ILogger<Ch
         var result = EvaluateDns(addresses, DateTimeOffset.UtcNow, check.Dns.ExpectedAddresses);
         result.LatencyMs = (int)clock.ElapsedMilliseconds;
         return result;
+    }
+
+    /// <summary>
+    /// Fail closed: if the process cannot send ICMP (missing capability, not
+    /// permitted, or any exception), the result is fail — never ok/Up.
+    /// </summary>
+    public static CheckResult EvaluateIcmp(
+        bool canSend,
+        IPStatus? status,
+        string? error,
+        int latencyMs,
+        DateTimeOffset checkedAtUtc)
+    {
+        if (!canSend)
+        {
+            return Fail(
+                checkedAtUtc,
+                latencyMs,
+                string.IsNullOrWhiteSpace(error)
+                    ? "ICMP ping is not available or not permitted."
+                    : error);
+        }
+
+        if (status is null)
+        {
+            return Fail(checkedAtUtc, latencyMs, "ICMP ping returned no status.");
+        }
+
+        if (status == IPStatus.Success)
+        {
+            return new CheckResult
+            {
+                Status = CheckResultStatus.Ok,
+                LatencyMs = latencyMs,
+                CheckedAtUtc = checkedAtUtc
+            };
+        }
+
+        return Fail(checkedAtUtc, latencyMs, $"ICMP {status}.");
+    }
+
+    private async Task<CheckResult> RunIcmpAsync(
+        ResolvedCheckTarget target,
+        StatusCheck check,
+        CancellationToken cancellationToken)
+    {
+        var timeoutMs = Math.Clamp(check.TimeoutSeconds, 1, 120) * 1000;
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromMilliseconds(timeoutMs));
+            var clock = Stopwatch.StartNew();
+            var sent = await _icmpSender.SendAsync(target.Host, timeoutMs, timeout.Token);
+            clock.Stop();
+            return EvaluateIcmp(true, sent.Status, null, (int)sent.RoundtripMilliseconds, DateTimeOffset.UtcNow);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return EvaluateIcmp(true, IPStatus.TimedOut, null, timeoutMs, DateTimeOffset.UtcNow);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "ICMP check {CheckId} cannot ping", check.Id);
+            return EvaluateIcmp(false, null, Trim(ex.Message), 0, DateTimeOffset.UtcNow);
+        }
     }
 
     private static async Task<CheckResult> RunTlsExpiryAsync(

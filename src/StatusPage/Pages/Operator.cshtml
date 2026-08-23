@@ -236,14 +236,14 @@
             </label>
             <label>Type
                 <select name="type">
-                    @foreach (var type in new[] { "https", "http", "tcp", "tls_expiry", "dns" })
+                    @foreach (var type in new[] { "https", "http", "tcp", "tls_expiry", "dns", "icmp" })
                     {
                         <option value="@type" selected="@(edit?.Type.ApiValue() == type)">@type</option>
                     }
                 </select>
             </label>
-            <label>URL or host:port
-                <input name="target" value="@edit?.DisplayTarget" placeholder="https://example.com/health or db.internal:5432" required />
+            <label>URL, host:port, or ICMP host
+                <input name="target" value="@edit?.DisplayTarget" placeholder="https://example.com/health, db.internal:5432, or 203.0.113.10" required />
             </label>
             <label>Interval seconds
                 <input name="intervalSeconds" type="number" min="15" value="@(edit?.IntervalSeconds ?? 60)" />

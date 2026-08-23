@@ -121,7 +121,7 @@ public sealed class StatusCheck
             ? Target.Url!
             : Target.Host is { Length: > 0 } && Target.Port is > 0
                 ? $"{Target.Host}:{Target.Port}{Target.Path}"
-                : "";
+                : Target.Host ?? "";
 }
 
 public sealed class CheckTargetSpec

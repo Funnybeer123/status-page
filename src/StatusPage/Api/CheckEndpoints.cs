@@ -412,7 +412,7 @@ public static class CheckJson
             port = check.Target.Port,
             path = check.Target.Path
         },
-        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
+        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry or CheckType.Icmp
             ? null
             : new
             {
@@ -455,7 +455,7 @@ public static class CheckJson
             port = check.Target.Port,
             path = check.Target.Path
         },
-        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry
+        http = check.Type is CheckType.Tcp or CheckType.Dns or CheckType.TlsExpiry or CheckType.Icmp
             ? null
             : new
             {
