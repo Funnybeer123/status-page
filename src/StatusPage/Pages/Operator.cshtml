@@ -114,7 +114,8 @@
 
     <section class="operator-card" id="checks">
         <h2>Checks</h2>
-        <p class="muted">All probes including internal. Disable drops a check out of rollup without deleting it.</p>
+        <p class="muted">All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only.</p>
+        <p id="check-admin-error" class="operator-error" hidden></p>
         <table>
             <thead>
                 <tr>
@@ -150,15 +151,9 @@
                     <td>fail @check.ConsecutiveFailures · ok @check.ConsecutiveSuccesses</td>
                     <td class="inline-actions">
                         <a class="btn-secondary" href="/operator?editCheck=@check.Id#check-form">Edit</a>
-                        <form method="post" asp-page-handler="SetCheckEnabled">
-                            <input type="hidden" name="id" value="@check.Id" />
-                            <input type="hidden" name="enabled" value="@(check.Enabled ? "false" : "true")" />
-                            <button class="btn-secondary" type="submit">@(check.Enabled ? "Disable" : "Enable")</button>
-                        </form>
-                        <form method="post" asp-page-handler="DeleteCheck">
-                            <input type="hidden" name="id" value="@check.Id" />
-                            <button class="btn-secondary btn-danger" type="submit">Delete</button>
-                        </form>
+                        <button type="button" class="btn-secondary" data-check-action="toggle" data-check-id="@check.Id" data-enabled="@(check.Enabled ? "false" : "true")">@(check.Enabled ? "Disable" : "Enable")</button>
+                        <button type="button" class="btn-secondary" data-check-action="run" data-check-id="@check.Id">Run now</button>
+                        <button type="button" class="btn-secondary btn-danger" data-check-action="delete" data-check-id="@check.Id">Delete</button>
                     </td>
                 </tr>
             }
@@ -166,17 +161,11 @@
         </table>
 
         <h3 id="check-form">@(Model.EditingCheck is null ? "Add a check" : "Edit check")</h3>
-        <p class="muted">Any public URL or host:port. Probe name is not the leaf title. Create-if-missing uses component id + component name.</p>
+        <p class="muted">Any public URL or host:port. Probe name is not the leaf title. Create-if-missing uses component id + component name. Full edit is PUT; enable/disable is PATCH.</p>
         @{
             var edit = Model.EditingCheck;
-            var handler = edit is null ? "CreateCheck" : "UpdateCheck";
         }
-        <form method="post" asp-page-handler="@handler" class="operator-form operator-form-grid">
-            @if (edit is not null)
-            {
-                <input type="hidden" name="id" value="@edit.Id" />
-                <input type="hidden" name="enabled" value="@(edit.Enabled ? "true" : "false")" />
-            }
+        <form id="check-admin-form" class="operator-form operator-form-grid" data-check-id="@edit?.Id" data-enabled="@(edit is null || edit.Enabled ? "true" : "false")">
             <label>Probe name
                 <input name="name" value="@edit?.Name" placeholder="probe label only" required />
             </label>
@@ -326,3 +315,4 @@
 
     <p class="muted">@(Model.EntraConfigured ? "Entra requires StatusOperator or AllowedObjectIds." : "Entra is not configured; API key login is active.")</p>
 </div>
+<script src="~/js/operator-checks.js" asp-append-version="true"></script>

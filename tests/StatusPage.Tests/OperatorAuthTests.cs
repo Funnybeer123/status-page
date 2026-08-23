@@ -82,6 +82,12 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         Assert.Contains("Add a check", html);
         Assert.Contains("OPERATOR ADMIN", html);
         Assert.Contains("Save branding", html);
+        Assert.Contains("Run now", html);
+        Assert.Contains("/js/operator-checks.js", html);
+        Assert.Contains("PATCH", html);
+        Assert.Contains("/api/checks", html);
+        Assert.DoesNotContain("SetCheckEnabled", html);
+        Assert.DoesNotContain("asp-page-handler=\"UpdateCheck\"", html);
         Assert.Contains("Microsoft Azure", html);
         Assert.Contains("internal", html);
         Assert.DoesNotContain("Subscribe", html, StringComparison.OrdinalIgnoreCase);

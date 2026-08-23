@@ -116,6 +116,8 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.DoesNotContain("Add a check", html);
         Assert.DoesNotContain("/api/operator", html);
         Assert.DoesNotContain("Create check", html);
+        Assert.DoesNotContain("Run now", html);
+        Assert.DoesNotContain("operator-checks.js", html);
     }
 
     [Fact]

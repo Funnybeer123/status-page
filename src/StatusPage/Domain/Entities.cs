@@ -187,3 +187,25 @@ public sealed record WriteComponentRequest(
     int? Position);
 
 public sealed record WritePageRequest(string? Name, string? LogoUrl);
+
+public sealed record HttpPatchSpec(
+    string? Method,
+    IReadOnlyList<int>? ExpectedStatus,
+    string? BodyContains,
+    bool BodyContainsSpecified,
+    string? JsonPath,
+    bool JsonPathSpecified,
+    string? ExpectedJsonValue,
+    bool ExpectedJsonValueSpecified);
+
+public sealed record PatchCheckRequest(
+    bool? Enabled,
+    string? Name,
+    int? IntervalSeconds,
+    int? TimeoutSeconds,
+    int? FailureThreshold,
+    int? SuccessThreshold,
+    CheckTargetSpec? Target,
+    HttpPatchSpec? Http,
+    TlsCheckSpec? Tls,
+    IReadOnlyList<string>? DnsExpectedAddresses);

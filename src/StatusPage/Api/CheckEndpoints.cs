@@ -56,16 +56,43 @@ public static class CheckEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
-        checks.MapPatch("/{id}/enabled", (string id, EnableCheckJson body, IStatusStore store) =>
+        checks.MapPatch("/{id}", (string id, CheckPatchJson body, IStatusStore store) =>
         {
             try
             {
-                return Results.Json(CheckJson.From(store.SetCheckEnabled(id, body.Enabled)));
+                return Results.Json(CheckJson.From(store.PatchCheck(id, body.ToRequest())));
             }
             catch (KeyNotFoundException ex)
             {
                 return Results.NotFound(new { error = ex.Message });
             }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+        checks.MapPost("/{id}/run", async (string id, CheckRunJson? body, IStatusStore store, CheckRunner runner, CancellationToken cancellationToken) =>
+        {
+            var check = store.FindCheck(id);
+            if (check is null)
+            {
+                return Results.NotFound(new { error = $"Unknown check '{id}'." });
+            }
+
+            var requested = body?.ToTarget();
+            if (CheckTarget.HasTargetFields(requested) && !CheckTarget.SameProbeHost(check.Target, requested!))
+            {
+                return Results.BadRequest(new { error = "Run uses the stored target only. A new host is not allowed." });
+            }
+
+            var result = await runner.RunAsync(check, cancellationToken);
+            store.RecordCheckResult(check.Id, result);
+            var latest = store.FindCheck(check.Id) ?? check;
+            return Results.Json(new
+            {
+                check = CheckJson.From(latest),
+                result = ResultJson.From(latest.LastResult ?? result)
+            });
         });
         checks.MapDelete("/{id}", (string id, IStatusStore store) =>
         {
@@ -153,9 +180,77 @@ public sealed class CheckWriteJson
         Dns is null ? null : new DnsCheckSpec { ExpectedAddresses = [.. Dns.ExpectedAddresses] });
 }
 
-public sealed class EnableCheckJson
+public sealed class CheckPatchJson
 {
-    public bool Enabled { get; set; }
+    public bool? Enabled { get; set; }
+    public string? Name { get; set; }
+    public int? IntervalSeconds { get; set; }
+    public int? TimeoutSeconds { get; set; }
+    public int? FailureThreshold { get; set; }
+    public int? SuccessThreshold { get; set; }
+    public CheckTargetDocument? Target { get; set; }
+    public HttpPatchJson? Http { get; set; }
+    public TlsCheckDocument? Tls { get; set; }
+    public DnsCheckDocument? Dns { get; set; }
+
+    public PatchCheckRequest ToRequest() => new(
+        Enabled,
+        Name,
+        IntervalSeconds,
+        TimeoutSeconds,
+        FailureThreshold,
+        SuccessThreshold,
+        Target is null
+            ? null
+            : new CheckTargetSpec
+            {
+                Url = Target.Url,
+                Host = Target.Host,
+                Port = Target.Port,
+                Path = Target.Path
+            },
+        Http is null
+            ? null
+            : new HttpPatchSpec(
+                Http.Method,
+                Http.ExpectedStatus,
+                Http.BodyContains,
+                Http.BodyContainsSpecified,
+                Http.JsonPath,
+                Http.JsonPathSpecified,
+                Http.ExpectedJsonValue,
+                Http.ExpectedJsonValueSpecified),
+        Tls is null ? null : new TlsCheckSpec { Days = Tls.Days },
+        Dns is null ? null : Dns.ExpectedAddresses);
+}
+
+public sealed class HttpPatchJson
+{
+    public string? Method { get; set; }
+    public List<int>? ExpectedStatus { get; set; }
+    public string? BodyContains { get; set; }
+    public string? JsonPath { get; set; }
+    public string? ExpectedJsonValue { get; set; }
+
+    public bool BodyContainsSpecified => BodyContains is not null;
+    public bool JsonPathSpecified => JsonPath is not null;
+    public bool ExpectedJsonValueSpecified => ExpectedJsonValue is not null;
+}
+
+public sealed class CheckRunJson
+{
+    public CheckTargetDocument? Target { get; set; }
+
+    public CheckTargetSpec? ToTarget() =>
+        Target is null
+            ? null
+            : new CheckTargetSpec
+            {
+                Url = Target.Url,
+                Host = Target.Host,
+                Port = Target.Port,
+                Path = Target.Path
+            };
 }
 
 public static class CheckJson

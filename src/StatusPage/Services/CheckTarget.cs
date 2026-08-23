@@ -186,6 +186,69 @@ public static class CheckTarget
                && IsPlausibleHost(host);
     }
 
+    public static bool HasTargetFields(CheckTargetSpec? target) =>
+        target is not null
+        && (!string.IsNullOrWhiteSpace(target.Url)
+            || !string.IsNullOrWhiteSpace(target.Host)
+            || target.Port is > 0
+            || !string.IsNullOrWhiteSpace(target.Path));
+
+    /// <summary>
+    /// True when <paramref name="requested"/> does not name a different host
+    /// (or port) than the stored probe. Empty requested fields are ignored.
+    /// </summary>
+    public static bool SameProbeHost(CheckTargetSpec stored, CheckTargetSpec requested)
+    {
+        var storedHost = HostOf(stored);
+        var requestedHost = HostOf(requested);
+        if (!string.IsNullOrWhiteSpace(requestedHost)
+            && !string.Equals(storedHost, requestedHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (requested.Port is int requestedPort)
+        {
+            var storedPort = stored.Port ?? PortOf(stored.Url);
+            if (storedPort is int port && port != requestedPort)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static string? HostOf(CheckTargetSpec target)
+    {
+        if (!string.IsNullOrWhiteSpace(target.Host))
+        {
+            return target.Host.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(target.Url) && Uri.TryCreate(target.Url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return uri.IdnHost;
+        }
+
+        return null;
+    }
+
+    private static int? PortOf(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.IsDefaultPort)
+        {
+            return uri.Scheme == Uri.UriSchemeHttps ? 443 : uri.Scheme == Uri.UriSchemeHttp ? 80 : null;
+        }
+
+        return uri.Port;
+    }
+
     public static bool IsPlausibleHost(string host)
     {
         if (IPAddress.TryParse(host, out var address))

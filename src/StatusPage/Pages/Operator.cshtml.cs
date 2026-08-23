@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using StatusPage.Api;
-using StatusPage.Contracts;
 using StatusPage.Domain;
 using StatusPage.Services;
 
@@ -136,80 +135,6 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         });
     }
 
-    public IActionResult OnPostCreateCheck(
-        string? name,
-        string? componentId,
-        string? componentName,
-        string? groupId,
-        string? type,
-        string? target,
-        int? intervalSeconds,
-        int? timeoutSeconds,
-        string? expectedStatus,
-        string? bodyContains,
-        string? jsonPath,
-        string? expectedJsonValue,
-        int? tlsDays,
-        string? dnsExpected,
-        string? headerName,
-        string? headerValue)
-    {
-        return Guarded(() =>
-        {
-            store.CreateCheck(ToCheckRequest(
-                name, componentId, componentName, groupId, type, target, intervalSeconds, timeoutSeconds,
-                expectedStatus, bodyContains, jsonPath, expectedJsonValue, tlsDays, dnsExpected, headerName, headerValue, true));
-            return RedirectToPage();
-        });
-    }
-
-    public IActionResult OnPostUpdateCheck(
-        string id,
-        string? name,
-        string? componentId,
-        string? componentName,
-        string? groupId,
-        string? type,
-        string? target,
-        int? intervalSeconds,
-        int? timeoutSeconds,
-        string? expectedStatus,
-        string? bodyContains,
-        string? jsonPath,
-        string? expectedJsonValue,
-        int? tlsDays,
-        string? dnsExpected,
-        string? headerName,
-        string? headerValue,
-        bool enabled)
-    {
-        return Guarded(() =>
-        {
-            store.UpdateCheck(id, ToCheckRequest(
-                name, componentId, componentName, groupId, type, target, intervalSeconds, timeoutSeconds,
-                expectedStatus, bodyContains, jsonPath, expectedJsonValue, tlsDays, dnsExpected, headerName, headerValue, enabled));
-            return RedirectToPage();
-        });
-    }
-
-    public IActionResult OnPostSetCheckEnabled(string id, bool enabled)
-    {
-        return Guarded(() =>
-        {
-            store.SetCheckEnabled(id, enabled);
-            return RedirectToPage();
-        });
-    }
-
-    public IActionResult OnPostDeleteCheck(string id)
-    {
-        return Guarded(() =>
-        {
-            store.DeleteCheck(id);
-            return RedirectToPage();
-        });
-    }
-
     public IActionResult OnPostCreateIncident(
         string? name,
         string? status,
@@ -306,90 +231,6 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);
         }
-    }
-
-    private static CreateCheckRequest ToCheckRequest(
-        string? name,
-        string? componentId,
-        string? componentName,
-        string? groupId,
-        string? type,
-        string? target,
-        int? intervalSeconds,
-        int? timeoutSeconds,
-        string? expectedStatus,
-        string? bodyContains,
-        string? jsonPath,
-        string? expectedJsonValue,
-        int? tlsDays,
-        string? dnsExpected,
-        string? headerName,
-        string? headerValue,
-        bool? enabled)
-    {
-        var (targetSpec, inferredType) = ParseTarget(target, type);
-        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(headerName) && headerValue is not null)
-        {
-            headers[headerName.Trim()] = headerValue;
-        }
-
-        var dns = (dnsExpected ?? "")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToList();
-
-        return new CreateCheckRequest(
-            string.IsNullOrWhiteSpace(name) ? (componentName ?? "probe") : name.Trim(),
-            componentId ?? "",
-            inferredType,
-            enabled,
-            intervalSeconds ?? CheckContract.DefaultIntervalSeconds,
-            timeoutSeconds ?? CheckContract.DefaultTimeoutSeconds,
-            CheckContract.DefaultFailureThreshold,
-            CheckContract.DefaultSuccessThreshold,
-            targetSpec,
-            new HttpCheckSpec
-            {
-                Method = "GET",
-                ExpectedStatus = ParseStatuses(expectedStatus),
-                BodyContains = string.IsNullOrWhiteSpace(bodyContains) ? null : bodyContains,
-                JsonPath = string.IsNullOrWhiteSpace(jsonPath) ? null : jsonPath.Trim(),
-                ExpectedJsonValue = string.IsNullOrWhiteSpace(expectedJsonValue) ? null : expectedJsonValue,
-                Headers = headers
-            },
-            componentName,
-            groupId,
-            tlsDays is null ? null : new TlsCheckSpec { Days = tlsDays.Value },
-            dns.Count == 0 ? null : new DnsCheckSpec { ExpectedAddresses = dns });
-    }
-
-    private static (CheckTargetSpec Target, string? Type) ParseTarget(string? raw, string? type)
-    {
-        var value = raw?.Trim() ?? "";
-        if (value.Contains("://", StringComparison.Ordinal))
-        {
-            return (new CheckTargetSpec { Url = value }, string.IsNullOrWhiteSpace(type) ? null : type);
-        }
-
-        if (CheckTarget.TryParseHostPort(value, out var host, out var port))
-        {
-            return (new CheckTargetSpec { Host = host, Port = port }, string.IsNullOrWhiteSpace(type) ? "tcp" : type);
-        }
-
-        return (new CheckTargetSpec { Host = value, Url = value }, type);
-    }
-
-    private static List<int> ParseStatuses(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            return [.. CheckContract.DefaultExpectedStatus];
-        }
-
-        return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(part => int.TryParse(part, out var code) ? code : 0)
-            .Where(code => code is >= 100 and <= 599)
-            .ToList();
     }
 }
 

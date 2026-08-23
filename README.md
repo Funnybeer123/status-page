@@ -122,10 +122,20 @@ curl -s -X POST http://localhost:5080/api/checks \
   -H "Content-Type: application/json" \
   -d '{"name":"docs HTTPS","componentId":"azure-status","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
 
-curl -s -X PATCH http://localhost:5080/api/checks/<id>/enabled \
+curl -s -X PATCH http://localhost:5080/api/checks/<id> \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"enabled":false}'
+
+curl -s -X PUT http://localhost:5080/api/checks/<id> \
+  -H "X-Api-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"docs HTTPS","componentId":"azure-status","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
+
+curl -s -X POST http://localhost:5080/api/checks/<id>/run \
+  -H "X-Api-Key: dev-key" \
+  -H "Content-Type: application/json" \
+  -d '{}'
 
 curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key: dev-key"
 ```
@@ -140,9 +150,13 @@ Check admin (APIs + UI):
 
 - List every probe, including internal host:port
 - Create/edit: URL or host:port; type `http` / `https` / `tcp` / `tls_expiry` / `dns`; interval/timeout; expected status; `bodyContains`; `jsonPath`; TLS days; DNS expected addresses; `componentId` + `componentName` + optional `groupId`
-- Enable/disable (disabled leaves rollup, not delete)
+- Enable/disable via `PATCH /api/checks/{id}` (disabled leaves rollup immediately, not delete)
+- Full edit via `PUT /api/checks/{id}`
+- One-shot `POST /api/checks/{id}/run` against the stored target only (a new host is rejected)
 - Delete
 - Last result plus consecutive fail/success counts
+
+The operator check UI calls these APIs (it does not post check writes through Razor page handlers).
 
 Page admin (operator UI and `/api/operator/*`, not public `/`):
 

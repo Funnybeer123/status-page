@@ -37,10 +37,36 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
         using var listDoc = JsonDocument.Parse(await list.Content.ReadAsStringAsync());
         Assert.Contains(listDoc.RootElement.EnumerateArray(), c => c.GetProperty("id").GetString() == id);
 
-        using var disabled = await client.PatchAsJsonAsync($"/api/checks/{id}/enabled", new { enabled = false });
+        using var disabled = await client.PatchAsJsonAsync($"/api/checks/{id}", new { enabled = false });
         Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
         using var disabledDoc = JsonDocument.Parse(await disabled.Content.ReadAsStringAsync());
         Assert.False(disabledDoc.RootElement.GetProperty("enabled").GetBoolean());
+
+        using var renamed = await client.PatchAsJsonAsync($"/api/checks/{id}", new { name = "admin-probe-renamed", intervalSeconds = 30 });
+        Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
+        using var renamedDoc = JsonDocument.Parse(await renamed.Content.ReadAsStringAsync());
+        Assert.Equal("admin-probe-renamed", renamedDoc.RootElement.GetProperty("name").GetString());
+        Assert.Equal(30, renamedDoc.RootElement.GetProperty("intervalSeconds").GetInt32());
+        Assert.False(renamedDoc.RootElement.GetProperty("enabled").GetBoolean());
+
+        using var full = await client.PutAsJsonAsync($"/api/checks/{id}", new
+        {
+            name = "admin-probe-put",
+            componentId = "admin-leaf",
+            componentName = "Admin leaf",
+            type = "tcp",
+            enabled = false,
+            intervalSeconds = 45,
+            timeoutSeconds = 3,
+            target = new { host = "10.1.2.3", port = 5432 }
+        });
+        Assert.Equal(HttpStatusCode.OK, full.StatusCode);
+        using var fullDoc = JsonDocument.Parse(await full.Content.ReadAsStringAsync());
+        Assert.Equal("admin-probe-put", fullDoc.RootElement.GetProperty("name").GetString());
+        Assert.Equal(45, fullDoc.RootElement.GetProperty("intervalSeconds").GetInt32());
+
+        using var oldEnabled = await client.PatchAsJsonAsync($"/api/checks/{id}/enabled", new { enabled = true });
+        Assert.Equal(HttpStatusCode.NotFound, oldEnabled.StatusCode);
 
         using var publicSummary = await client.GetAsync("/api/v2/summary.json");
         using var summary = JsonDocument.Parse(await publicSummary.Content.ReadAsStringAsync());
@@ -100,6 +126,71 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
         store.SetCheckEnabled(id, false);
         Assert.Equal(ComponentStatus.Operational, store.FindComponent("azure-status")!.Status);
         Assert.False(store.FindCheck(id)!.Enabled);
+    }
+
+    [Fact]
+    public async Task Patch_disable_drops_rollup_immediately_and_run_is_same_target_only()
+    {
+        using var client = OperatorClient();
+        using var created = await client.PostAsJsonAsync("/api/checks", new
+        {
+            name = "run-probe",
+            componentId = "run-leaf",
+            componentName = "Run leaf",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "127.0.0.1", port = 9 }
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdDoc = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var id = createdDoc.RootElement.GetProperty("id").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(id));
+
+        for (var i = 0; i < 3; i++)
+        {
+            using var run = await client.PostAsJsonAsync($"/api/checks/{id}/run", new { });
+            Assert.Equal(HttpStatusCode.OK, run.StatusCode);
+            using var runDoc = JsonDocument.Parse(await run.Content.ReadAsStringAsync());
+            Assert.Equal("fail", runDoc.RootElement.GetProperty("result").GetProperty("status").GetString());
+            Assert.Equal("127.0.0.1", runDoc.RootElement.GetProperty("check").GetProperty("target").GetProperty("host").GetString());
+        }
+
+        using var afterFail = await client.GetAsync("/api/operator/components");
+        using var afterFailDoc = JsonDocument.Parse(await afterFail.Content.ReadAsStringAsync());
+        Assert.Equal("major_outage",
+            afterFailDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "run-leaf")
+                .GetProperty("status").GetString());
+
+        using var disabled = await client.PatchAsJsonAsync($"/api/checks/{id}", new { enabled = false });
+        Assert.Equal(HttpStatusCode.OK, disabled.StatusCode);
+
+        using var afterDisable = await client.GetAsync("/api/operator/components");
+        using var afterDisableDoc = JsonDocument.Parse(await afterDisable.Content.ReadAsStringAsync());
+        Assert.Equal("operational",
+            afterDisableDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "run-leaf")
+                .GetProperty("status").GetString());
+
+        using var rejected = await client.PostAsJsonAsync($"/api/checks/{id}/run", new
+        {
+            target = new { host = "8.8.8.8", port = 53 }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        Assert.Contains("stored target", await rejected.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        using var patchHost = await client.PatchAsJsonAsync($"/api/checks/{id}", new { target = new { host = "8.8.8.8", port = 53 } });
+        Assert.Equal(HttpStatusCode.BadRequest, patchHost.StatusCode);
+
+        using var sameHost = await client.PostAsJsonAsync($"/api/checks/{id}/run", new
+        {
+            target = new { host = "127.0.0.1", port = 9 }
+        });
+        Assert.Equal(HttpStatusCode.OK, sameHost.StatusCode);
+
+        using var got = await client.GetAsync($"/api/checks/{id}");
+        using var gotDoc = JsonDocument.Parse(await got.Content.ReadAsStringAsync());
+        Assert.Equal("127.0.0.1", gotDoc.RootElement.GetProperty("target").GetProperty("host").GetString());
+        Assert.Equal(9, gotDoc.RootElement.GetProperty("target").GetProperty("port").GetInt32());
     }
 
     [Fact]
@@ -221,7 +312,7 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
         foreach (var leak in new[]
                  {
                      "OPERATOR ADMIN", "Add a check", "Create check", "Save branding",
-                     "/api/operator", "/api/checks", "Disable", "Upload logo"
+                     "/api/operator", "/api/checks", "Disable", "Upload logo", "Run now"
                  })
         {
             Assert.DoesNotContain(leak, html);
@@ -231,6 +322,8 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, unauth.StatusCode);
         using var unauthChecks = await client.GetAsync("/api/checks");
         Assert.Equal(HttpStatusCode.Unauthorized, unauthChecks.StatusCode);
+        using var unauthRun = await client.PostAsJsonAsync("/api/checks/chk-github-status/run", new { });
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthRun.StatusCode);
         using var unauthLogo = await client.PostAsync("/api/operator/page/logo", PngLogoContent());
         Assert.Equal(HttpStatusCode.Unauthorized, unauthLogo.StatusCode);
     }

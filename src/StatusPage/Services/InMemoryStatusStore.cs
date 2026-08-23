@@ -11,6 +11,7 @@ public interface IStatusStore
     IReadOnlyList<StatusCheck> ListChecks();
     StatusCheck CreateCheck(CreateCheckRequest request);
     StatusCheck UpdateCheck(string id, CreateCheckRequest request);
+    StatusCheck PatchCheck(string id, PatchCheckRequest request);
     StatusCheck SetCheckEnabled(string id, bool enabled);
     void DeleteCheck(string id);
     Incident CreateIncident(CreateIncidentRequest request, bool maintenance);
@@ -148,17 +149,116 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
-    public StatusCheck SetCheckEnabled(string id, bool enabled)
+    public StatusCheck PatchCheck(string id, PatchCheckRequest request)
     {
         lock (_gate)
         {
             var check = _state.Checks.FirstOrDefault(c => c.Id == id)
                         ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
-            check.Enabled = enabled;
+            if (CheckTarget.HasTargetFields(request.Target)
+                && !CheckTarget.SameProbeHost(check.Target, request.Target!))
+            {
+                throw new ArgumentException("PATCH cannot change the probe host. Use PUT for a full edit.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                check.Name = request.Name.Trim();
+            }
+
+            if (request.Enabled is { } enabled)
+            {
+                check.Enabled = enabled;
+            }
+
+            if (request.IntervalSeconds is { } interval)
+            {
+                check.IntervalSeconds = interval;
+            }
+
+            if (request.TimeoutSeconds is { } timeout)
+            {
+                check.TimeoutSeconds = timeout;
+            }
+
+            if (request.FailureThreshold is { } failure)
+            {
+                check.FailureThreshold = failure;
+            }
+
+            if (request.SuccessThreshold is { } success)
+            {
+                check.SuccessThreshold = success;
+            }
+
+            if (request.Http is { } http)
+            {
+                if (!string.IsNullOrWhiteSpace(http.Method))
+                {
+                    check.Http.Method = http.Method.Trim();
+                }
+
+                if (http.ExpectedStatus is { Count: > 0 } statuses)
+                {
+                    check.Http.ExpectedStatus = [.. statuses];
+                }
+
+                if (http.BodyContainsSpecified)
+                {
+                    check.Http.BodyContains = string.IsNullOrWhiteSpace(http.BodyContains) ? null : http.BodyContains;
+                }
+
+                if (http.JsonPathSpecified)
+                {
+                    check.Http.JsonPath = string.IsNullOrWhiteSpace(http.JsonPath) ? null : http.JsonPath.Trim();
+                }
+
+                if (http.ExpectedJsonValueSpecified)
+                {
+                    check.Http.ExpectedJsonValue = string.IsNullOrWhiteSpace(http.ExpectedJsonValue)
+                        ? null
+                        : http.ExpectedJsonValue;
+                }
+            }
+
+            if (request.Tls is { } tls)
+            {
+                check.Tls.Days = TlsExpiryEvaluator.NormalizeDays(tls.Days);
+            }
+
+            if (request.DnsExpectedAddresses is { } addresses)
+            {
+                check.Dns.ExpectedAddresses =
+                [
+                    .. addresses.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim())
+                ];
+            }
+
+            if (check.IntervalSeconds < CheckContract.MinIntervalSeconds || check.IntervalSeconds > 86_400)
+            {
+                throw new ArgumentException($"Interval must be between {CheckContract.MinIntervalSeconds} and 86400 seconds.");
+            }
+
+            if (check.TimeoutSeconds < 1 || check.TimeoutSeconds >= check.IntervalSeconds)
+            {
+                throw new ArgumentException("Timeout must be at least 1 second and less than the interval.");
+            }
+
+            if (!CheckRunner.TryResolve(check, out _, out var error))
+            {
+                throw new ArgumentException(error);
+            }
+
             ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
             PersistChecks();
             return Clone(check);
         }
+    }
+
+    public StatusCheck SetCheckEnabled(string id, bool enabled)
+    {
+        return PatchCheck(id, new PatchCheckRequest(
+            enabled, null, null, null, null, null, null, null, null, null));
     }
 
     public void DeleteCheck(string id)
