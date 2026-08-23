@@ -11,12 +11,10 @@ public static class CheckEndpoints
         var checks = app.MapGroup("/api/checks").AddEndpointFilter(OperatorAuth.RequireStaffReadOrOperatorWrite);
         checks.MapGet("/export", (IStatusStore store, HttpContext http) =>
         {
-            var operatorExport = OperatorAuth.IsOperator(http);
-            var listed = store.ListChecks().Where(check =>
-                operatorExport || !InternalHost.IsInternalCheck(check));
+            var listed = CheckVisibility.Visible(store.ListChecks(), http);
             return Results.Json(new
             {
-                checks = listed.Select(check => CheckJson.Export(check, includeHeaders: operatorExport))
+                checks = listed.Select(check => CheckJson.Export(check, CheckVisibility.IncludeHeaders(http)))
             });
         });
         checks.MapPost("/import", (CheckImportJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
@@ -39,15 +37,19 @@ public static class CheckEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
-        checks.MapGet("/", (IStatusStore store) => Results.Json(store.ListChecks().Select(CheckJson.From)));
-        checks.MapGet("/{id}", (string id, IStatusStore store) =>
+        checks.MapGet("/", (IStatusStore store, HttpContext http) =>
+            Results.Json(CheckVisibility.Visible(store.ListChecks(), http)
+                .Select(check => CheckJson.From(check, CheckVisibility.IncludeHeaders(http)))));
+        checks.MapGet("/{id}", (string id, IStatusStore store, HttpContext http) =>
         {
-            var check = store.FindCheck(id);
-            return check is null ? Results.NotFound(new { error = $"Unknown check '{id}'." }) : Results.Json(CheckJson.From(check));
+            var check = CheckVisibility.FindVisible(store, id, http);
+            return check is null
+                ? Results.NotFound(new { error = $"Unknown check '{id}'." })
+                : Results.Json(CheckJson.From(check, CheckVisibility.IncludeHeaders(http)));
         });
-        checks.MapGet("/{id}/results", (string id, IStatusStore store) =>
+        checks.MapGet("/{id}/results", (string id, IStatusStore store, HttpContext http) =>
         {
-            var check = store.FindCheck(id);
+            var check = CheckVisibility.FindVisible(store, id, http);
             if (check is null)
             {
                 return Results.NotFound(new { error = $"Unknown check '{id}'." });
@@ -312,7 +314,7 @@ public sealed class CheckRunJson
 
 public static class CheckJson
 {
-    public static object From(StatusCheck check) => new
+    public static object From(StatusCheck check, bool includeHeaders = true) => new
     {
         id = check.Id,
         name = check.Name,
@@ -341,7 +343,7 @@ public static class CheckJson
                 bodyContains = check.Http.BodyContains,
                 jsonPath = check.Http.JsonPath,
                 expectedJsonValue = check.Http.ExpectedJsonValue,
-                headers = SecretHeaders.RedactValues(check.Http.Headers)
+                headers = includeHeaders ? SecretHeaders.RedactValues(check.Http.Headers) : null
             },
         tls = check.Type == CheckType.TlsExpiry ? new { days = check.Tls.Days } : null,
         dns = check.Type == CheckType.Dns ? new { expectedAddresses = check.Dns.ExpectedAddresses } : null,

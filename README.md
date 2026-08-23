@@ -144,11 +144,11 @@ curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key
 
 `GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for public leaves only.
 
-`GET /api/checks/export` is always authenticated (anonymous → **401**). `StatusOperator` (or `AllowedObjectIds` / API key) gets every check, including internals, with `Authorization` and other secret header values redacted. `StatusViewer` gets **public checks only** and **no headers at all**. `POST /api/checks/import` is StatusOperator-only: create-if-missing like `POST /api/checks`, and an existing id keeps its stored host unless the imported host is the same. Viewers cannot import, PATCH, PUT, or `/run`.
+`GET /api/checks`, `GET /api/checks/{id}`, `GET /api/checks/{id}/results`, and `GET /api/checks/export` are always authenticated (anonymous → **401**). `StatusOperator` (or `AllowedObjectIds` / API key) sees every check, including internals, with secret header values redacted. `StatusViewer` sees **public checks only** and **no headers at all**. An internal id for a viewer is **404**. `POST /api/checks/import` is StatusOperator-only: create-if-missing like `POST /api/checks`, and an existing id keeps its stored host unless the imported host is the same. Viewers cannot import, PATCH, PUT, or `/run`.
 
 ## Operator admin
 
-`/operator` is the product admin. It is not on the public page. Writes use `StatusOperator` or `AllowedObjectIds`, else `X-Api-Key` when AzureAd is unset. `StatusViewer` can read operator lists, audit, history, and public+internal status views, but cannot mutate. Header values are never rendered on operator HTML.
+`/operator` is the product admin. It is not on the public page. Writes use `StatusOperator` or `AllowedObjectIds`, else `X-Api-Key` when AzureAd is unset. `StatusViewer` can read public check lists, audit, and history. Internal host:port probes and leaves are hidden, and there is no edit/run. Header values are never rendered on operator HTML.
 
 Check admin (APIs + UI):
 

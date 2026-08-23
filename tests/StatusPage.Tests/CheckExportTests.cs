@@ -213,6 +213,111 @@ public class CheckExportTests : IClassFixture<StatusPageFactory>
         Assert.DoesNotContain("Authorization", json, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Viewer_gets_404_on_internal_check_operator_gets_200()
+    {
+        using var factory = new EntraOperatorFactory();
+        using var setup = factory.CreateClient();
+        setup.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
+        using var created = await setup.PostAsJsonAsync("/api/checks", new
+        {
+            name = "viewer-404-internal",
+            componentId = "viewer-404-leaf",
+            componentName = "Viewer 404 leaf",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "10.6.6.6", port = 5432 }
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdDoc = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        var internalId = createdDoc.RootElement.GetProperty("id").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(internalId));
+
+        using var operatorGet = await setup.GetAsync($"/api/checks/{internalId}");
+        Assert.Equal(HttpStatusCode.OK, operatorGet.StatusCode);
+        using var operatorDoc = JsonDocument.Parse(await operatorGet.Content.ReadAsStringAsync());
+        Assert.Equal("viewer-404-internal", operatorDoc.RootElement.GetProperty("name").GetString());
+        Assert.Equal("10.6.6.6", operatorDoc.RootElement.GetProperty("target").GetProperty("host").GetString());
+        using var operatorResults = await setup.GetAsync($"/api/checks/{internalId}/results");
+        Assert.Equal(HttpStatusCode.OK, operatorResults.StatusCode);
+        using var operatorList = await setup.GetAsync("/api/checks");
+        using var operatorListDoc = JsonDocument.Parse(await operatorList.Content.ReadAsStringAsync());
+        Assert.Contains(operatorListDoc.RootElement.EnumerateArray(),
+            c => c.GetProperty("id").GetString() == internalId);
+
+        factory.Users.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity(
+                [new System.Security.Claims.Claim("roles", "StatusViewer")],
+                "oidc"));
+        using var viewer = factory.CreateClient();
+        using var viewerGet = await viewer.GetAsync($"/api/checks/{internalId}");
+        Assert.Equal(HttpStatusCode.NotFound, viewerGet.StatusCode);
+        var viewerBody = await viewerGet.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("10.6.6.6", viewerBody);
+        Assert.DoesNotContain("viewer-404-internal", viewerBody);
+        using var viewerResults = await viewer.GetAsync($"/api/checks/{internalId}/results");
+        Assert.Equal(HttpStatusCode.NotFound, viewerResults.StatusCode);
+        using var viewerLocal = await viewer.GetAsync("/api/checks/chk-local-health");
+        Assert.Equal(HttpStatusCode.NotFound, viewerLocal.StatusCode);
+
+        using var viewerList = await viewer.GetAsync("/api/checks");
+        Assert.Equal(HttpStatusCode.OK, viewerList.StatusCode);
+        var listJson = await viewerList.Content.ReadAsStringAsync();
+        using var viewerListDoc = JsonDocument.Parse(listJson);
+        Assert.DoesNotContain(viewerListDoc.RootElement.EnumerateArray(),
+            c => c.GetProperty("id").GetString() == internalId);
+        Assert.DoesNotContain(viewerListDoc.RootElement.EnumerateArray(),
+            c => c.GetProperty("id").GetString() == "chk-local-health");
+        Assert.Contains(viewerListDoc.RootElement.EnumerateArray(),
+            c => c.GetProperty("id").GetString() == "chk-github-status");
+        Assert.DoesNotContain("Authorization", listJson, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("10.6.6.6", listJson);
+
+        using var publicGet = await viewer.GetAsync("/api/checks/chk-github-status");
+        Assert.Equal(HttpStatusCode.OK, publicGet.StatusCode);
+        using var publicDoc = JsonDocument.Parse(await publicGet.Content.ReadAsStringAsync());
+        Assert.True(publicDoc.RootElement.GetProperty("http").TryGetProperty("headers", out var headers));
+        Assert.Equal(JsonValueKind.Null, headers.ValueKind);
+
+        using var page = await viewer.GetAsync("/operator");
+        Assert.Equal(HttpStatusCode.OK, page.StatusCode);
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.DoesNotContain("viewer-404-internal", html);
+        Assert.DoesNotContain("10.6.6.6", html);
+        Assert.DoesNotContain("Viewer 404 leaf", html);
+        Assert.DoesNotContain("Run now", html);
+        Assert.DoesNotContain("Add a check", html);
+        Assert.DoesNotContain("href=\"/operator?editCheck=", html);
+
+        using var patch = await viewer.PatchAsJsonAsync($"/api/checks/{internalId}", new { enabled = false });
+        Assert.Equal(HttpStatusCode.Forbidden, patch.StatusCode);
+        using var put = await viewer.PutAsJsonAsync($"/api/checks/{internalId}", new
+        {
+            name = "blocked",
+            componentId = "viewer-404-leaf",
+            type = "tcp",
+            target = new { host = "10.6.6.6", port = 5432 }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, put.StatusCode);
+        using var run = await viewer.PostAsJsonAsync($"/api/checks/{internalId}/run", new { });
+        Assert.Equal(HttpStatusCode.Forbidden, run.StatusCode);
+        using var import = await viewer.PostAsJsonAsync("/api/checks/import", new
+        {
+            checks = new[]
+            {
+                new
+                {
+                    name = "blocked-import",
+                    componentId = "github-status",
+                    type = "https",
+                    target = new { url = "https://www.githubstatus.com/api/v2/status.json" }
+                }
+            }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, import.StatusCode);
+    }
+
     private HttpClient OperatorClient()
     {
         var client = _factory.CreateClient();

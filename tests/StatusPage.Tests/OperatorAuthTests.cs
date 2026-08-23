@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authentication;
@@ -242,9 +243,15 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         Assert.Contains("Audit log", html);
         Assert.Contains("StatusViewer is read-only", html);
         Assert.DoesNotContain("Add a check", html);
+        Assert.DoesNotContain("Run now", html);
+        Assert.DoesNotContain("Local status page", html);
+        Assert.DoesNotContain("chk-local-health", html);
 
         using var checks = await client.GetAsync("/api/checks");
         Assert.Equal(HttpStatusCode.OK, checks.StatusCode);
+        using var checksDoc = JsonDocument.Parse(await checks.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(checksDoc.RootElement.EnumerateArray(),
+            c => c.GetProperty("id").GetString() == "chk-local-health");
         using var components = await client.GetAsync("/api/operator/components");
         Assert.Equal(HttpStatusCode.OK, components.StatusCode);
         using var audit = await client.GetAsync("/api/operator/audit");

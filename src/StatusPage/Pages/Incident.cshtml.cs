@@ -19,7 +19,7 @@ public class IncidentModel(IStatusStore store) : PageModel
             return NotFound();
         }
 
-        if (!OperatorAuth.IsStaff(HttpContext) && incident.ComponentIds.Count > 0)
+        if (!OperatorAuth.IsOperator(HttpContext) && incident.ComponentIds.Count > 0)
         {
             var checks = store.ListChecks();
             var publicIds = incident.ComponentIds.Where(componentId =>

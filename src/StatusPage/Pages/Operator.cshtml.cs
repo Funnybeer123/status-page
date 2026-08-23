@@ -246,7 +246,17 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         AuthLabel = User.Identity?.Name ?? "operator";
         var state = store.Snapshot();
         PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
-        Checks = store.ListChecks();
+        var allChecks = store.ListChecks();
+        if (!CanWrite)
+        {
+            ComponentVisibility.RemoveInternal(state, allChecks);
+            Checks = allChecks.Where(check => !InternalHost.IsInternalCheck(check)).ToList();
+        }
+        else
+        {
+            Checks = allChecks;
+        }
+
         Connectors = store.ListConnectorSnapshots();
         PageInfo = state.Page;
         Groups = state.Components.Where(c => c.Group).OrderBy(c => c.Position).ThenBy(c => c.Name).ToList();
@@ -256,7 +266,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             .ThenBy(c => c.Name)
             .Select(c => new OperatorComponentRow(
                 c,
-                !c.Group && ComponentVisibility.IsInternalLeaf(c, Checks),
+                !c.Group && ComponentVisibility.IsInternalLeaf(c, allChecks),
                 Checks.Where(check => check.ComponentId == c.Id).ToList()))
             .ToList();
         Incidents = state.Incidents.Concat(state.ScheduledMaintenances)
@@ -264,7 +274,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             .ToList();
         AuditEntries = audit.Recent(FileAuditLog.RecentDefault);
         Webhooks = webhooks.List();
-        if (!string.IsNullOrWhiteSpace(editCheck))
+        if (CanWrite && !string.IsNullOrWhiteSpace(editCheck))
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);
         }

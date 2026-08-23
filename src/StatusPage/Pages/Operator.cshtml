@@ -9,7 +9,7 @@
         <div>
             <p class="eyebrow-ink">OPERATOR ADMIN</p>
             <h1>Status page admin</h1>
-            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. Internal host:port leaves stay on this page.@(Model.CanWrite ? "" : " StatusViewer is read-only.")</p>
+            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. @(Model.CanWrite ? "Internal host:port leaves stay on this page." : "StatusViewer is read-only. Internal host:port probes are hidden.")</p>
         </div>
         <form method="post" asp-page-handler="Logout">
             <button type="submit" class="btn-secondary">Sign out</button>
@@ -125,7 +125,7 @@
 
     <section class="operator-card" id="checks">
         <h2>Checks</h2>
-        <p class="muted">All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Header values are never shown.</p>
+        <p class="muted">@(Model.CanWrite ? "All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Header values are never shown." : "Public probes only. Internal host:port checks are hidden. Header values are never shown.")</p>
         <p><a href="/api/checks/export">Export checks</a> (authenticated). StatusViewer export is public checks only and includes no headers.</p>
         <p id="check-admin-error" class="operator-error" hidden></p>
         <table>

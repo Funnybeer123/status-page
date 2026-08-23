@@ -67,10 +67,15 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapGet("/components", (IStatusStore store) =>
+        group.MapGet("/components", (IStatusStore store, HttpContext http) =>
         {
             var state = store.Snapshot();
             var checks = store.ListChecks();
+            if (!OperatorAuth.IsOperator(http))
+            {
+                ComponentVisibility.RemoveInternal(state, checks);
+            }
+
             return Results.Json(state.Components.Select(c => ComponentJson(c, checks)));
         });
 
@@ -174,9 +179,14 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapGet("/incidents", (IStatusStore store) =>
+        group.MapGet("/incidents", (IStatusStore store, HttpContext http) =>
         {
             var state = store.Snapshot();
+            if (!OperatorAuth.IsOperator(http))
+            {
+                ComponentVisibility.RemoveInternal(state, store.ListChecks());
+            }
+
             return Results.Json(state.Incidents.Concat(state.ScheduledMaintenances)
                 .OrderByDescending(i => i.UpdatedAt)
                 .Select(i => IncidentJson(i)));
