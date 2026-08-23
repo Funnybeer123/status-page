@@ -13,7 +13,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="StatusPage.Tests" />
-    <Content Update="Data\checks.seed.json" CopyToOutputDirectory="PreserveNewest" />
+        <Content Update="Data\checks.seed.json" CopyToOutputDirectory="PreserveNewest" />
+        <Content Update="Data\incident-templates.seed.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

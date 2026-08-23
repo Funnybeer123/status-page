@@ -74,6 +74,10 @@ var auditPath = builder.Configuration["StatusPage:AuditPath"]
                 ?? Path.Combine(builder.Environment.ContentRootPath, "data", "audit.jsonl");
 var webhooksPath = builder.Configuration["StatusPage:WebhooksPath"]
                    ?? Path.Combine(builder.Environment.ContentRootPath, "data", "webhooks.json");
+var templatesPath = builder.Configuration["StatusPage:TemplatesPath"]
+                    ?? Path.Combine(builder.Environment.ContentRootPath, "data", "incident-templates.json");
+var templatesSeed = builder.Configuration["StatusPage:TemplatesSeedPath"]
+                    ?? Path.Combine(builder.Environment.ContentRootPath, "Data", "incident-templates.seed.json");
 var checks = File.Exists(runtimePath)
     ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
     : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
@@ -86,6 +90,7 @@ resultStore.Hydrate(checks);
 builder.Services.AddSingleton<ICheckResultStore>(resultStore);
 builder.Services.AddSingleton<IAuditLog>(_ => new FileAuditLog(auditPath));
 builder.Services.AddSingleton<IWebhookStore>(_ => new FileWebhookStore(webhooksPath));
+builder.Services.AddSingleton<IIncidentTemplateStore>(_ => new FileIncidentTemplateStore(templatesPath, templatesSeed));
 builder.Services.AddSingleton<IWebhookSender, WebhookSender>();
 builder.Services.AddSingleton<IStatusStore>(sp =>
     new InMemoryStatusStore(seed, persist =>
@@ -176,6 +181,10 @@ app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApi
 app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(PublicApiMapper.ForPublic(store))));
 app.MapGet("/api/v2/incidents.json", (IStatusStore store) => Results.Json(PublicApiMapper.Incidents(PublicApiMapper.ForPublic(store))));
 app.MapGet("/api/v2/scheduled-maintenances.json", (IStatusStore store) => Results.Json(PublicApiMapper.ScheduledMaintenances(PublicApiMapper.ForPublic(store))));
+app.MapGet("/incidents.rss", (IStatusStore store) =>
+    Results.Content(PublicFeeds.Rss(PublicApiMapper.ForPublic(store)), "application/rss+xml; charset=utf-8"));
+app.MapGet("/incidents.atom", (IStatusStore store) =>
+    Results.Content(PublicFeeds.Atom(PublicApiMapper.ForPublic(store)), "application/atom+xml; charset=utf-8"));
 
 app.MapCheckApi();
 app.MapOperatorApi();

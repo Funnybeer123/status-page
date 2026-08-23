@@ -9,7 +9,7 @@ using StatusPage.Services;
 
 namespace StatusPage.Pages;
 
-public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit, IWebhookStore webhooks) : PageModel
+public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit, IWebhookStore webhooks, IIncidentTemplateStore templates) : PageModel
 {
     public IReadOnlyList<Component> Groups { get; private set; } = [];
     public IReadOnlyList<OperatorComponentRow> Components { get; private set; } = [];
@@ -18,18 +18,22 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     public IReadOnlyList<ConnectorSnapshot> Connectors { get; private set; } = [];
     public IReadOnlyList<AuditEntry> AuditEntries { get; private set; } = [];
     public IReadOnlyList<WebhookRecord> Webhooks { get; private set; } = [];
+    public IReadOnlyList<IncidentTemplate> Templates { get; private set; } = [];
     public StatusPageInfo PageInfo { get; private set; } = new();
     public StatusCheck? EditingCheck { get; private set; }
     public string? AuthLabel { get; private set; }
     public string? Error { get; private set; }
     public bool EntraConfigured { get; private set; }
     public bool CanWrite { get; private set; }
+    public string PrefillName { get; private set; } = "";
+    public string PrefillImpact { get; private set; } = "";
+    public string PrefillComponentIds { get; private set; } = "";
 
-    public IActionResult OnGet(string? editCheck = null)
+    public IActionResult OnGet(string? editCheck = null, string? applyTemplate = null)
     {
         if (OperatorAuth.IsStaff(HttpContext))
         {
-            Load(editCheck);
+            Load(editCheck, applyTemplate);
             return Page();
         }
 
@@ -78,7 +82,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         if (logo is null)
         {
             Error = "Choose a logo file.";
-            Load(null);
+            Load();
             return Page();
         }
 
@@ -94,7 +98,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         catch (ArgumentException ex)
         {
             Error = ex.Message;
-            Load(null);
+            Load();
             return Page();
         }
     }
@@ -224,9 +228,43 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         catch (Exception ex) when (ex is ArgumentException or KeyNotFoundException)
         {
             Error = ex.Message;
-            Load(null);
+            Load();
             return Page();
         }
+    }
+
+    public IActionResult OnPostSaveTemplate(string? id, string? title, string? impact, string? componentIds)
+    {
+        return Guarded(() =>
+        {
+            var ids = IncidentTemplateRules.NormalizePublicComponentIds(
+                (componentIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                store);
+            var normalizedTitle = IncidentTemplateRules.NormalizeTitle(title);
+            var normalizedImpact = IncidentTemplateRules.NormalizeImpact(impact);
+            if (string.IsNullOrWhiteSpace(id) || templates.Find(id) is null)
+            {
+                var created = templates.Create(normalizedTitle, normalizedImpact, ids);
+                OperatorAuth.Audit(HttpContext, audit, "template.create", created.Id);
+            }
+            else
+            {
+                templates.Update(id, normalizedTitle, normalizedImpact, ids);
+                OperatorAuth.Audit(HttpContext, audit, "template.edit", id);
+            }
+
+            return RedirectToPage();
+        });
+    }
+
+    public IActionResult OnPostDeleteTemplate(string id)
+    {
+        return Guarded(() =>
+        {
+            templates.Delete(id);
+            OperatorAuth.Audit(HttpContext, audit, "template.delete", id);
+            return RedirectToPage();
+        });
     }
 
     private IActionResult RedirectToLogin()
@@ -239,7 +277,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         return RedirectToPage("/OperatorLogin");
     }
 
-    private void Load(string? editCheck)
+    private void Load(string? editCheck = null, string? applyTemplate = null)
     {
         EntraConfigured = OperatorAuth.IsAzureAdConfigured(configuration);
         CanWrite = OperatorAuth.IsOperator(HttpContext);
@@ -274,6 +312,18 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             .ToList();
         AuditEntries = audit.Recent(FileAuditLog.RecentDefault);
         Webhooks = webhooks.List();
+        Templates = templates.List();
+        if (CanWrite && !string.IsNullOrWhiteSpace(applyTemplate))
+        {
+            var template = templates.Find(applyTemplate);
+            if (template is not null)
+            {
+                PrefillName = template.Title;
+                PrefillImpact = template.Impact;
+                PrefillComponentIds = string.Join(",", template.ComponentIds);
+            }
+        }
+
         if (CanWrite && !string.IsNullOrWhiteSpace(editCheck))
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);

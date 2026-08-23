@@ -1,0 +1,56 @@
+@page "/embed"
+@model EmbedModel
+@{
+    Layout = "_EmbedLayout";
+    ViewData["Title"] = Model.PageInfo.Name;
+    var overallPill = OverallPill(Model.Overall);
+}
+
+<div class="embed" data-status-embed="true">
+    <p class="embed-kicker">@Model.PageInfo.Name</p>
+    <div class="embed-overall">
+        <strong>@Model.Overall.Banner</strong>
+        <span class="pill pill-@overallPill">@PillLabel(overallPill)</span>
+    </div>
+    <ul class="embed-components">
+    @foreach (var component in Model.Components)
+    {
+        var pill = PillKey(component.Status);
+        <li>
+            <span>@component.Name</span>
+            <span class="pill pill-@pill">@PillLabel(pill)</span>
+        </li>
+    }
+    </ul>
+    <p class="embed-more"><a href="/" target="_blank" rel="noopener">Full status page</a></p>
+</div>
+
+@functions {
+    private static string OverallPill(StatusPage.Domain.PageStatus status) => status.Indicator switch
+    {
+        StatusPage.Domain.PageIndicator.Critical => "outage",
+        StatusPage.Domain.PageIndicator.Major => "outage",
+        StatusPage.Domain.PageIndicator.Minor => "degraded",
+        _ when status.Banner.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) => "maintenance",
+        _ => "operational"
+    };
+
+    private static string PillKey(StatusPage.Domain.ComponentStatus status) => status switch
+    {
+        StatusPage.Domain.ComponentStatus.Operational => "operational",
+        StatusPage.Domain.ComponentStatus.DegradedPerformance => "degraded",
+        StatusPage.Domain.ComponentStatus.PartialOutage => "degraded",
+        StatusPage.Domain.ComponentStatus.MajorOutage => "outage",
+        StatusPage.Domain.ComponentStatus.UnderMaintenance => "maintenance",
+        _ => "unknown"
+    };
+
+    private static string PillLabel(string key) => key switch
+    {
+        "operational" => "Operational",
+        "degraded" => "Degraded",
+        "outage" => "Outage",
+        "maintenance" => "Maintenance",
+        _ => "Unknown"
+    };
+}

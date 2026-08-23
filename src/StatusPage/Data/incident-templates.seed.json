@@ -1,0 +1,10 @@
+{
+  "templates": [
+    {
+      "id": "azure-advisory",
+      "title": "Azure regional advisory",
+      "impact": "minor",
+      "componentIds": [ "azure-status" ]
+    }
+  ]
+}

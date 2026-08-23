@@ -520,6 +520,8 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         var resultsPath = Path.Combine(Path.GetTempPath(), $"status-page-results-{Guid.NewGuid():N}.json");
         var auditPath = Path.Combine(Path.GetTempPath(), $"status-page-audit-{Guid.NewGuid():N}.jsonl");
         var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-webhooks-{Guid.NewGuid():N}.json");
+        var templatesPath = Path.Combine(Path.GetTempPath(), $"status-page-templates-{Guid.NewGuid():N}.json");
+        var templatesSeed = Path.Combine(Path.GetTempPath(), $"status-page-templates-seed-{Guid.NewGuid():N}.json");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
@@ -529,6 +531,8 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:ResultsPath", resultsPath);
         builder.UseSetting("StatusPage:AuditPath", auditPath);
         builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
+        builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
+        builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -543,6 +547,8 @@ public class StatusPageFactory : WebApplicationFactory<Program>
                 ["StatusPage:ResultsPath"] = resultsPath,
                 ["StatusPage:AuditPath"] = auditPath,
                 ["StatusPage:WebhooksPath"] = webhooksPath,
+                ["StatusPage:TemplatesPath"] = templatesPath,
+                ["StatusPage:TemplatesSeedPath"] = templatesSeed,
                 ["AzureAd:TenantId"] = "",
                 ["AzureAd:ClientId"] = ""
             });
