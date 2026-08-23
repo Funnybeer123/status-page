@@ -1,4 +1,5 @@
 using StatusPage.Api;
+using StatusPage.Domain;
 using StatusPage.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -60,9 +61,16 @@ app.UseRouting();
 
 app.MapGet("/health", () => Results.Text("ok", "text/plain"));
 
-app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicApiMapper.Summary(store.Snapshot())));
-app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(store.Snapshot())));
-app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(store.Snapshot())));
+app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicApiMapper.Summary(ForPublic(store))));
+app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(ForPublic(store))));
+app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(ForPublic(store))));
+
+static StatusPageState ForPublic(IStatusStore store)
+{
+    var state = store.Snapshot();
+    PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
+    return state;
+}
 
 app.MapCheckApi();
 app.MapOperatorApi();

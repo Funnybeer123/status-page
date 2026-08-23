@@ -28,6 +28,22 @@ public class CheckRollupTests
     }
 
     [Fact]
+    public void Single_fail_does_not_map_onto_component_severity()
+    {
+        var store = EmptyStore();
+        store.CreateCheck(Check("only", "cca-api"));
+        Fail(store, "only", 1);
+
+        var check = store.ListChecks().Single(c => c.Name == "only");
+        Assert.Equal(CheckResultStatus.Fail, check.LastResult!.Status);
+        Assert.Equal(CheckState.Up, check.State);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("cca-api")!.Status);
+        Assert.DoesNotContain(
+            store.ComponentCheckStatuses().Single(s => s.ComponentId == "cca-api").Status,
+            new[] { ComponentStatus.DegradedPerformance, ComponentStatus.PartialOutage, ComponentStatus.MajorOutage });
+    }
+
+    [Fact]
     public void Zero_checks_leaves_operator_status()
     {
         Assert.Null(CheckRollup.FromCheckStates([]));

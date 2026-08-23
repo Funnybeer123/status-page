@@ -5,6 +5,36 @@ namespace StatusPage.Api;
 
 public static class PublicApiMapper
 {
+    /// <summary>
+    /// Maps Status Check Builder rollup onto public components.
+    /// Probe results stay ok/fail; only the typed component snapshot is applied.
+    /// Operator under_maintenance is left alone. Zero checks leave operator status.
+    /// </summary>
+    public static void MapCheckStatuses(StatusPageState state, IEnumerable<ComponentCheckStatus> checkStatuses)
+    {
+        var byId = checkStatuses.ToDictionary(s => s.ComponentId, StringComparer.Ordinal);
+        foreach (var component in state.Components.Where(c => !c.Group))
+        {
+            if (component.Status == ComponentStatus.UnderMaintenance
+                || component.ManualStatus == ComponentStatus.UnderMaintenance)
+            {
+                continue;
+            }
+
+            if (byId.TryGetValue(component.Id, out var row) && row.CheckCount > 0)
+            {
+                component.Status = row.Status;
+                component.UpdatedAt = row.UpdatedAtUtc;
+            }
+        }
+
+        foreach (var group in state.Components.Where(c => c.Group))
+        {
+            var children = state.Components.Where(c => c.GroupId == group.Id).Select(c => c.Status);
+            group.Status = StatusRollup.Worst(children);
+        }
+    }
+
     public static object Summary(StatusPageState state)
     {
         var status = StatusRollup.FromComponents(state.Components);

@@ -117,6 +117,13 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
 
         using var statusComponents = await client.GetAsync("/api/status/components");
         Assert.Equal(HttpStatusCode.OK, statusComponents.StatusCode);
+        using var statusDoc = JsonDocument.Parse(await statusComponents.Content.ReadAsStringAsync());
+        var row = statusDoc.RootElement.EnumerateArray().First();
+        Assert.True(row.TryGetProperty("componentId", out _));
+        Assert.True(row.TryGetProperty("status", out _));
+        Assert.True(row.TryGetProperty("checkCount", out _));
+        Assert.True(row.TryGetProperty("downCount", out _));
+        Assert.True(row.TryGetProperty("updatedAtUtc", out _));
 
         using var incident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
         {

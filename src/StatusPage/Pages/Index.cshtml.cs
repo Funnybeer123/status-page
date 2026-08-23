@@ -17,6 +17,7 @@ public class IndexModel(IStatusStore store) : PageModel
     public void OnGet()
     {
         var state = store.Snapshot();
+        PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
         var now = DateTimeOffset.UtcNow;
         PageInfo = state.Page;
         Overall = StatusRollup.FromComponents(state.Components);
