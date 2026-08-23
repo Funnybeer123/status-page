@@ -1,9 +1,32 @@
 {
   "checks": [
     {
-      "id": "chk-example-com",
-      "name": "example.com HTTPS",
-      "componentId": "example-com",
+      "id": "chk-azure-status",
+      "name": "Azure status page",
+      "componentId": "azure",
+      "componentName": "Microsoft Azure",
+      "groupId": "cloud-cost-agent",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 15,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://azure.status.microsoft/en-us/status"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-azure-devops-status",
+      "name": "Azure DevOps status page",
+      "componentId": "azure-devops",
+      "componentName": "Azure DevOps",
+      "groupId": "devops-eia-box",
       "type": "https",
       "enabled": true,
       "intervalSeconds": 60,
@@ -11,31 +34,33 @@
       "failureThreshold": 3,
       "successThreshold": 2,
       "target": {
-        "url": "https://example.com"
-      },
-      "http": {
-        "method": "GET",
-        "expectedStatus": [200, 201, 204],
-        "bodyContains": null
-      }
-    },
-    {
-      "id": "chk-local-health",
-      "name": "local status page HTTP",
-      "componentId": "local-health",
-      "type": "http",
-      "enabled": true,
-      "intervalSeconds": 30,
-      "timeoutSeconds": 5,
-      "failureThreshold": 3,
-      "successThreshold": 2,
-      "target": {
-        "url": "__SELF_HEALTH__"
+        "url": "https://status.dev.azure.com"
       },
       "http": {
         "method": "GET",
         "expectedStatus": [200],
-        "bodyContains": "ok"
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-github-status",
+      "name": "GitHub status API",
+      "componentId": "github",
+      "componentName": "GitHub",
+      "groupId": "devops-eia-box",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://www.githubstatus.com/api/v2/status.json"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": null
       }
     }
   ]

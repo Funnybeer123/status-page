@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StatusPage\StatusPage.csproj" />
+    <None Include="..\..\src\StatusPage\Data\checks.seed.json" Link="checks.seed.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

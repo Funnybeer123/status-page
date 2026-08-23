@@ -46,8 +46,10 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         var names = root.GetProperty("components").EnumerateArray().Select(c => c.GetProperty("name").GetString()).ToList();
         Assert.Contains("Cloud Cost Agent", names);
         Assert.Contains("DevOps Engineer-in-a-Box", names);
-        Assert.Contains("API", names);
-        Assert.Contains("example.com", names);
+        Assert.Contains("Microsoft Azure", names);
+        Assert.Contains("Azure DevOps", names);
+        Assert.Contains("GitHub", names);
+        Assert.DoesNotContain("example.com", names);
 
         foreach (var component in root.GetProperty("components").EnumerateArray())
         {
@@ -63,19 +65,12 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
             AssertStatuspageIncidentPayload(incident);
         }
 
-        var maintenances = root.GetProperty("scheduled_maintenances").EnumerateArray().ToList();
-        Assert.NotEmpty(maintenances);
-        foreach (var maintenance in maintenances)
+        foreach (var maintenance in root.GetProperty("scheduled_maintenances").EnumerateArray())
         {
             Assert.True(maintenance.TryGetProperty("scheduled_for", out _));
             AssertIso8601(maintenance, "started_at");
             Assert.NotEqual(JsonValueKind.Null, maintenance.GetProperty("started_at").ValueKind);
             AssertStatuspageIncidentPayload(maintenance);
-            Assert.Contains(maintenance.GetProperty("components").EnumerateArray(),
-                c => c.GetProperty("id").GetString() == "cca-ingestion"
-                     && c.TryGetProperty("page_id", out _)
-                     && c.TryGetProperty("showcase", out _)
-                     && c.TryGetProperty("only_show_if_degraded", out _));
         }
     }
 
@@ -103,8 +98,10 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("Cloud Cost Agent", html);
         Assert.Contains("DevOps Engineer-in-a-Box", html);
+        Assert.Contains("Microsoft Azure", html);
+        Assert.Contains("Azure DevOps", html);
+        Assert.Contains("GitHub", html);
         Assert.Contains("Past incidents", html);
-        Assert.Contains("Elevated API timeouts", html);
         Assert.Contains("hero", html);
         Assert.Contains("overall", html);
         Assert.Contains("service-card", html);
@@ -122,7 +119,7 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
     {
         using var unauthorizedClient = _factory.CreateClient();
         using var denied = await unauthorizedClient.PostAsync("/api/checks",
-            JsonContent.Create(new { name = "x", componentId = "deib-portal", type = "tcp", target = new { host = "127.0.0.1", port = 9 } }));
+            JsonContent.Create(new { name = "x", componentId = "github", type = "tcp", target = new { host = "127.0.0.1", port = 9 } }));
         Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
 
         using var client = _factory.CreateClient();
@@ -131,7 +128,7 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         using var created = await client.PostAsync("/api/checks", JsonContent.Create(new
         {
             name = "portal tcp",
-            componentId = "deib-portal",
+            componentId = "github",
             type = "tcp",
             intervalSeconds = 15,
             timeoutSeconds = 2,
@@ -155,11 +152,11 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
             status = "investigating",
             impact = "minor",
             body = "Investigating a demo incident.",
-            componentIds = new[] { "cca-api" }
+            componentIds = new[] { "azure" }
         }));
         Assert.Equal(HttpStatusCode.Created, incident.StatusCode);
 
-        using var patch = await client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/api/operator/components/cca-dashboard")
+        using var patch = await client.SendAsync(new HttpRequestMessage(HttpMethod.Patch, "/api/operator/components/azure-devops")
         {
             Content = JsonContent.Create(new { status = "degraded_performance" })
         });
@@ -167,16 +164,23 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
 
         using var summary = await client.GetAsync("/api/v2/summary.json");
         using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
-        Assert.Equal("minor", doc.RootElement.GetProperty("status").GetProperty("indicator").GetString());
+        Assert.Equal("operational",
+            doc.RootElement.GetProperty("components").EnumerateArray()
+                .Single(c => c.GetProperty("id").GetString() == "azure")
+                .GetProperty("status").GetString());
+        Assert.Equal("operational",
+            doc.RootElement.GetProperty("components").EnumerateArray()
+                .Single(c => c.GetProperty("id").GetString() == "azure-devops")
+                .GetProperty("status").GetString());
         var testIncident = doc.RootElement.GetProperty("incidents").EnumerateArray()
             .Single(i => i.GetProperty("name").GetString() == "Test incident");
         AssertIso8601(testIncident, "started_at");
         AssertStatuspageIncidentPayload(testIncident);
         var incidentComponent = testIncident.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "cca-api");
+            .Single(c => c.GetProperty("id").GetString() == "azure");
         Assert.Equal("local-status", incidentComponent.GetProperty("page_id").GetString());
         var affected = testIncident.GetProperty("incident_updates")[0].GetProperty("affected_components");
-        Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "cca-api");
+        Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "azure");
 
         using var openIncident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
         {

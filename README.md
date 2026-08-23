@@ -86,10 +86,13 @@ Probe rules:
 - Probes never emit `degraded_performance`. That and `under_maintenance` are operator-only.
 - When a check-driven component leaves operational, an auto incident (Investigating) is opened. It is resolved when all checks recover. Operator-written incidents are never auto-resolved.
 
-Seeded examples (local demo only; tests use localhost/mocks):
+Default seed probes real public health endpoints (expected HTTP 200, no body matcher):
 
-- `https://example.com` → `example-com`
-- `http://127.0.0.1:5080/health` → `local-health`
+- `https://azure.status.microsoft/en-us/status` → `azure` (Microsoft Azure)
+- `https://status.dev.azure.com` → `azure-devops` (Azure DevOps)
+- `https://www.githubstatus.com/api/v2/status.json` → `github` (GitHub)
+
+Delete `src/StatusPage/data/checks.json` if a previous run cached toy checks. Tests do not hit these hosts.
 
 CRUD (env API key):
 
@@ -99,9 +102,9 @@ curl -s http://localhost:5080/api/checks -H "X-Api-Key: dev-key"
 curl -s -X POST http://localhost:5080/api/checks \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"billing API","componentId":"cca-api","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://example.com"},"http":{"expectedStatus":[200]}}'
+  -d '{"name":"docs HTTPS","componentId":"azure","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://learn.microsoft.com"},"http":{"expectedStatus":[200]}}'
 
-curl -s http://localhost:5080/api/checks/chk-local-health/results -H "X-Api-Key: dev-key"
+curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key: dev-key"
 ```
 
 `GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for the public page and `/api/v2/summary.json` mapping.
@@ -111,7 +114,7 @@ curl -s http://localhost:5080/api/checks/chk-local-health/results -H "X-Api-Key:
 Header `X-Api-Key`. Development default `dev-key`. Override with `STATUSPAGE_API_KEY`. Unset key outside Development disables writes (401).
 
 ```bash
-curl -s -X PATCH http://localhost:5080/api/operator/components/cca-dashboard \
+curl -s -X PATCH http://localhost:5080/api/operator/components/azure \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"status":"under_maintenance"}'
@@ -119,10 +122,10 @@ curl -s -X PATCH http://localhost:5080/api/operator/components/cca-dashboard \
 curl -s -X POST http://localhost:5080/api/operator/incidents \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"API errors","status":"investigating","impact":"minor","body":"Investigating 5xx on the API.","componentIds":["cca-api"]}'
+  -d '{"name":"Azure regional advisory","status":"investigating","impact":"minor","body":"Watching Azure public status.","componentIds":["azure"]}'
 ```
 
-Seeded leaf ids: `cca-api`, `cca-dashboard`, `cca-ingestion`, `deib-api`, `deib-runner`, `deib-portal`, `example-com`, `local-health`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
+Seeded leaf ids: `azure`, `azure-devops`, `github`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
 
 ## Tests
 
