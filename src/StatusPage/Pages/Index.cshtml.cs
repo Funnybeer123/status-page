@@ -19,9 +19,7 @@ public class IndexModel(IStatusStore store, ICheckResultStore results) : PageMod
 
     public void OnGet()
     {
-        var state = store.Snapshot();
-        PublicApiMapper.MapCheckStatuses(state, store.ComponentCheckStatuses());
-        ComponentVisibility.RemoveInternal(state, store.ListChecks());
+        var state = PublicApiMapper.ForPublic(store);
         var now = DateTimeOffset.UtcNow;
         var samples = results.List();
         var checks = store.ListChecks();

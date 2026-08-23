@@ -11,5 +11,16 @@
         <partial name="_Topbar" model="pageInfo" />
         <p class="back"><a href="/">← Current status</a></p>
         <partial name="_IncidentCard" model="Model.Incident" />
+        @if (Model.Incident.Postmortem is { } postmortem)
+        {
+            <section class="postmortem" data-postmortem="@(postmortem.Published ? "published" : "unpublished")">
+                <h2>Postmortem</h2>
+                @if (!postmortem.Published)
+                {
+                    <p class="muted">Unpublished — StatusOperator and StatusViewer only.</p>
+                }
+                <div class="postmortem-body">@Html.Raw(PostmortemMarkdown.ToSafeHtml(postmortem.Body))</div>
+            </section>
+        }
     </div>
 </div>

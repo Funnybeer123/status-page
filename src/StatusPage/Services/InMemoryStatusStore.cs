@@ -17,6 +17,7 @@ public interface IStatusStore
     void DeleteCheck(string id);
     Incident CreateIncident(CreateIncidentRequest request, bool maintenance);
     Incident UpdateIncident(string id, UpdateIncidentRequest request);
+    Incident SavePostmortem(string id, WritePostmortemRequest request);
     Component UpdateComponentStatus(string id, ComponentStatus status);
     Component CreateComponent(WriteComponentRequest request);
     Component UpdateComponentMeta(string id, WriteComponentRequest request);
@@ -490,6 +491,39 @@ public sealed class InMemoryStatusStore : IStatusStore
 
         FlushWebhooks();
         return updated;
+    }
+
+    public Incident SavePostmortem(string id, WritePostmortemRequest request)
+    {
+        var markdown = PostmortemRules.NormalizeBody(request.Body);
+        lock (_gate)
+        {
+            var incident = _state.Incidents.Concat(_state.ScheduledMaintenances)
+                .FirstOrDefault(i => i.Id == id)
+                ?? throw new KeyNotFoundException($"Unknown incident '{id}'.");
+            if (!PostmortemRules.AllowsWrite(incident))
+            {
+                throw new ArgumentException("Postmortem can be written after the incident is resolved.");
+            }
+
+            if (request.Published)
+            {
+                PostmortemRules.EnsureSafeToPublish(markdown, _state.Checks);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var previous = incident.Postmortem;
+            incident.Postmortem = new IncidentPostmortem
+            {
+                Body = markdown,
+                Published = request.Published,
+                UpdatedAt = now,
+                PublishedAt = request.Published ? previous?.PublishedAt ?? now : null
+            };
+            incident.UpdatedAt = now;
+            _state.Page.UpdatedAt = now;
+            return Clone(incident);
+        }
     }
 
     public Component UpdateComponentStatus(string id, ComponentStatus status)
@@ -1289,7 +1323,16 @@ public sealed class InMemoryStatusStore : IStatusStore
         ScheduledFor = incident.ScheduledFor,
         ScheduledUntil = incident.ScheduledUntil,
         AutoFromChecks = incident.AutoFromChecks,
-        ConnectorId = incident.ConnectorId
+        ConnectorId = incident.ConnectorId,
+        Postmortem = incident.Postmortem is null
+            ? null
+            : new IncidentPostmortem
+            {
+                Body = incident.Postmortem.Body,
+                Published = incident.Postmortem.Published,
+                UpdatedAt = incident.Postmortem.UpdatedAt,
+                PublishedAt = incident.Postmortem.PublishedAt
+            }
     };
 
     private static StatusCheck Clone(StatusCheck check) => new()

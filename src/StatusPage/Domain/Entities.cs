@@ -55,6 +55,17 @@ public sealed class Incident
     public bool AutoFromChecks { get; set; }
     /// <summary>Read-only connector import that opened this incident. Not a probe.</summary>
     public string? ConnectorId { get; set; }
+    /// <summary>Operator markdown after resolve. Default unpublished.</summary>
+    public IncidentPostmortem? Postmortem { get; set; }
+}
+
+public sealed class IncidentPostmortem
+{
+    /// <summary>Stored markdown. Never treat as raw HTML.</summary>
+    public string Body { get; set; } = "";
+    public bool Published { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? PublishedAt { get; set; }
 }
 
 public sealed class IncidentUpdate
@@ -181,6 +192,8 @@ public sealed record UpdateIncidentRequest(
     string Body,
     IReadOnlyList<string>? ComponentIds,
     IReadOnlyDictionary<string, string>? ComponentStatuses);
+
+public sealed record WritePostmortemRequest(string Body, bool Published);
 
 public sealed record UpdateComponentRequest(string Status);
 

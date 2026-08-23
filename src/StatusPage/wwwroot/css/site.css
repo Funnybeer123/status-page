@@ -351,6 +351,31 @@ a:hover { text-decoration: underline; }
     padding: 18px 20px;
 }
 .incident-empty p { margin: 0; font-weight: 700; }
+
+.postmortem {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 18px 20px;
+    margin: 16px 0 0;
+}
+.postmortem h2 { margin: 0 0 10px; font-size: 18px; }
+.postmortem-body { font-size: 14px; color: #3a4e66; }
+.postmortem-body p { margin: 0 0 10px; }
+.postmortem-body ul { margin: 0 0 10px; padding-left: 20px; }
+.postmortem-body code {
+    background: #f4f7fb;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 13px;
+}
+.postmortem-publish {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+}
+.postmortem-publish input { width: auto; margin: 0; }
 .empty-check {
     width: 28px;
     height: 28px;
@@ -456,7 +481,7 @@ a:hover { text-decoration: underline; }
     vertical-align: top;
 }
 .operator-form label { display: block; font-weight: 700; margin: 12px 0; }
-.operator-form input, .operator-form select {
+.operator-form input, .operator-form select, .operator-form textarea {
     display: block;
     width: 100%;
     margin-top: 6px;
