@@ -5,7 +5,7 @@ using StatusPage.Services;
 
 namespace StatusPage.Pages;
 
-public class IndexModel(IStatusStore store) : PageModel
+public class IndexModel(IStatusStore store, ICheckResultStore results) : PageModel
 {
     public StatusPageInfo PageInfo { get; private set; } = new();
     public PageStatus Overall { get; private set; } = new(PageIndicator.None, "All Systems Operational", "All Systems Operational");
@@ -50,13 +50,16 @@ public class IndexModel(IStatusStore store) : PageModel
 
         ComponentGroups = groups;
 
-        var past = PublicApiMapper.PastIncidents(state, now, 15).ToList();
-        History = Enumerable.Range(0, 15)
+        var past = PublicApiMapper.PastIncidents(state, now, CheckResultStore.PublicBarDays).ToList();
+        var samples = results.List();
+        var publicChecks = store.ListChecks();
+        History = Enumerable.Range(0, CheckResultStore.PublicBarDays)
             .Select(offset =>
             {
                 var day = DateOnly.FromDateTime(now.UtcDateTime.Date.AddDays(-offset));
                 var items = past.Where(i => DateOnly.FromDateTime((i.ResolvedAt ?? i.UpdatedAt).UtcDateTime) == day).ToList();
-                return new HistoryDay(day, items);
+                var probeFailed = PublicUptime.DayFailed(samples, publicChecks, day);
+                return new HistoryDay(day, items, probeFailed);
             })
             .ToList();
     }
@@ -64,4 +67,4 @@ public class IndexModel(IStatusStore store) : PageModel
 
 public sealed record ComponentGroupView(Component Group, IReadOnlyList<Component> Children);
 
-public sealed record HistoryDay(DateOnly Day, IReadOnlyList<Incident> Incidents);
+public sealed record HistoryDay(DateOnly Day, IReadOnlyList<Incident> Incidents, bool ProbeFailed);

@@ -15,11 +15,12 @@ public static class OperatorEndpoints
             return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl, updatedAt = PublicApiMapper.Iso(page.UpdatedAt) });
         });
 
-        group.MapPatch("/page", (WritePageJson body, IStatusStore store) =>
+        group.MapPatch("/page", (WritePageJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 var page = store.UpdatePage(body.Name, body.LogoUrl);
+                OperatorAuth.Audit(http, audit, "page.branding", page.Id);
                 return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl });
             }
             catch (ArgumentException ex)
@@ -28,7 +29,7 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapPost("/page/logo", async (HttpRequest request, IStatusStore store, IWebHostEnvironment env, IConfiguration config) =>
+        group.MapPost("/page/logo", async (HttpRequest request, IStatusStore store, IWebHostEnvironment env, IConfiguration config, IAuditLog audit) =>
         {
             if (!request.HasFormContentType)
             {
@@ -48,6 +49,7 @@ public static class OperatorEndpoints
                           ?? Path.Combine(env.ContentRootPath, "data", "branding");
                 var url = BrandingFiles.Save(dir, file);
                 var page = store.UpdatePage(null, url);
+                OperatorAuth.Audit(request.HttpContext, audit, "page.logo", page.Id);
                 return Results.Json(new { name = page.Name, logoUrl = page.LogoUrl });
             }
             catch (ArgumentException ex)
@@ -63,11 +65,12 @@ public static class OperatorEndpoints
             return Results.Json(state.Components.Select(c => ComponentJson(c, checks)));
         });
 
-        group.MapPost("/components", (WriteComponentJson body, IStatusStore store) =>
+        group.MapPost("/components", (WriteComponentJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 var created = store.CreateComponent(body.ToRequest());
+                OperatorAuth.Audit(http, audit, "component.create", created.Id);
                 return Results.Created($"/api/operator/components/{created.Id}", ComponentJson(created, store.ListChecks()));
             }
             catch (ArgumentException ex)
@@ -76,11 +79,13 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapPut("/components/{id}", (string id, WriteComponentJson body, IStatusStore store) =>
+        group.MapPut("/components/{id}", (string id, WriteComponentJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
-                return Results.Json(ComponentJson(store.UpdateComponentMeta(id, body.ToRequest()), store.ListChecks()));
+                var updated = store.UpdateComponentMeta(id, body.ToRequest());
+                OperatorAuth.Audit(http, audit, "component.edit", updated.Id);
+                return Results.Json(ComponentJson(updated, store.ListChecks()));
             }
             catch (KeyNotFoundException ex)
             {
@@ -92,11 +97,12 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapDelete("/components/{id}", (string id, IStatusStore store) =>
+        group.MapDelete("/components/{id}", (string id, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 store.DeleteComponent(id);
+                OperatorAuth.Audit(http, audit, "component.delete", id);
                 return Results.NoContent();
             }
             catch (KeyNotFoundException ex)
@@ -109,7 +115,7 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapPatch("/components/{id}", (string id, UpdateComponentRequest body, IStatusStore store) =>
+        group.MapPatch("/components/{id}", (string id, UpdateComponentRequest body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             if (!DomainEnums.TryParseComponentStatus(body.Status, out var status))
             {
@@ -119,6 +125,7 @@ public static class OperatorEndpoints
             try
             {
                 var component = store.UpdateComponentStatus(id, status);
+                OperatorAuth.Audit(http, audit, "component.status", component.Id);
                 return Results.Json(new { id = component.Id, name = component.Name, status = component.Status.ApiValue() });
             }
             catch (KeyNotFoundException ex)
@@ -135,11 +142,13 @@ public static class OperatorEndpoints
                 .Select(i => IncidentJson(i)));
         });
 
-        group.MapPost("/incidents", (CreateIncidentJson body, IStatusStore store) =>
+        group.MapPost("/incidents", (CreateIncidentJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
-                var created = store.CreateIncident(body.ToRequest(), body.Maintenance == true);
+                var maintenance = body.Maintenance == true;
+                var created = store.CreateIncident(body.ToRequest(), maintenance);
+                OperatorAuth.Audit(http, audit, maintenance ? "maintenance.open" : "incident.open", created.Id);
                 return Results.Created($"/api/operator/incidents/{created.Id}", IncidentJson(created));
             }
             catch (ArgumentException ex)
@@ -148,11 +157,15 @@ public static class OperatorEndpoints
             }
         });
 
-        group.MapPost("/incidents/{id}/updates", (string id, UpdateIncidentJson body, IStatusStore store) =>
+        group.MapPost("/incidents/{id}/updates", (string id, UpdateIncidentJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 var updated = store.UpdateIncident(id, body.ToRequest());
+                var action = updated.Status is IncidentStatus.Resolved or IncidentStatus.Completed
+                    ? "incident.resolve"
+                    : "incident.update";
+                OperatorAuth.Audit(http, audit, action, updated.Id);
                 return Results.Json(IncidentJson(updated));
             }
             catch (KeyNotFoundException ex)

@@ -21,6 +21,7 @@
         <a href="#components">Components</a>
         <a href="#checks">Checks</a>
         <a href="#incidents">Incidents</a>
+        <a href="#audit">Audit</a>
         <a href="#connectors">Connectors</a>
         <a href="/">Public page</a>
     </nav>
@@ -289,6 +290,39 @@
             </label>
             <div><button type="submit" class="btn-primary">Open</button></div>
         </form>
+    </section>
+
+    <section class="operator-card" id="audit">
+        <h2>Audit log</h2>
+        <p class="muted">Last @Model.AuditEntries.Count operator writes from the local gitignored store. Actor is api-key or Entra object ID.</p>
+        @if (Model.AuditEntries.Count == 0)
+        {
+            <p class="muted">No operator writes yet.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>When (UTC)</th>
+                        <th>Actor</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in Model.AuditEntries)
+                {
+                    <tr>
+                        <td>@entry.At.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><code>@entry.Actor</code></td>
+                        <td>@entry.Action</td>
+                        <td><code>@entry.TargetId</code></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
     </section>
 
     <section class="operator-card" id="connectors">

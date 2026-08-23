@@ -68,13 +68,21 @@ var pagePath = builder.Configuration["StatusPage:PagePath"]
                ?? Path.Combine(builder.Environment.ContentRootPath, "data", "page.json");
 var brandingDir = builder.Configuration["StatusPage:BrandingPath"]
                   ?? Path.Combine(builder.Environment.ContentRootPath, "data", "branding");
+var resultsPath = builder.Configuration["StatusPage:ResultsPath"]
+                  ?? Path.Combine(builder.Environment.ContentRootPath, "data", "check-results.json");
+var auditPath = builder.Configuration["StatusPage:AuditPath"]
+                ?? Path.Combine(builder.Environment.ContentRootPath, "data", "audit.jsonl");
 var checks = File.Exists(runtimePath)
     ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
     : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
 DemoSeed.BindSelfHealthChecks(checks, selfHealth);
 seed.Checks = checks;
 PageConfigStore.Apply(seed, pagePath);
+var resultStore = new CheckResultStore(resultsPath);
+resultStore.Hydrate(checks);
 
+builder.Services.AddSingleton<ICheckResultStore>(resultStore);
+builder.Services.AddSingleton<IAuditLog>(_ => new FileAuditLog(auditPath));
 builder.Services.AddSingleton<IStatusStore>(_ =>
     new InMemoryStatusStore(seed, persist =>
     {
@@ -96,7 +104,7 @@ builder.Services.AddSingleton<IStatusStore>(_ =>
         {
             Console.Error.WriteLine($"Could not persist page.json: {ex.Message}");
         }
-    }));
+    }, resultStore));
 builder.Services.AddSingleton<CheckRunner>();
 builder.Services.AddHttpClient("StatusChecks", client =>
 {

@@ -118,6 +118,7 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.DoesNotContain("Create check", html);
         Assert.DoesNotContain("Run now", html);
         Assert.DoesNotContain("operator-checks.js", html);
+        Assert.DoesNotContain("Audit log", html);
     }
 
     [Fact]
@@ -379,12 +380,16 @@ public class StatusPageFactory : WebApplicationFactory<Program>
         var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
         var pagePath = Path.Combine(Path.GetTempPath(), $"status-page-page-{Guid.NewGuid():N}.json");
         var brandingPath = Path.Combine(Path.GetTempPath(), $"status-page-brand-{Guid.NewGuid():N}");
+        var resultsPath = Path.Combine(Path.GetTempPath(), $"status-page-results-{Guid.NewGuid():N}.json");
+        var auditPath = Path.Combine(Path.GetTempPath(), $"status-page-audit-{Guid.NewGuid():N}.jsonl");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
         builder.UseSetting("StatusPage:ChecksPath", checksPath);
         builder.UseSetting("StatusPage:PagePath", pagePath);
         builder.UseSetting("StatusPage:BrandingPath", brandingPath);
+        builder.UseSetting("StatusPage:ResultsPath", resultsPath);
+        builder.UseSetting("StatusPage:AuditPath", auditPath);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
@@ -396,6 +401,8 @@ public class StatusPageFactory : WebApplicationFactory<Program>
                 ["StatusPage:ChecksPath"] = checksPath,
                 ["StatusPage:PagePath"] = pagePath,
                 ["StatusPage:BrandingPath"] = brandingPath,
+                ["StatusPage:ResultsPath"] = resultsPath,
+                ["StatusPage:AuditPath"] = auditPath,
                 ["AzureAd:TenantId"] = "",
                 ["AzureAd:ClientId"] = ""
             });

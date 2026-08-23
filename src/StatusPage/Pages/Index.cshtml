@@ -95,7 +95,7 @@
         <div class="uptime-bars" aria-hidden="true">
             @foreach (var day in Model.History)
             {
-                <span class="uptime-bar @(day.Incidents.Count == 0 ? "good" : "bad")" title="@day.Day.ToString("yyyy-MM-dd")"></span>
+                <span class="uptime-bar @(day.ProbeFailed ? "bad" : "good")" title="@day.Day.ToString("yyyy-MM-dd")"></span>
             }
         </div>
         @foreach (var day in Model.History)

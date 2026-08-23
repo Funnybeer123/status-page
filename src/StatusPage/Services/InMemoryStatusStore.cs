@@ -57,16 +57,20 @@ public sealed class InMemoryStatusStore : IStatusStore
     private readonly StatusPageState _state;
     private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
     private readonly Action<StatusPageState>? _persistPage;
+    private readonly ICheckResultStore? _results;
     private readonly Dictionary<string, ConnectorSnapshot> _connectorSnapshots = new(StringComparer.Ordinal);
 
     public InMemoryStatusStore(
         StatusPageState state,
         Action<IReadOnlyList<StatusCheck>>? persistChecks = null,
-        Action<StatusPageState>? persistPage = null)
+        Action<StatusPageState>? persistPage = null,
+        ICheckResultStore? results = null)
     {
         _state = state;
         _persistChecks = persistChecks;
         _persistPage = persistPage;
+        _results = results;
+        _results?.Hydrate(_state.Checks);
         EnsureLeavesForChecks();
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
     }
@@ -616,6 +620,14 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             check.NextRunAt = result.CheckedAtUtc.AddSeconds(Math.Max(CheckContract.MinIntervalSeconds, check.IntervalSeconds));
             ApplyCheckRollup(check.ComponentId, result.CheckedAtUtc);
+            try
+            {
+                _results?.Append(check.Id, result);
+            }
+            catch (Exception)
+            {
+                // History persist must not fail the probe write.
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using StatusPage.Services;
 
 namespace StatusPage.Api;
 
@@ -153,6 +154,23 @@ public static class OperatorAuth
 
             yield return id.ToString("D");
         }
+    }
+
+    public static void Audit(HttpContext http, IAuditLog audit, string action, string targetId) =>
+        audit.Append(Actor(http), action, targetId);
+
+    /// <summary>api-key or Entra object ID. Never an email or UPN.</summary>
+    public static string Actor(HttpContext http)
+    {
+        var config = http.RequestServices.GetRequiredService<IConfiguration>();
+        var env = http.RequestServices.GetRequiredService<IHostEnvironment>();
+        if (HasValidApiKey(http, config, env) || http.User.HasClaim(ApiKeyClaim, "true"))
+        {
+            return "api-key";
+        }
+
+        var oid = ObjectIdClaims(http.User).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(oid) ? "operator" : oid;
     }
 
     public static ClaimsPrincipal ApiKeyPrincipal()

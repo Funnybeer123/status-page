@@ -29,11 +29,12 @@ public static class CheckEndpoints
                 recent = check.Results.Select(ResultJson.From)
             });
         });
-        checks.MapPost("/", (CheckWriteJson body, IStatusStore store) =>
+        checks.MapPost("/", (CheckWriteJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 var created = store.CreateCheck(body.ToRequest());
+                OperatorAuth.Audit(http, audit, "check.create", created.Id);
                 return Results.Created($"/api/checks/{created.Id}", CheckJson.From(created));
             }
             catch (ArgumentException ex)
@@ -41,11 +42,13 @@ public static class CheckEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
-        checks.MapPut("/{id}", (string id, CheckWriteJson body, IStatusStore store) =>
+        checks.MapPut("/{id}", (string id, CheckWriteJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
-                return Results.Json(CheckJson.From(store.UpdateCheck(id, body.ToRequest())));
+                var updated = store.UpdateCheck(id, body.ToRequest());
+                OperatorAuth.Audit(http, audit, "check.edit", updated.Id);
+                return Results.Json(CheckJson.From(updated));
             }
             catch (KeyNotFoundException ex)
             {
@@ -56,11 +59,14 @@ public static class CheckEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
-        checks.MapPatch("/{id}", (string id, CheckPatchJson body, IStatusStore store) =>
+        checks.MapPatch("/{id}", (string id, CheckPatchJson body, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
-                return Results.Json(CheckJson.From(store.PatchCheck(id, body.ToRequest())));
+                var patched = store.PatchCheck(id, body.ToRequest());
+                var action = body.Enabled is false ? "check.disable" : body.Enabled is true ? "check.enable" : "check.edit";
+                OperatorAuth.Audit(http, audit, action, patched.Id);
+                return Results.Json(CheckJson.From(patched));
             }
             catch (KeyNotFoundException ex)
             {
@@ -94,11 +100,12 @@ public static class CheckEndpoints
                 result = ResultJson.From(latest.LastResult ?? result)
             });
         });
-        checks.MapDelete("/{id}", (string id, IStatusStore store) =>
+        checks.MapDelete("/{id}", (string id, IStatusStore store, IAuditLog audit, HttpContext http) =>
         {
             try
             {
                 store.DeleteCheck(id);
+                OperatorAuth.Audit(http, audit, "check.delete", id);
                 return Results.NoContent();
             }
             catch (KeyNotFoundException ex)

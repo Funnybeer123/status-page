@@ -158,12 +158,15 @@ Check admin (APIs + UI):
 
 The operator check UI calls these APIs (it does not post check writes through Razor page handlers).
 
+Probe results persist to gitignored `data/check-results.json` (`checkedAtUtc`, `status`, `httpStatus`, `latencyMs`, `error` only — no response body, no headers). Public uptime bars use the last **15** days of **public** samples after restart. Internal-host samples never appear on anonymous `/` or those bars.
+
 Page admin (operator UI and `/api/operator/*`, not public `/`):
 
 - Component and group CRUD
 - Incident open / update / resolve (operator incidents never override checked components except `under_maintenance` PATCH)
 - Scheduled maintenance
 - Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
+- Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key` or Entra object ID — never an email)
 
 ```bash
 curl -s http://localhost:5080/api/operator/page -H "X-Api-Key: dev-key"
@@ -240,7 +243,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, public page not exposing admin, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin, connector imports with mocked HTTP, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

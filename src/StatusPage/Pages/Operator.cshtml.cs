@@ -9,13 +9,14 @@ using StatusPage.Services;
 
 namespace StatusPage.Pages;
 
-public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment) : PageModel
+public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit) : PageModel
 {
     public IReadOnlyList<Component> Groups { get; private set; } = [];
     public IReadOnlyList<OperatorComponentRow> Components { get; private set; } = [];
     public IReadOnlyList<StatusCheck> Checks { get; private set; } = [];
     public IReadOnlyList<Incident> Incidents { get; private set; } = [];
     public IReadOnlyList<ConnectorSnapshot> Connectors { get; private set; } = [];
+    public IReadOnlyList<AuditEntry> AuditEntries { get; private set; } = [];
     public StatusPageInfo PageInfo { get; private set; } = new();
     public StatusCheck? EditingCheck { get; private set; }
     public string? AuthLabel { get; private set; }
@@ -57,7 +58,8 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     {
         return Guarded(() =>
         {
-            store.UpdatePage(name, string.IsNullOrWhiteSpace(logoUrl) ? null : logoUrl);
+            var page = store.UpdatePage(name, string.IsNullOrWhiteSpace(logoUrl) ? null : logoUrl);
+            OperatorAuth.Audit(HttpContext, audit, "page.branding", page.Id);
             return RedirectToPage();
         });
     }
@@ -83,7 +85,8 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             var dir = configuration["StatusPage:BrandingPath"]
                       ?? Path.Combine(environment.ContentRootPath, "data", "branding");
             var url = BrandingFiles.Save(dir, logo);
-            store.UpdatePage(null, url);
+            var page = store.UpdatePage(null, url);
+            OperatorAuth.Audit(HttpContext, audit, "page.logo", page.Id);
             return RedirectToPage();
         }
         catch (ArgumentException ex)
@@ -101,11 +104,13 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             var request = new WriteComponentRequest(id, name ?? "", description, isGroup, groupId, null);
             if (store.FindComponent(id ?? "") is null)
             {
-                store.CreateComponent(request);
+                var created = store.CreateComponent(request);
+                OperatorAuth.Audit(HttpContext, audit, "component.create", created.Id);
             }
             else
             {
                 store.UpdateComponentMeta(id!, request);
+                OperatorAuth.Audit(HttpContext, audit, "component.edit", id!);
             }
 
             return RedirectToPage();
@@ -117,6 +122,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         return Guarded(() =>
         {
             store.DeleteComponent(id);
+            OperatorAuth.Audit(HttpContext, audit, "component.delete", id);
             return RedirectToPage();
         });
     }
@@ -131,6 +137,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             }
 
             store.UpdateComponentStatus(id, parsed);
+            OperatorAuth.Audit(HttpContext, audit, "component.status", id);
             return RedirectToPage();
         });
     }
@@ -150,7 +157,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
             var ids = (componentIds ?? "")
                 .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToList();
-            store.CreateIncident(new CreateIncidentRequest(
+            var created = store.CreateIncident(new CreateIncidentRequest(
                 name ?? "",
                 status,
                 impact,
@@ -158,6 +165,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
                 ids,
                 scheduledFor,
                 scheduledUntil), maintenance);
+            OperatorAuth.Audit(HttpContext, audit, maintenance ? "maintenance.open" : "incident.open", created.Id);
             return RedirectToPage();
         });
     }
@@ -166,7 +174,11 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     {
         return Guarded(() =>
         {
-            store.UpdateIncident(id, new UpdateIncidentRequest(status, body ?? "", null, null));
+            var updated = store.UpdateIncident(id, new UpdateIncidentRequest(status, body ?? "", null, null));
+            var action = updated.Status is IncidentStatus.Resolved or IncidentStatus.Completed
+                ? "incident.resolve"
+                : "incident.update";
+            OperatorAuth.Audit(HttpContext, audit, action, updated.Id);
             return RedirectToPage();
         });
     }
@@ -227,6 +239,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         Incidents = state.Incidents.Concat(state.ScheduledMaintenances)
             .OrderByDescending(i => i.UpdatedAt)
             .ToList();
+        AuditEntries = audit.Recent(FileAuditLog.RecentDefault);
         if (!string.IsNullOrWhiteSpace(editCheck))
         {
             EditingCheck = Checks.FirstOrDefault(c => c.Id == editCheck);

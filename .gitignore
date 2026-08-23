@@ -8,6 +8,8 @@ data/store.json
 data/checks.json
 **/data/checks.json
 **/data/page.json
+**/data/check-results.json
+**/data/audit.jsonl
 **/data/branding/
 **/store.json
 .dotnet/

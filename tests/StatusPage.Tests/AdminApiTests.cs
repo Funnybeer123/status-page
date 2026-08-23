@@ -312,7 +312,8 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
         foreach (var leak in new[]
                  {
                      "OPERATOR ADMIN", "Add a check", "Create check", "Save branding",
-                     "/api/operator", "/api/checks", "Disable", "Upload logo", "Run now"
+                     "/api/operator", "/api/checks", "Disable", "Upload logo", "Run now",
+                     "Audit log"
                  })
         {
             Assert.DoesNotContain(leak, html);
