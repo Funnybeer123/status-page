@@ -20,3 +20,6 @@ services:
       # Azure__SubscriptionId:
       # AZURE_DEVOPS_PAT:
       # GITHUB_TOKEN:
+      # Optional inbound incident webhook (never commit the secret):
+      # STATUSPAGE_INCIDENT_WEBHOOK_SECRET:
+      # StatusPage__EnableIncidentWebhook: "true"

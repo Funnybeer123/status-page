@@ -201,6 +201,7 @@ app.MapGet("/maintenance.ics", (IStatusStore store) =>
 
 app.MapCheckApi();
 app.MapOperatorApi();
+app.MapIncidentWebhookApi();
 app.MapRazorPages();
 
 app.Run();
