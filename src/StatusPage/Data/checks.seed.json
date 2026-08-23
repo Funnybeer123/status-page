@@ -1,0 +1,87 @@
+{
+  "checks": [
+    {
+      "id": "chk-azure-status",
+      "name": "Azure status RSS",
+      "componentId": "azure-status",
+      "componentName": "Microsoft Azure",
+      "groupId": "cloud-cost-agent",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://azure.status.microsoft/status/feed/"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-azure-devops-status",
+      "name": "Azure DevOps status API",
+      "componentId": "azure-devops-status",
+      "componentName": "Azure DevOps",
+      "groupId": "devops-eia-box",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://status.dev.azure.com/_apis/status/health?api-version=7.1-preview.1"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-github-status",
+      "name": "GitHub status API",
+      "componentId": "github-status",
+      "componentName": "GitHub",
+      "groupId": "devops-eia-box",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://www.githubstatus.com/api/v2/status.json"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-local-health",
+      "name": "local status page HTTP",
+      "componentId": "local-health",
+      "componentName": "Local status page",
+      "type": "http",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "__SELF_HEALTH__"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": "ok"
+      }
+    }
+  ]
+}

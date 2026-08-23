@@ -1,0 +1,19 @@
+﻿@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="subpage">
+    <div class="wrap">
+        <h1>Error.</h1>
+        <h2>An error occurred while processing your request.</h2>
+
+        @if (Model.ShowRequestId)
+        {
+            <p>
+                <strong>Request ID:</strong> <code>@Model.RequestId</code>
+            </p>
+        }
+    </div>
+</div>

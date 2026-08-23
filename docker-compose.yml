@@ -1,0 +1,11 @@
+services:
+  statuspage:
+    build: .
+    ports:
+      - "5080:5080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5080
+      STATUSPAGE_API_KEY: dev-key
+      StatusPage__PublicUrl: http://localhost:5080
+      StatusPage__SelfHealthUrl: http://127.0.0.1:5080/health

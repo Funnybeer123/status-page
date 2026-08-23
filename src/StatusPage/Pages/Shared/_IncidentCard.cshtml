@@ -1,0 +1,54 @@
+@model StatusPage.Domain.Incident
+@{
+    var pill = IncidentPill(Model);
+    var latest = Model.Updates.OrderByDescending(u => u.DisplayAt).FirstOrDefault();
+    var services = Model.ComponentIds.Count == 0
+        ? "No services listed"
+        : string.Join(", ", Model.ComponentIds);
+}
+<article class="incident-row">
+    <span class="pill pill-@pill">@IncidentLabel(pill)</span>
+    <div class="incident-body">
+        <a class="incident-title" href="/incidents/@Model.Id">@Model.Name</a>
+        @if (latest is not null)
+        {
+            <p class="incident-copy">@latest.Body</p>
+        }
+        <p class="incident-date">
+            <time datetime="@Model.UpdatedAt.ToUniversalTime().ToString("o")">@Model.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</time>
+            · @services
+        </p>
+    </div>
+</article>
+
+@functions {
+    private static string IncidentPill(StatusPage.Domain.Incident incident)
+    {
+        if (incident.Status is StatusPage.Domain.IncidentStatus.Scheduled
+            or StatusPage.Domain.IncidentStatus.InProgress
+            or StatusPage.Domain.IncidentStatus.Verifying
+            or StatusPage.Domain.IncidentStatus.Completed)
+        {
+            return "maintenance";
+        }
+
+        return incident.Impact switch
+        {
+            StatusPage.Domain.IncidentImpact.Critical => "outage",
+            StatusPage.Domain.IncidentImpact.Major => "outage",
+            StatusPage.Domain.IncidentImpact.Minor => "degraded",
+            StatusPage.Domain.IncidentImpact.Maintenance => "maintenance",
+            _ when incident.Status == StatusPage.Domain.IncidentStatus.Resolved => "operational",
+            _ => "unknown"
+        };
+    }
+
+    private static string IncidentLabel(string key) => key switch
+    {
+        "operational" => "Resolved",
+        "degraded" => "Degraded",
+        "outage" => "Outage",
+        "maintenance" => "Maintenance",
+        _ => "Update"
+    };
+}

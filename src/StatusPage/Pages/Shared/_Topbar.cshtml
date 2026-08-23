@@ -1,0 +1,15 @@
+@model StatusPage.Domain.StatusPageInfo
+@{
+    var mark = string.IsNullOrWhiteSpace(Model.Name) ? "B" : Model.Name.Trim()[0].ToString().ToUpperInvariant();
+    var onHero = ViewData["TopbarOnHero"] as bool? == true;
+}
+<header class="topbar@(onHero ? " topbar-hero" : "")">
+    <a class="brand" href="/">
+        <span class="mark" aria-hidden="true">@mark</span>
+        <span class="wordmark">@Model.Name</span>
+    </a>
+    <nav>
+        <a href="/">Overview</a>
+        <a href="/#incidents">Incidents</a>
+    </nav>
+</header>

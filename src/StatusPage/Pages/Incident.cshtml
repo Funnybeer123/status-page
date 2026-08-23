@@ -1,0 +1,15 @@
+@page "/incidents/{id}"
+@model IncidentModel
+@{
+    ViewData["Title"] = Model.Incident.Name;
+    ViewData["TopbarOnHero"] = false;
+    var pageInfo = new StatusPage.Domain.StatusPageInfo { Name = "Status" };
+}
+
+<div class="subpage">
+    <div class="wrap">
+        <partial name="_Topbar" model="pageInfo" />
+        <p class="back"><a href="/">← Current status</a></p>
+        <partial name="_IncidentCard" model="Model.Incident" />
+    </div>
+</div>

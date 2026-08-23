@@ -1,0 +1,182 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = Model.PageInfo.Name;
+    ViewData["TopbarOnHero"] = true;
+    var overallClass = OverallClass(Model.Overall);
+    var overallPill = OverallPill(Model.Overall);
+}
+
+<section class="hero">
+    <div class="wrap">
+        <partial name="_Topbar" model="Model.PageInfo" />
+        <div class="hero-main">
+            <div class="hero-copy">
+                <p class="eyebrow">LIVE BUSINESS OPERATIONS</p>
+                <h1>Business Systems<br />Status</h1>
+                <p class="lede">Every critical system. One clear signal.</p>
+            </div>
+            <div class="signal-art" aria-hidden="true">
+                <span class="signal-ring ring-a"></span>
+                <span class="signal-ring ring-b"></span>
+                <span class="signal-ring ring-c"></span>
+                <span class="signal-core">✓</span>
+            </div>
+        </div>
+    </div>
+    <div class="hero-bar"></div>
+</section>
+
+<div class="wrap page-body">
+    <section class="overall @overallClass">
+        <div class="overall-icon" aria-hidden="true">@PillGlyph(overallPill)</div>
+        <div class="overall-copy">
+            <p class="overall-kicker">CURRENT STATUS</p>
+            <h2 class="overall-headline">@Sentence(Model.Overall.Banner)</h2>
+            <p class="overall-meta">Updated @Model.PageInfo.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</p>
+        </div>
+        <span class="pill pill-@overallPill">@PillLabel(overallPill)</span>
+    </section>
+
+    <section class="block" id="services">
+        <h2>Services</h2>
+        @foreach (var group in Model.ComponentGroups)
+        {
+            var total = group.Children.Count;
+            var operational = group.Children.Count(c => c.Status == StatusPage.Domain.ComponentStatus.Operational);
+            <div class="group-block">
+                <div class="group-heading">
+                    <span>@group.Group.Name</span>
+                    <span>@operational/@total operational</span>
+                </div>
+                <div class="service-grid">
+                    @foreach (var component in group.Children)
+                    {
+                        var pill = PillKey(component.Status);
+                        <article class="service-card">
+                            <span class="monogram" aria-hidden="true">@Monogram(component.Name)</span>
+                            <div class="service-text">
+                                <div class="service-name">@component.Name</div>
+                                @if (!string.IsNullOrWhiteSpace(component.Description))
+                                {
+                                    <div class="service-meta">@component.Description</div>
+                                }
+                            </div>
+                            <span class="pill pill-@pill">@PillLabel(pill)</span>
+                            <span class="chevron" aria-hidden="true">›</span>
+                        </article>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+
+    <section class="block" id="incidents">
+        <h2>Incidents</h2>
+        @if (Model.ActiveIncidents.Count == 0 && Model.ScheduledMaintenances.Count == 0)
+        {
+            <div class="incident-empty">
+                <span class="empty-check" aria-hidden="true">✓</span>
+                <p>No recent incidents</p>
+            </div>
+        }
+        else
+        {
+            @foreach (var incident in Model.ActiveIncidents.Concat(Model.ScheduledMaintenances))
+            {
+                <partial name="_IncidentCard" model="incident" />
+            }
+        }
+    </section>
+
+    <section class="block history-panel">
+        <h2>Past incidents</h2>
+        <p class="muted">Last 15 days</p>
+        <div class="uptime-bars" aria-hidden="true">
+            @foreach (var day in Model.History)
+            {
+                <span class="uptime-bar @(day.Incidents.Count == 0 ? "good" : "bad")" title="@day.Day.ToString("yyyy-MM-dd")"></span>
+            }
+        </div>
+        @foreach (var day in Model.History)
+        {
+            <div class="history-day">
+                <h3>@day.Day.ToString("MMMM d, yyyy")</h3>
+                @if (day.Incidents.Count == 0)
+                {
+                    <p class="muted">No incidents reported.</p>
+                }
+                else
+                {
+                    foreach (var incident in day.Incidents)
+                    {
+                        <partial name="_IncidentCard" model="incident" />
+                    }
+                }
+            </div>
+        }
+    </section>
+</div>
+
+@functions {
+    private static string Sentence(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        return char.ToUpperInvariant(value[0]) + value[1..].ToLowerInvariant();
+    }
+
+    private static string Monogram(string name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[0].ToString().ToUpperInvariant();
+
+    private static string OverallClass(StatusPage.Domain.PageStatus status) => status.Indicator switch
+    {
+        StatusPage.Domain.PageIndicator.Critical => "overall-outage",
+        StatusPage.Domain.PageIndicator.Major => "overall-outage",
+        StatusPage.Domain.PageIndicator.Minor => "overall-degraded",
+        _ when status.Banner.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) => "overall-checking",
+        _ => ""
+    };
+
+    private static string OverallPill(StatusPage.Domain.PageStatus status) => status.Indicator switch
+    {
+        StatusPage.Domain.PageIndicator.Critical => "outage",
+        StatusPage.Domain.PageIndicator.Major => "outage",
+        StatusPage.Domain.PageIndicator.Minor => "degraded",
+        _ when status.Banner.Contains("Maintenance", StringComparison.OrdinalIgnoreCase) => "maintenance",
+        _ => "operational"
+    };
+
+    private static string PillKey(StatusPage.Domain.ComponentStatus status) => status switch
+    {
+        StatusPage.Domain.ComponentStatus.Operational => "operational",
+        StatusPage.Domain.ComponentStatus.DegradedPerformance => "degraded",
+        StatusPage.Domain.ComponentStatus.PartialOutage => "degraded",
+        StatusPage.Domain.ComponentStatus.MajorOutage => "outage",
+        StatusPage.Domain.ComponentStatus.UnderMaintenance => "maintenance",
+        _ => "unknown"
+    };
+
+    private static string PillLabel(string key) => key switch
+    {
+        "operational" => "Operational",
+        "checking" => "Checking",
+        "degraded" => "Degraded",
+        "outage" => "Outage",
+        "maintenance" => "Maintenance",
+        _ => "Unknown"
+    };
+
+    private static string PillGlyph(string key) => key switch
+    {
+        "operational" => "✓",
+        "checking" => "…",
+        "degraded" => "!",
+        "outage" => "×",
+        "maintenance" => "◆",
+        _ => "?"
+    };
+}
