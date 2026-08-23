@@ -38,7 +38,8 @@ public static class CheckTarget
             explicitType = parsedType;
         }
 
-        if (Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        if (value.Contains("://", StringComparison.Ordinal)
+            && Uri.TryCreate(value, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
         {
             if (string.IsNullOrWhiteSpace(uri.Host) || uri.IsFile || uri.IsUnc)
@@ -59,7 +60,7 @@ public static class CheckTarget
             return true;
         }
 
-        if (uri is { IsAbsoluteUri: true } && uri.Scheme is not ("http" or "https"))
+        if (value.Contains("://", StringComparison.Ordinal))
         {
             error = "Only http, https, or host:port TCP targets are allowed.";
             return false;
