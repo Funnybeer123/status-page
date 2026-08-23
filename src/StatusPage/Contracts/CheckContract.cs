@@ -36,6 +36,8 @@ public sealed class CheckDocument
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string ComponentId { get; set; } = "";
+    public string? ComponentName { get; set; }
+    public string? GroupId { get; set; }
     public string Type { get; set; } = CheckContract.TypeHttps;
     public bool Enabled { get; set; } = true;
     public int IntervalSeconds { get; set; } = CheckContract.DefaultIntervalSeconds;

@@ -187,6 +187,79 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.False(open.GetProperty("incident_updates")[0].GetProperty("deliver_notifications").GetBoolean());
     }
 
+    [Fact]
+    public async Task Operator_can_create_check_on_new_component()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
+
+        using var missingName = await client.PostAsync("/api/checks", JsonContent.Create(new
+        {
+            name = "probe-label-only",
+            componentId = "orphan-leaf",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "127.0.0.1", port = 9 }
+        }));
+        Assert.Equal(HttpStatusCode.BadRequest, missingName.StatusCode);
+
+        using var created = await client.PostAsync("/api/checks", JsonContent.Create(new
+        {
+            name = "probe-label-only",
+            componentId = "billing-warehouse",
+            componentName = "Billing warehouse",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "127.0.0.1", port = 9 }
+        }));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        using var grouped = await client.PostAsync("/api/checks", JsonContent.Create(new
+        {
+            name = "ingest-probe-label",
+            componentId = "cca-warehouse-feed",
+            componentName = "Warehouse feed",
+            groupId = "cloud-cost-agent",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "127.0.0.1", port = 9 }
+        }));
+        Assert.Equal(HttpStatusCode.Created, grouped.StatusCode);
+
+        using var statusComponents = await client.GetAsync("/api/status/components");
+        using var statusDoc = JsonDocument.Parse(await statusComponents.Content.ReadAsStringAsync());
+        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
+            row => row.GetProperty("componentId").GetString() == "billing-warehouse"
+                   && row.GetProperty("status").GetString() == "operational");
+        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
+            row => row.GetProperty("componentId").GetString() == "cca-warehouse-feed");
+
+        using var summary = await client.GetAsync("/api/v2/summary.json");
+        using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var billing = doc.RootElement.GetProperty("components").EnumerateArray()
+            .Single(c => c.GetProperty("id").GetString() == "billing-warehouse");
+        Assert.Equal("Billing warehouse", billing.GetProperty("name").GetString());
+        Assert.NotEqual("probe-label-only", billing.GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Null, billing.GetProperty("group_id").ValueKind);
+        Assert.False(billing.GetProperty("group").GetBoolean());
+        Assert.Equal("operational", billing.GetProperty("status").GetString());
+
+        var feed = doc.RootElement.GetProperty("components").EnumerateArray()
+            .Single(c => c.GetProperty("id").GetString() == "cca-warehouse-feed");
+        Assert.Equal("Warehouse feed", feed.GetProperty("name").GetString());
+        Assert.NotEqual("ingest-probe-label", feed.GetProperty("name").GetString());
+        Assert.Equal("cloud-cost-agent", feed.GetProperty("group_id").GetString());
+
+        using var home = await client.GetAsync("/");
+        var html = await home.Content.ReadAsStringAsync();
+        Assert.Contains("Billing warehouse", html);
+        Assert.Contains("Warehouse feed", html);
+        Assert.DoesNotContain("probe-label-only", html);
+    }
+
     private static void AssertStatuspageIncidentPayload(JsonElement incident)
     {
         foreach (var component in incident.GetProperty("components").EnumerateArray())

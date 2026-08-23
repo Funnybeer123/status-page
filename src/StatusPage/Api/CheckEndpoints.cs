@@ -85,6 +85,8 @@ public sealed class CheckWriteJson
 {
     public string? Name { get; set; }
     public string? ComponentId { get; set; }
+    public string? ComponentName { get; set; }
+    public string? GroupId { get; set; }
     public string? Type { get; set; }
     public bool? Enabled { get; set; }
     public int? IntervalSeconds { get; set; }
@@ -117,7 +119,9 @@ public sealed class CheckWriteJson
                 Method = Http.Method,
                 ExpectedStatus = [.. Http.ExpectedStatus],
                 BodyContains = Http.BodyContains
-            });
+            },
+        ComponentName,
+        GroupId);
 }
 
 public static class CheckJson

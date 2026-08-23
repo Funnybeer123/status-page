@@ -83,6 +83,9 @@ public sealed class StatusCheck
     public DateTimeOffset? NextRunAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public List<CheckResult> Results { get; set; } = [];
+    /// <summary>Display title of a create-if-missing leaf. Never the probe <see cref="Name"/>.</summary>
+    public string? ComponentName { get; set; }
+    public string? ComponentGroupId { get; set; }
 
     public CheckResult? LastResult => Results.Count == 0 ? null : Results[0];
 
@@ -133,7 +136,9 @@ public sealed record CreateCheckRequest(
     int? FailureThreshold,
     int? SuccessThreshold,
     CheckTargetSpec Target,
-    HttpCheckSpec? Http);
+    HttpCheckSpec? Http,
+    string? ComponentName = null,
+    string? GroupId = null);
 
 public sealed record CreateIncidentRequest(
     string Name,

@@ -106,6 +106,45 @@ public class CheckRollupTests
     }
 
     [Fact]
+    public void Create_check_adds_leaf_titled_componentName_not_probe_name()
+    {
+        var store = EmptyStore();
+        store.CreateCheck(new CreateCheckRequest(
+            "probe-label-only",
+            "billing-warehouse",
+            "tcp",
+            true,
+            15,
+            5,
+            3,
+            2,
+            new CheckTargetSpec { Host = "127.0.0.1", Port = 9 },
+            null,
+            "Billing warehouse",
+            null));
+
+        var leaf = store.FindComponent("billing-warehouse");
+        Assert.NotNull(leaf);
+        Assert.False(leaf!.Group);
+        Assert.Null(leaf.GroupId);
+        Assert.Equal("Billing warehouse", leaf.Name);
+        Assert.NotEqual("probe-label-only", leaf.Name);
+        Assert.Equal(ComponentStatus.Operational, leaf.Status);
+        Assert.Equal(ComponentStatus.Operational, leaf.ManualStatus);
+        Assert.Contains(store.ComponentCheckStatuses(),
+            s => s.ComponentId == "billing-warehouse" && s.CheckCount == 1 && s.Status == ComponentStatus.Operational);
+    }
+
+    [Fact]
+    public void Create_check_requires_componentName_for_unknown_leaf()
+    {
+        var store = EmptyStore();
+        var ex = Assert.Throws<ArgumentException>(() => store.CreateCheck(Check("probe-label-only", "not-a-seed")));
+        Assert.Contains("componentName", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(store.FindComponent("not-a-seed"));
+    }
+
+    [Fact]
     public void Operator_incident_does_not_override_check_rollup()
     {
         var store = EmptyStore();

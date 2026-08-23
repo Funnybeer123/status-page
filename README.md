@@ -57,8 +57,10 @@ Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/check
 ```json
 {
   "id": "guid",
-  "name": "string",
-  "componentId": "existing-leaf-id",
+  "name": "probe label only",
+  "componentId": "existing-or-new-leaf-slug",
+  "componentName": "required when creating a leaf",
+  "groupId": "optional-existing-group-id",
   "type": "http | https | tcp",
   "enabled": true,
   "intervalSeconds": 60,
@@ -69,6 +71,8 @@ Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/check
   "http": { "method": "GET", "expectedStatus": [200, 201, 204], "bodyContains": null }
 }
 ```
+
+`name` is the probe label only and is never the public leaf title. Bind to an existing `componentId`, or send a new slug plus `componentName` to create an operational leaf (`groupId` optional; otherwise ungrouped).
 
 TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. Defaults: interval 60s (min 15), timeout 10s (must be `<` interval), failureThreshold 3, successThreshold 2, method GET, expectedStatus `[200,201,204]`.
 
@@ -118,7 +122,7 @@ curl -s -X POST http://localhost:5080/api/operator/incidents \
   -d '{"name":"API errors","status":"investigating","impact":"minor","body":"Investigating 5xx on the API.","componentIds":["cca-api"]}'
 ```
 
-Leaf component ids: `cca-api`, `cca-dashboard`, `cca-ingestion`, `deib-api`, `deib-runner`, `deib-portal`, `example-com`, `local-health`.
+Seeded leaf ids: `cca-api`, `cca-dashboard`, `cca-ingestion`, `deib-api`, `deib-runner`, `deib-portal`, `example-com`, `local-health`. New leaves can be created via `POST /api/checks` with `componentId` + `componentName`.
 
 ## Tests
 

@@ -36,6 +36,7 @@ public sealed class InMemoryStatusStore : IStatusStore
     {
         _state = state;
         _persistChecks = persistChecks;
+        EnsureLeavesForChecks();
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
     }
 
@@ -76,7 +77,9 @@ public sealed class InMemoryStatusStore : IStatusStore
         var check = BuildCheck(request, NewId());
         lock (_gate)
         {
-            RequireLeafComponent(check.ComponentId);
+            var leaf = EnsureLeaf(check.ComponentId, request.ComponentName, request.GroupId);
+            check.ComponentName = leaf.Name;
+            check.ComponentGroupId = leaf.GroupId;
             _state.Checks.Add(check);
             ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
             PersistChecks();
@@ -91,7 +94,9 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             var existing = _state.Checks.FirstOrDefault(c => c.Id == id)
                            ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
-            RequireLeafComponent(next.ComponentId);
+            var leaf = EnsureLeaf(next.ComponentId, request.ComponentName, request.GroupId);
+            next.ComponentName = leaf.Name;
+            next.ComponentGroupId = leaf.GroupId;
             var previousComponent = existing.ComponentId;
             next.State = existing.State;
             next.ConsecutiveFailures = existing.ConsecutiveFailures;
@@ -357,14 +362,71 @@ public sealed class InMemoryStatusStore : IStatusStore
     private bool HasEnabledChecks(string componentId) =>
         _state.Checks.Any(c => c.Enabled && c.ComponentId == componentId);
 
-    private void RequireLeafComponent(string componentId)
+    private void EnsureLeavesForChecks()
     {
-        var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
-                        ?? throw new ArgumentException($"Unknown component '{componentId}'. Bind the check to an existing leaf component.");
-        if (component.Group)
+        foreach (var check in _state.Checks)
         {
-            throw new ArgumentException("Checks must map to a leaf component, not a group.");
+            if (_state.Components.Any(c => c.Id == check.ComponentId))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(check.ComponentName))
+            {
+                continue;
+            }
+
+            EnsureLeaf(check.ComponentId, check.ComponentName, check.ComponentGroupId);
         }
+    }
+
+    private Component EnsureLeaf(string componentId, string? componentName, string? groupId)
+    {
+        var existing = _state.Components.FirstOrDefault(c => c.Id == componentId);
+        if (existing is not null)
+        {
+            if (existing.Group)
+            {
+                throw new ArgumentException("Checks must map to a leaf component, not a group.");
+            }
+
+            return existing;
+        }
+
+        if (string.IsNullOrWhiteSpace(componentName))
+        {
+            throw new ArgumentException("componentName is required when creating a leaf.");
+        }
+
+        string? resolvedGroupId = null;
+        if (!string.IsNullOrWhiteSpace(groupId))
+        {
+            var group = _state.Components.FirstOrDefault(c => c.Id == groupId.Trim());
+            if (group is null || !group.Group)
+            {
+                throw new ArgumentException($"Unknown group '{groupId}'.");
+            }
+
+            resolvedGroupId = group.Id;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var position = _state.Components.Where(c => !c.Group).Select(c => c.Position).DefaultIfEmpty(0).Max() + 1;
+        var leaf = new Component
+        {
+            Id = componentId,
+            Name = componentName.Trim(),
+            Status = ComponentStatus.Operational,
+            ManualStatus = ComponentStatus.Operational,
+            Group = false,
+            GroupId = resolvedGroupId,
+            Position = position,
+            Showcase = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        _state.Components.Add(leaf);
+        return leaf;
     }
 
     private static StatusCheck BuildCheck(CreateCheckRequest request, string id)
@@ -377,6 +439,12 @@ public sealed class InMemoryStatusStore : IStatusStore
         if (string.IsNullOrWhiteSpace(request.ComponentId))
         {
             throw new ArgumentException("componentId is required.");
+        }
+
+        var componentId = request.ComponentId.Trim();
+        if (componentId.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_')))
+        {
+            throw new ArgumentException("componentId must be a slug (letters, digits, hyphen, or underscore).");
         }
 
         if (!DomainEnums.TryParseCheckType(request.Type, out var type))
@@ -400,7 +468,9 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             Id = id,
             Name = request.Name.Trim(),
-            ComponentId = request.ComponentId.Trim(),
+            ComponentId = componentId,
+            ComponentName = string.IsNullOrWhiteSpace(request.ComponentName) ? null : request.ComponentName.Trim(),
+            ComponentGroupId = string.IsNullOrWhiteSpace(request.GroupId) ? null : request.GroupId.Trim(),
             Type = type,
             Enabled = request.Enabled ?? true,
             IntervalSeconds = request.IntervalSeconds ?? CheckContract.DefaultIntervalSeconds,
@@ -639,6 +709,8 @@ public sealed class InMemoryStatusStore : IStatusStore
         Id = check.Id,
         Name = check.Name,
         ComponentId = check.ComponentId,
+        ComponentName = check.ComponentName,
+        ComponentGroupId = check.ComponentGroupId,
         Type = check.Type,
         Enabled = check.Enabled,
         IntervalSeconds = check.IntervalSeconds,
