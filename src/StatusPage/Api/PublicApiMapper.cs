@@ -113,7 +113,8 @@ public static class PublicApiMapper
 
     private static object Incident(StatusPageState state, Incident incident)
     {
-        var affected = state.Components.Where(c => incident.ComponentIds.Contains(c.Id));
+        var affected = state.Components.Where(c => incident.ComponentIds.Contains(c.Id)).ToList();
+        var startedAt = incident.ScheduledFor ?? incident.CreatedAt;
         return new
         {
             id = incident.Id,
@@ -124,30 +125,38 @@ public static class PublicApiMapper
             updated_at = Iso(incident.UpdatedAt),
             monitoring_at = Iso(incident.MonitoringAt),
             resolved_at = Iso(incident.ResolvedAt),
+            started_at = Iso(startedAt),
             scheduled_for = Iso(incident.ScheduledFor),
             scheduled_until = Iso(incident.ScheduledUntil),
             shortlink = $"{state.Page.Url.TrimEnd('/')}/incidents/{incident.Id}",
             page_id = state.Page.Id,
             incident_updates = incident.Updates
                 .OrderByDescending(u => u.DisplayAt)
-                .Select(u => new
-                {
-                    id = u.Id,
-                    incident_id = u.IncidentId,
-                    status = u.Status.ApiValue(),
-                    body = u.Body,
-                    created_at = Iso(u.CreatedAt),
-                    updated_at = Iso(u.UpdatedAt),
-                    display_at = Iso(u.DisplayAt)
-                }),
-            components = affected.Select(c => new
-            {
-                id = c.Id,
-                name = c.Name,
-                status = c.Status.ApiValue()
-            })
+                .Select(u => IncidentUpdate(u, affected)),
+            components = affected.Select(c => Component(state.Page.Id, c))
         };
     }
+
+    private static object IncidentUpdate(IncidentUpdate update, IReadOnlyList<Component> affected) => new
+    {
+        id = update.Id,
+        incident_id = update.IncidentId,
+        status = update.Status.ApiValue(),
+        body = update.Body,
+        created_at = Iso(update.CreatedAt),
+        updated_at = Iso(update.UpdatedAt),
+        display_at = Iso(update.DisplayAt),
+        affected_components = affected.Select(AffectedComponent),
+        deliver_notifications = false
+    };
+
+    private static object AffectedComponent(Component component) => new
+    {
+        code = component.Id,
+        name = component.Name,
+        old_status = component.Status.ApiValue(),
+        new_status = component.Status.ApiValue()
+    };
 
     public static string Iso(DateTimeOffset value) =>
         value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");

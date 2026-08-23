@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -56,11 +57,13 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
             Assert.True(component.TryGetProperty("group", out _));
         }
 
-        foreach (var maintenance in root.GetProperty("scheduled_maintenances").EnumerateArray())
+        var maintenances = root.GetProperty("scheduled_maintenances").EnumerateArray().ToList();
+        Assert.NotEmpty(maintenances);
+        foreach (var maintenance in maintenances)
         {
             Assert.True(maintenance.TryGetProperty("scheduled_for", out _));
-            Assert.True(maintenance.TryGetProperty("incident_updates", out var updates));
-            Assert.True(updates.GetArrayLength() > 0);
+            AssertIso8601(maintenance, "started_at");
+            AssertStatuspageIncidentPayload(maintenance);
         }
     }
 
@@ -144,9 +147,80 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         using var summary = await client.GetAsync("/api/v2/summary.json");
         using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
         Assert.Equal("minor", doc.RootElement.GetProperty("status").GetProperty("indicator").GetString());
-        Assert.Contains(doc.RootElement.GetProperty("incidents").EnumerateArray(),
-            i => i.GetProperty("name").GetString() == "Test incident");
+        var testIncident = doc.RootElement.GetProperty("incidents").EnumerateArray()
+            .Single(i => i.GetProperty("name").GetString() == "Test incident");
+        AssertIso8601(testIncident, "started_at");
+        AssertStatuspageIncidentPayload(testIncident);
+        var incidentComponent = testIncident.GetProperty("components").EnumerateArray()
+            .Single(c => c.GetProperty("id").GetString() == "cca-api");
+        Assert.Equal("local-status", incidentComponent.GetProperty("page_id").GetString());
+        var affected = testIncident.GetProperty("incident_updates")[0].GetProperty("affected_components");
+        Assert.Contains(affected.EnumerateArray(), a => a.GetProperty("code").GetString() == "cca-api");
     }
+
+    private static void AssertStatuspageIncidentPayload(JsonElement incident)
+    {
+        foreach (var component in incident.GetProperty("components").EnumerateArray())
+        {
+            AssertStatuspageComponentObject(component);
+        }
+
+        var updates = incident.GetProperty("incident_updates");
+        Assert.True(updates.GetArrayLength() > 0);
+        foreach (var update in updates.EnumerateArray())
+        {
+            Assert.True(update.TryGetProperty("affected_components", out var affected));
+            Assert.Equal(JsonValueKind.Array, affected.ValueKind);
+            Assert.True(update.TryGetProperty("deliver_notifications", out var deliver));
+            Assert.Equal(JsonValueKind.False, deliver.ValueKind);
+            Assert.False(deliver.GetBoolean());
+
+            foreach (var row in affected.EnumerateArray())
+            {
+                Assert.False(string.IsNullOrWhiteSpace(row.GetProperty("code").GetString()));
+                Assert.False(string.IsNullOrWhiteSpace(row.GetProperty("name").GetString()));
+                Assert.Contains(row.GetProperty("old_status").GetString(), ComponentStatuses);
+                Assert.Contains(row.GetProperty("new_status").GetString(), ComponentStatuses);
+            }
+        }
+    }
+
+    private static void AssertStatuspageComponentObject(JsonElement component)
+    {
+        foreach (var field in new[]
+                 {
+                     "id", "name", "status", "created_at", "updated_at", "position", "description",
+                     "showcase", "start_date", "group_id", "page_id", "group", "only_show_if_degraded"
+                 })
+        {
+            Assert.True(component.TryGetProperty(field, out _), $"component missing {field}");
+        }
+
+        Assert.False(string.IsNullOrWhiteSpace(component.GetProperty("id").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(component.GetProperty("name").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(component.GetProperty("page_id").GetString()));
+        Assert.Contains(component.GetProperty("status").GetString(), ComponentStatuses);
+        Assert.True(component.GetProperty("group").ValueKind is JsonValueKind.True or JsonValueKind.False);
+        Assert.True(component.GetProperty("position").ValueKind == JsonValueKind.Number);
+        AssertIso8601(component, "created_at");
+        AssertIso8601(component, "updated_at");
+    }
+
+    private static void AssertIso8601(JsonElement parent, string name)
+    {
+        Assert.True(parent.TryGetProperty(name, out var value), $"missing {name}");
+        Assert.Equal(JsonValueKind.String, value.ValueKind);
+        var text = value.GetString();
+        Assert.False(string.IsNullOrWhiteSpace(text));
+        Assert.True(
+            DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _),
+            $"{name} should be ISO-8601, got '{text}'");
+    }
+
+    private static readonly string[] ComponentStatuses =
+    [
+        "operational", "degraded_performance", "partial_outage", "major_outage", "under_maintenance"
+    ];
 }
 
 public class StatusPageFactory : WebApplicationFactory<Program>
