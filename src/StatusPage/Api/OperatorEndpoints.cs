@@ -227,6 +227,70 @@ public static class OperatorEndpoints
                 return Results.BadRequest(new { error = ex.Message });
             }
         });
+
+        group.MapGet("/templates", (IIncidentTemplateStore templates) =>
+            Results.Json(templates.List().Select(TemplateJson)));
+
+        group.MapGet("/templates/{id}", (string id, IIncidentTemplateStore templates) =>
+        {
+            var template = templates.Find(id);
+            return template is null
+                ? Results.NotFound(new { error = $"Unknown incident template '{id}'." })
+                : Results.Json(TemplateJson(template));
+        });
+
+        group.MapPost("/templates", (WriteTemplateJson body, IIncidentTemplateStore templates, IStatusStore store, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                var created = templates.Create(
+                    IncidentTemplateRules.NormalizeTitle(body.Title),
+                    IncidentTemplateRules.NormalizeImpact(body.Impact),
+                    IncidentTemplateRules.NormalizePublicComponentIds(body.ComponentIds, store));
+                OperatorAuth.Audit(http, audit, "template.create", created.Id);
+                return Results.Created($"/api/operator/templates/{created.Id}", TemplateJson(created));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
+        group.MapPut("/templates/{id}", (string id, WriteTemplateJson body, IIncidentTemplateStore templates, IStatusStore store, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                var updated = templates.Update(
+                    id,
+                    IncidentTemplateRules.NormalizeTitle(body.Title),
+                    IncidentTemplateRules.NormalizeImpact(body.Impact),
+                    IncidentTemplateRules.NormalizePublicComponentIds(body.ComponentIds, store));
+                OperatorAuth.Audit(http, audit, "template.edit", updated.Id);
+                return Results.Json(TemplateJson(updated));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
+        group.MapDelete("/templates/{id}", (string id, IIncidentTemplateStore templates, IAuditLog audit, HttpContext http) =>
+        {
+            try
+            {
+                templates.Delete(id);
+                OperatorAuth.Audit(http, audit, "template.delete", id);
+                return Results.NoContent();
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { error = ex.Message });
+            }
+        });
     }
 
     private static object ComponentJson(Component component, IEnumerable<StatusCheck> checks) => new
@@ -253,6 +317,15 @@ public static class OperatorEndpoints
         scheduledFor = PublicApiMapper.Iso(incident.ScheduledFor),
         scheduledUntil = PublicApiMapper.Iso(incident.ScheduledUntil),
         updatedAt = PublicApiMapper.Iso(incident.UpdatedAt)
+    };
+
+    private static object TemplateJson(IncidentTemplate template) => new
+    {
+        id = template.Id,
+        title = template.Title,
+        impact = template.Impact,
+        componentIds = template.ComponentIds,
+        updatedAt = PublicApiMapper.Iso(template.UpdatedAt)
     };
 }
 
@@ -308,4 +381,11 @@ public sealed class UpdateIncidentJson
 public sealed class WriteWebhookJson
 {
     public string? Url { get; set; }
+}
+
+public sealed class WriteTemplateJson
+{
+    public string? Title { get; set; }
+    public string? Impact { get; set; }
+    public List<string>? ComponentIds { get; set; }
 }

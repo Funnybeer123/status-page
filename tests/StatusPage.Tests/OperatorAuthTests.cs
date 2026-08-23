@@ -308,6 +308,15 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         using var webhook = await client.PostAsJsonAsync("/api/operator/webhooks",
             new { url = "https://example.com/hooks/status" });
         Assert.Equal(HttpStatusCode.Forbidden, webhook.StatusCode);
+        using var templates = await client.GetAsync("/api/operator/templates");
+        Assert.Equal(HttpStatusCode.OK, templates.StatusCode);
+        using var createTemplate = await client.PostAsJsonAsync("/api/operator/templates", new
+        {
+            title = "viewer blocked",
+            impact = "minor",
+            componentIds = new[] { "azure-status" }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, createTemplate.StatusCode);
     }
 
     [Fact]
@@ -333,7 +342,8 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             Config(),
             new TestHostEnvironment(),
             new FileAuditLog(Path.GetTempFileName()),
-            new FileWebhookStore(Path.Combine(Path.GetTempPath(), $"op-webhooks-{Guid.NewGuid():N}.json")))
+            new FileWebhookStore(Path.Combine(Path.GetTempPath(), $"op-webhooks-{Guid.NewGuid():N}.json")),
+            new FileIncidentTemplateStore(Path.Combine(Path.GetTempPath(), $"op-templates-{Guid.NewGuid():N}.json")))
         {
             PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext
             {
@@ -431,6 +441,8 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         var resultsPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-results-{Guid.NewGuid():N}.json");
         var auditPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-audit-{Guid.NewGuid():N}.jsonl");
         var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-webhooks-{Guid.NewGuid():N}.json");
+        var templatesPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-templates-{Guid.NewGuid():N}.json");
+        var templatesSeed = Path.Combine(Path.GetTempPath(), $"status-page-entra-templates-seed-{Guid.NewGuid():N}.json");
         builder.UseEnvironment("Development");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
@@ -441,6 +453,8 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:ResultsPath", resultsPath);
         builder.UseSetting("StatusPage:AuditPath", auditPath);
         builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
+        builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
+        builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -454,6 +468,8 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
                 ["StatusPage:ResultsPath"] = resultsPath,
                 ["StatusPage:AuditPath"] = auditPath,
                 ["StatusPage:WebhooksPath"] = webhooksPath,
+                ["StatusPage:TemplatesPath"] = templatesPath,
+                ["StatusPage:TemplatesSeedPath"] = templatesSeed,
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
                 ["AzureAd:TenantId"] = "test-tenant",
                 ["AzureAd:ClientId"] = "test-client",

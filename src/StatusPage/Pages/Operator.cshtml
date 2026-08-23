@@ -21,6 +21,7 @@
         <a href="#components">Components</a>
         <a href="#checks">Checks</a>
         <a href="#incidents">Incidents</a>
+        <a href="#templates">Templates</a>
         <a href="#audit">Audit</a>
         <a href="#webhooks">Webhooks</a>
         <a href="#connectors">Connectors</a>
@@ -277,9 +278,9 @@
         @if (Model.CanWrite)
         {
         <h3>Open incident or maintenance</h3>
-        <form method="post" asp-page-handler="CreateIncident" class="operator-form operator-form-grid">
+        <form method="post" asp-page-handler="CreateIncident" id="incident-create-form" class="operator-form operator-form-grid">
             <label>Name
-                <input name="name" required />
+                <input name="name" value="@Model.PrefillName" required />
             </label>
             <label>Body
                 <input name="body" required />
@@ -288,10 +289,10 @@
                 <input name="status" placeholder="investigating" />
             </label>
             <label>Impact
-                <input name="impact" placeholder="minor" />
+                <input name="impact" placeholder="minor" value="@Model.PrefillImpact" />
             </label>
             <label>Component ids (comma)
-                <input name="componentIds" placeholder="azure-status" />
+                <input name="componentIds" placeholder="azure-status" value="@Model.PrefillComponentIds" />
             </label>
             <label>Scheduled for (maintenance)
                 <input name="scheduledFor" type="datetime-local" />
@@ -307,6 +308,71 @@
             </label>
             <div><button type="submit" class="btn-primary">Open</button></div>
         </form>
+        }
+    </section>
+
+    <section class="operator-card" id="templates">
+        <h2>Incident templates</h2>
+        <p class="muted">Title, impact, and default public component ids. Stored in gitignored data/incident-templates.json. Internal component ids are rejected.</p>
+        @if (Model.Templates.Count == 0)
+        {
+            <p class="muted">No templates yet.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Impact</th>
+                        <th>Components</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var template in Model.Templates)
+                {
+                    <tr>
+                        <td><strong>@template.Title</strong></td>
+                        <td>@template.Impact</td>
+                        <td><code>@string.Join(", ", template.ComponentIds)</code></td>
+                        <td class="inline-actions">
+                            @if (Model.CanWrite)
+                            {
+                            <a class="btn-secondary" href="/operator?applyTemplate=@template.Id#incidents">Apply</a>
+                            <form method="post" asp-page-handler="DeleteTemplate">
+                                <input type="hidden" name="id" value="@template.Id" />
+                                <button class="btn-secondary btn-danger" type="submit">Delete</button>
+                            </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        @if (Model.CanWrite)
+        {
+        <h3>Create or edit template</h3>
+        <form method="post" asp-page-handler="SaveTemplate" class="operator-form operator-form-grid">
+            <label>Id (blank to create)
+                <input name="id" placeholder="leave blank to create" />
+            </label>
+            <label>Title
+                <input name="title" required />
+            </label>
+            <label>Impact
+                <input name="impact" placeholder="minor" />
+            </label>
+            <label>Public component ids (comma)
+                <input name="componentIds" placeholder="azure-status" />
+            </label>
+            <div><button type="submit" class="btn-primary">Save template</button></div>
+        </form>
+        <p class="muted">Embed snippet (public components only; no check targets or probe errors):</p>
+        <pre class="operator-snippet">&lt;iframe src="@(Model.PageInfo.Url.TrimEnd('/'))/embed" width="360" height="240" style="border:0" title="Status"&gt;&lt;/iframe&gt;</pre>
+        <pre class="operator-snippet">&lt;div id="status-embed"&gt;&lt;/div&gt;
+&lt;script src="@(Model.PageInfo.Url.TrimEnd('/'))/js/embed.js" async&gt;&lt;/script&gt;</pre>
         }
     </section>
 

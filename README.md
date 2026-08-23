@@ -49,11 +49,32 @@ curl -s http://localhost:5080/api/v2/components.json
 curl -s http://localhost:5080/api/v2/incidents.json
 curl -s http://localhost:5080/api/v2/scheduled-maintenances.json
 curl -s http://localhost:5080/api/status/components
+curl -s http://localhost:5080/incidents.rss
+curl -s http://localhost:5080/incidents.atom
 ```
 
 These stay anonymous and omit internal host:port leaves. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`).
 
 Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only.
+
+## Public embed
+
+Anonymous `/embed` shows overall status plus public components using the same `ForPublic` filter as `/api/v2/summary.json`. Internal leaves, check targets, and probe errors are omitted.
+
+```html
+<iframe src="http://localhost:5080/embed" width="360" height="240" style="border:0" title="Status"></iframe>
+```
+
+```html
+<div id="status-embed"></div>
+<script src="http://localhost:5080/js/embed.js" async></script>
+```
+
+`embed.js` reads `/api/v2/summary.json` only. Email/SMS subscribe is not implemented.
+
+## Public incident feeds
+
+`/incidents.rss` and `/incidents.atom` list public incidents with the same visibility as `/api/v2/incidents.json`. Incidents that only touch internal leaves are omitted. Mixed incidents keep public component names only. Feeds do not include check targets or probe errors.
 
 ## Status checks (any public URL or internal host)
 
@@ -181,7 +202,10 @@ curl -s -X PATCH http://localhost:5080/api/operator/page \
   -d '{"name":"Local brand"}'
 curl -s http://localhost:5080/api/operator/components -H "X-Api-Key: dev-key"
 curl -s http://localhost:5080/api/operator/incidents -H "X-Api-Key: dev-key"
+curl -s http://localhost:5080/api/operator/templates -H "X-Api-Key: dev-key"
 ```
+
+Incident templates (operator-only create/edit/delete) store title, impact, and default **public** component ids in gitignored `data/incident-templates.json`. A secret-free seed lives in `Data/incident-templates.seed.json`. Applying a template pre-fills incident create (`/operator?applyTemplate=<id>#incidents`). Internal component ids are rejected.
 
 ## Operator incidents
 
@@ -250,7 +274,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, incident templates rejecting internal component ids, HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, and `/operator` not being public. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

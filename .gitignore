@@ -11,6 +11,7 @@ data/checks.json
 **/data/check-results.json
 **/data/audit.jsonl
 **/data/webhooks.json
+**/data/incident-templates.json
 **/data/branding/
 **/store.json
 .dotnet/
