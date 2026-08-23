@@ -195,13 +195,4 @@ public static class DomainEnums
 
     public static bool IsActiveMaintenance(this IncidentStatus status) =>
         status is IncidentStatus.Scheduled or IncidentStatus.InProgress or IncidentStatus.Verifying;
-
-    public static ComponentStatus ForImpact(IncidentImpact impact) => impact switch
-    {
-        IncidentImpact.Critical => ComponentStatus.MajorOutage,
-        IncidentImpact.Major => ComponentStatus.PartialOutage,
-        IncidentImpact.Minor => ComponentStatus.DegradedPerformance,
-        IncidentImpact.Maintenance => ComponentStatus.UnderMaintenance,
-        _ => ComponentStatus.Operational
-    };
 }

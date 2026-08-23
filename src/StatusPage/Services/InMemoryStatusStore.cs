@@ -169,12 +169,6 @@ public sealed class InMemoryStatusStore : IStatusStore
                 _state.Incidents.Add(incident);
             }
 
-            if ((status.IsUnresolvedIncident() || status == IncidentStatus.InProgress)
-                && impact == IncidentImpact.Maintenance)
-            {
-                ApplyImpactToComponents(ids, impact, now);
-            }
-
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
             return Clone(incident);
@@ -237,17 +231,14 @@ public sealed class InMemoryStatusStore : IStatusStore
 
                     var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
                                     ?? throw new ArgumentException($"Unknown component '{componentId}'.");
+                    if (HasEnabledChecks(component.Id))
+                    {
+                        continue;
+                    }
+
                     component.ManualStatus = componentStatus;
-                    if (componentStatus == ComponentStatus.UnderMaintenance
-                        || !_state.Checks.Any(c => c.Enabled && c.ComponentId == component.Id))
-                    {
-                        component.Status = componentStatus;
-                        component.UpdatedAt = now;
-                    }
-                    else
-                    {
-                        ApplyCheckRollup(component.Id, now);
-                    }
+                    component.Status = componentStatus;
+                    component.UpdatedAt = now;
                 }
             }
             else if (incident.Status is IncidentStatus.Resolved or IncidentStatus.Completed)
@@ -363,21 +354,8 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
-    private void ApplyImpactToComponents(IEnumerable<string> componentIds, IncidentImpact impact, DateTimeOffset at)
-    {
-        var status = DomainEnums.ForImpact(impact);
-        if (impact == IncidentImpact.None)
-        {
-            return;
-        }
-
-        foreach (var component in _state.Components.Where(c => componentIds.Contains(c.Id) && !c.Group))
-        {
-            component.ManualStatus = status;
-            component.Status = status;
-            component.UpdatedAt = at;
-        }
-    }
+    private bool HasEnabledChecks(string componentId) =>
+        _state.Checks.Any(c => c.Enabled && c.ComponentId == componentId);
 
     private void RequireLeafComponent(string componentId)
     {

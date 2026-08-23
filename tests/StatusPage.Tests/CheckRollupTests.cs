@@ -106,6 +106,37 @@ public class CheckRollupTests
     }
 
     [Fact]
+    public void Operator_incident_does_not_override_check_rollup()
+    {
+        var store = EmptyStore();
+        store.CreateCheck(Check("api", "cca-api"));
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("cca-api")!.Status);
+
+        store.CreateIncident(new CreateIncidentRequest(
+            "Operator outage note",
+            "investigating",
+            "critical",
+            "Customers are reporting errors.",
+            ["cca-api"],
+            null,
+            null), false);
+
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("cca-api")!.Status);
+
+        store.CreateIncident(new CreateIncidentRequest(
+            "Operator maintenance note",
+            "scheduled",
+            "maintenance",
+            "Window announced.",
+            ["cca-api"],
+            DateTimeOffset.UtcNow.AddHours(1),
+            DateTimeOffset.UtcNow.AddHours(2)), true);
+
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("cca-api")!.Status);
+        Assert.NotEqual(ComponentStatus.UnderMaintenance, store.FindComponent("cca-api")!.Status);
+    }
+
+    [Fact]
     public void Auto_incident_does_not_resolve_operator_incident()
     {
         var store = EmptyStore();
