@@ -105,7 +105,16 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.Contains("DevOps Engineer-in-a-Box", html);
         Assert.Contains("Past incidents", html);
         Assert.Contains("Elevated API timeouts", html);
+        Assert.Contains("hero", html);
+        Assert.Contains("overall", html);
+        Assert.Contains("service-card", html);
+        Assert.Contains("uptime-bars", html);
+        Assert.Contains("LIVE BUSINESS OPERATIONS", html);
+        Assert.Contains("Overview", html);
+        Assert.Contains("Incidents", html);
+        Assert.Contains("CURRENT STATUS", html);
         Assert.DoesNotContain("Subscribe", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("site-footer", html);
     }
 
     [Fact]

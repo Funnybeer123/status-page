@@ -1,45 +1,54 @@
 @model StatusPage.Domain.Incident
-<article class="incident impact-@Model.Impact.ApiValue()">
-    <header class="incident-head">
-        <a href="/incidents/@Model.Id">@Model.Name</a>
-        <span class="incident-meta">@Model.Status.ApiValue() · @Model.Impact.ApiValue()</span>
-    </header>
-    @if (Model.ScheduledFor is not null)
-    {
-        <p class="muted">
-            Scheduled @Model.ScheduledFor.Value.UtcDateTime.ToString("u")
-            @if (Model.ScheduledUntil is not null)
-            {
-                <text> – @Model.ScheduledUntil.Value.UtcDateTime.ToString("u")</text>
-            }
+@{
+    var pill = IncidentPill(Model);
+    var latest = Model.Updates.OrderByDescending(u => u.DisplayAt).FirstOrDefault();
+    var services = Model.ComponentIds.Count == 0
+        ? "No services listed"
+        : string.Join(", ", Model.ComponentIds);
+}
+<article class="incident-row">
+    <span class="pill pill-@pill">@IncidentLabel(pill)</span>
+    <div class="incident-body">
+        <a class="incident-title" href="/incidents/@Model.Id">@Model.Name</a>
+        @if (latest is not null)
+        {
+            <p class="incident-copy">@latest.Body</p>
+        }
+        <p class="incident-date">
+            <time datetime="@Model.UpdatedAt.ToUniversalTime().ToString("o")">@Model.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</time>
+            · @services
         </p>
-    }
-    @foreach (var update in Model.Updates.OrderByDescending(u => u.DisplayAt))
-    {
-        <div class="update">
-            <div class="update-meta">
-                <strong>@Title(update.Status)</strong>
-                <time datetime="@update.DisplayAt.ToUniversalTime().ToString("o")">
-                    @update.DisplayAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC
-                </time>
-            </div>
-            <p>@update.Body</p>
-        </div>
-    }
+    </div>
 </article>
 
 @functions {
-    private static string Title(StatusPage.Domain.IncidentStatus status) => status switch
+    private static string IncidentPill(StatusPage.Domain.Incident incident)
     {
-        StatusPage.Domain.IncidentStatus.Investigating => "Investigating",
-        StatusPage.Domain.IncidentStatus.Identified => "Identified",
-        StatusPage.Domain.IncidentStatus.Monitoring => "Monitoring",
-        StatusPage.Domain.IncidentStatus.Resolved => "Resolved",
-        StatusPage.Domain.IncidentStatus.Postmortem => "Postmortem",
-        StatusPage.Domain.IncidentStatus.Scheduled => "Scheduled",
-        StatusPage.Domain.IncidentStatus.InProgress => "In progress",
-        StatusPage.Domain.IncidentStatus.Verifying => "Verifying",
-        StatusPage.Domain.IncidentStatus.Completed => "Completed",
-        _ => status.ToString()
+        if (incident.Status is StatusPage.Domain.IncidentStatus.Scheduled
+            or StatusPage.Domain.IncidentStatus.InProgress
+            or StatusPage.Domain.IncidentStatus.Verifying
+            or StatusPage.Domain.IncidentStatus.Completed)
+        {
+            return "maintenance";
+        }
+
+        return incident.Impact switch
+        {
+            StatusPage.Domain.IncidentImpact.Critical => "outage",
+            StatusPage.Domain.IncidentImpact.Major => "outage",
+            StatusPage.Domain.IncidentImpact.Minor => "degraded",
+            StatusPage.Domain.IncidentImpact.Maintenance => "maintenance",
+            _ when incident.Status == StatusPage.Domain.IncidentStatus.Resolved => "operational",
+            _ => "unknown"
+        };
+    }
+
+    private static string IncidentLabel(string key) => key switch
+    {
+        "operational" => "Resolved",
+        "degraded" => "Degraded",
+        "outage" => "Outage",
+        "maintenance" => "Maintenance",
+        _ => "Update"
     };
 }

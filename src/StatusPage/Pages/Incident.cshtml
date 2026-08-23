@@ -2,9 +2,13 @@
 @model IncidentModel
 @{
     ViewData["Title"] = Model.Incident.Name;
+    ViewData["TopbarOnHero"] = false;
 }
 
-<div class="wrap page-body">
-    <p><a href="/">← Current status</a></p>
-    <partial name="_IncidentCard" model="Model.Incident" />
+<div class="subpage">
+    <div class="wrap">
+        <partial name="_Topbar" model="new StatusPage.Domain.StatusPageInfo { Name = "Status" }" />
+        <p class="back"><a href="/">← Current status</a></p>
+        <partial name="_IncidentCard" model="Model.Incident" />
+    </div>
 </div>

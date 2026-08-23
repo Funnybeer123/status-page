@@ -7,22 +7,6 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
-    <header class="site-header">
-        <div class="wrap header-row">
-            <a class="brand" href="/">Status</a>
-            <nav>
-                <a href="/api/v2/summary.json">API</a>
-            </nav>
-        </div>
-        <div class="wrap">
-            <p class="lede">Public status for Cloud Cost Agent and DevOps Engineer-in-a-Box. Email and SMS notifications are out of scope.</p>
-        </div>
-    </header>
     @RenderBody()
-    <footer class="site-footer">
-        <div class="wrap">
-            <p>Local-only status page. Compatible public JSON at <a href="/api/v2/summary.json">/api/v2/summary.json</a>. No paid hosting.</p>
-        </div>
-    </footer>
 </body>
 </html>
