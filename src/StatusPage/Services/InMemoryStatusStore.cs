@@ -1,3 +1,4 @@
+using StatusPage.Contracts;
 using StatusPage.Domain;
 
 namespace StatusPage.Services;
@@ -9,21 +10,32 @@ public interface IStatusStore
     StatusCheck? FindCheck(string id);
     IReadOnlyList<StatusCheck> ListChecks();
     StatusCheck CreateCheck(CreateCheckRequest request);
+    StatusCheck UpdateCheck(string id, CreateCheckRequest request);
+    void DeleteCheck(string id);
     Incident CreateIncident(CreateIncidentRequest request, bool maintenance);
     Incident UpdateIncident(string id, UpdateIncidentRequest request);
     Component UpdateComponentStatus(string id, ComponentStatus status);
-    void RecordCheckResult(string checkId, bool ok, string message, DateTimeOffset at);
-    void TouchPage(DateTimeOffset at);
+    void RecordCheckResult(string checkId, CheckResult result);
+    IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses();
 }
+
+public sealed record ComponentCheckStatus(
+    string ComponentId,
+    ComponentStatus Status,
+    int CheckCount,
+    int DownCount,
+    DateTimeOffset UpdatedAtUtc);
 
 public sealed class InMemoryStatusStore : IStatusStore
 {
     private readonly object _gate = new();
     private readonly StatusPageState _state;
+    private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
 
-    public InMemoryStatusStore(StatusPageState state)
+    public InMemoryStatusStore(StatusPageState state, Action<IReadOnlyList<StatusCheck>>? persistChecks = null)
     {
         _state = state;
+        _persistChecks = persistChecks;
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
     }
 
@@ -61,88 +73,53 @@ public sealed class InMemoryStatusStore : IStatusStore
 
     public StatusCheck CreateCheck(CreateCheckRequest request)
     {
-        if (!CheckTarget.TryParse(request.Target, request.Type, out var target, out var error))
-        {
-            throw new ArgumentException(error);
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            throw new ArgumentException("Name is required.");
-        }
-
-        var interval = request.IntervalSeconds ?? 60;
-        var timeout = request.TimeoutSeconds ?? 10;
-        if (interval is < 10 or > 86_400)
-        {
-            throw new ArgumentException("Interval must be between 10 and 86400 seconds.");
-        }
-
-        if (timeout is < 1 or > 120)
-        {
-            throw new ArgumentException("Timeout must be between 1 and 120 seconds.");
-        }
-
-        var expected = request.ExpectedStatus ?? 200;
-        if (target.Type != CheckType.Tcp && expected is < 100 or > 599)
-        {
-            throw new ArgumentException("Expected HTTP status must be between 100 and 599.");
-        }
-
+        var check = BuildCheck(request, NewId());
         lock (_gate)
         {
-            Component component;
-            if (!string.IsNullOrWhiteSpace(request.ComponentId))
-            {
-                component = _state.Components.FirstOrDefault(c => c.Id == request.ComponentId)
-                            ?? throw new ArgumentException($"Unknown component '{request.ComponentId}'.");
-                if (component.Group)
-                {
-                    throw new ArgumentException("Checks must map to a leaf component, not a group.");
-                }
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(request.GroupId)
-                    && _state.Components.All(c => c.Id != request.GroupId || !c.Group))
-                {
-                    throw new ArgumentException($"Unknown component group '{request.GroupId}'.");
-                }
-
-                var now = DateTimeOffset.UtcNow;
-                component = new Component
-                {
-                    Id = NewId(),
-                    Name = string.IsNullOrWhiteSpace(request.ComponentName) ? request.Name.Trim() : request.ComponentName.Trim(),
-                    Description = $"Monitored {target.Type.ApiValue()} check: {request.Target.Trim()}",
-                    Status = ComponentStatus.Operational,
-                    GroupId = string.IsNullOrWhiteSpace(request.GroupId) ? null : request.GroupId,
-                    Position = _state.Components.Count + 1,
-                    CreatedAt = now,
-                    UpdatedAt = now
-                };
-                _state.Components.Add(component);
-            }
-
-            var check = new StatusCheck
-            {
-                Id = NewId(),
-                Name = request.Name.Trim(),
-                Target = request.Target.Trim(),
-                Type = target.Type,
-                IntervalSeconds = interval,
-                TimeoutSeconds = timeout,
-                ExpectedStatus = expected,
-                Keyword = string.IsNullOrWhiteSpace(request.Keyword) ? null : request.Keyword,
-                ComponentId = component.Id,
-                FailureThreshold = request.FailureThreshold is > 0 ? request.FailureThreshold.Value : 3,
-                SuccessThreshold = request.SuccessThreshold is > 0 ? request.SuccessThreshold.Value : 1,
-                NextRunAt = DateTimeOffset.UtcNow,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
+            RequireLeafComponent(check.ComponentId);
             _state.Checks.Add(check);
-            _state.Page.UpdatedAt = DateTimeOffset.UtcNow;
+            ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
+            PersistChecks();
             return Clone(check);
+        }
+    }
+
+    public StatusCheck UpdateCheck(string id, CreateCheckRequest request)
+    {
+        var next = BuildCheck(request, id);
+        lock (_gate)
+        {
+            var existing = _state.Checks.FirstOrDefault(c => c.Id == id)
+                           ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
+            RequireLeafComponent(next.ComponentId);
+            var previousComponent = existing.ComponentId;
+            next.State = existing.State;
+            next.ConsecutiveFailures = existing.ConsecutiveFailures;
+            next.ConsecutiveSuccesses = existing.ConsecutiveSuccesses;
+            next.Results = existing.Results;
+            next.CreatedAt = existing.CreatedAt;
+            var index = _state.Checks.IndexOf(existing);
+            _state.Checks[index] = next;
+            ApplyCheckRollup(previousComponent, DateTimeOffset.UtcNow);
+            if (previousComponent != next.ComponentId)
+            {
+                ApplyCheckRollup(next.ComponentId, DateTimeOffset.UtcNow);
+            }
+
+            PersistChecks();
+            return Clone(next);
+        }
+    }
+
+    public void DeleteCheck(string id)
+    {
+        lock (_gate)
+        {
+            var check = _state.Checks.FirstOrDefault(c => c.Id == id)
+                        ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
+            _state.Checks.Remove(check);
+            ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
+            PersistChecks();
         }
     }
 
@@ -192,7 +169,8 @@ public sealed class InMemoryStatusStore : IStatusStore
                 _state.Incidents.Add(incident);
             }
 
-            if (status.IsUnresolvedIncident() || status == IncidentStatus.InProgress)
+            if ((status.IsUnresolvedIncident() || status == IncidentStatus.InProgress)
+                && impact == IncidentImpact.Maintenance)
             {
                 ApplyImpactToComponents(ids, impact, now);
             }
@@ -259,16 +237,38 @@ public sealed class InMemoryStatusStore : IStatusStore
 
                     var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
                                     ?? throw new ArgumentException($"Unknown component '{componentId}'.");
-                    component.Status = componentStatus;
-                    component.UpdatedAt = now;
+                    component.ManualStatus = componentStatus;
+                    if (componentStatus == ComponentStatus.UnderMaintenance
+                        || !_state.Checks.Any(c => c.Enabled && c.ComponentId == component.Id))
+                    {
+                        component.Status = componentStatus;
+                        component.UpdatedAt = now;
+                    }
+                    else
+                    {
+                        ApplyCheckRollup(component.Id, now);
+                    }
                 }
             }
             else if (incident.Status is IncidentStatus.Resolved or IncidentStatus.Completed)
             {
                 foreach (var component in _state.Components.Where(c => incident.ComponentIds.Contains(c.Id)))
                 {
-                    component.Status = ComponentStatus.Operational;
-                    component.UpdatedAt = now;
+                    if (incident.AutoFromChecks)
+                    {
+                        continue;
+                    }
+
+                    component.ManualStatus = ComponentStatus.Operational;
+                    if (!_state.Checks.Any(c => c.Enabled && c.ComponentId == component.Id))
+                    {
+                        component.Status = ComponentStatus.Operational;
+                        component.UpdatedAt = now;
+                    }
+                    else
+                    {
+                        ApplyCheckRollup(component.Id, now);
+                    }
                 }
             }
 
@@ -285,15 +285,25 @@ public sealed class InMemoryStatusStore : IStatusStore
             var component = _state.Components.FirstOrDefault(c => c.Id == id)
                             ?? throw new KeyNotFoundException($"Unknown component '{id}'.");
             var now = DateTimeOffset.UtcNow;
-            component.Status = status;
-            component.UpdatedAt = now;
+            component.ManualStatus = status;
+            if (status == ComponentStatus.UnderMaintenance
+                || !_state.Checks.Any(c => c.Enabled && c.ComponentId == component.Id))
+            {
+                component.Status = status;
+                component.UpdatedAt = now;
+            }
+            else
+            {
+                ApplyCheckRollup(component.Id, now);
+            }
+
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
             return Clone(component);
         }
     }
 
-    public void RecordCheckResult(string checkId, bool ok, string message, DateTimeOffset at)
+    public void RecordCheckResult(string checkId, CheckResult result)
     {
         lock (_gate)
         {
@@ -303,10 +313,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                 return;
             }
 
-            check.LastRunAt = at;
-            check.NextRunAt = at.AddSeconds(Math.Max(10, check.IntervalSeconds));
-            check.LastOk = ok;
-            check.LastMessage = message;
+            var ok = result.Status == CheckResultStatus.Ok;
             if (ok)
             {
                 check.ConsecutiveSuccesses++;
@@ -318,34 +325,41 @@ public sealed class InMemoryStatusStore : IStatusStore
                 check.ConsecutiveSuccesses = 0;
             }
 
-            var component = _state.Components.FirstOrDefault(c => c.Id == check.ComponentId);
-            if (component is null || component.Status == ComponentStatus.UnderMaintenance)
-            {
-                _state.Page.UpdatedAt = at;
-                return;
-            }
-
-            var next = StatusRollup.FromCheckStreak(
-                check.ConsecutiveFailures,
+            check.State = CheckRollup.NextState(
+                check.State,
+                ok,
                 check.ConsecutiveSuccesses,
-                check.FailureThreshold,
-                check.SuccessThreshold);
-            if (component.Status != next)
+                check.ConsecutiveFailures,
+                check.SuccessThreshold,
+                check.FailureThreshold);
+            check.Results.Insert(0, result);
+            if (check.Results.Count > 20)
             {
-                component.Status = next;
-                component.UpdatedAt = at;
+                check.Results.RemoveRange(20, check.Results.Count - 20);
             }
 
-            RefreshGroupStatuses(at);
-            _state.Page.UpdatedAt = at;
+            check.NextRunAt = result.CheckedAtUtc.AddSeconds(Math.Max(CheckContract.MinIntervalSeconds, check.IntervalSeconds));
+            ApplyCheckRollup(check.ComponentId, result.CheckedAtUtc);
         }
     }
 
-    public void TouchPage(DateTimeOffset at)
+    public IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses()
     {
         lock (_gate)
         {
-            _state.Page.UpdatedAt = at;
+            return _state.Components
+                .Where(c => !c.Group)
+                .Select(c =>
+                {
+                    var checks = _state.Checks.Where(x => x.Enabled && x.ComponentId == c.Id).ToList();
+                    return new ComponentCheckStatus(
+                        c.Id,
+                        c.Status,
+                        checks.Count,
+                        checks.Count(x => x.State == CheckState.Down),
+                        c.UpdatedAt);
+                })
+                .ToList();
         }
     }
 
@@ -359,9 +373,200 @@ public sealed class InMemoryStatusStore : IStatusStore
 
         foreach (var component in _state.Components.Where(c => componentIds.Contains(c.Id) && !c.Group))
         {
+            component.ManualStatus = status;
             component.Status = status;
             component.UpdatedAt = at;
         }
+    }
+
+    private void RequireLeafComponent(string componentId)
+    {
+        var component = _state.Components.FirstOrDefault(c => c.Id == componentId)
+                        ?? throw new ArgumentException($"Unknown component '{componentId}'. Bind the check to an existing leaf component.");
+        if (component.Group)
+        {
+            throw new ArgumentException("Checks must map to a leaf component, not a group.");
+        }
+    }
+
+    private static StatusCheck BuildCheck(CreateCheckRequest request, string id)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.ComponentId))
+        {
+            throw new ArgumentException("componentId is required.");
+        }
+
+        if (!DomainEnums.TryParseCheckType(request.Type, out var type))
+        {
+            if (!string.IsNullOrWhiteSpace(request.Target.Url)
+                && Uri.TryCreate(request.Target.Url, UriKind.Absolute, out var uri))
+            {
+                type = uri.Scheme == Uri.UriSchemeHttps ? CheckType.Https : CheckType.Http;
+            }
+            else if (!string.IsNullOrWhiteSpace(request.Type))
+            {
+                throw new ArgumentException("Type must be http, https, or tcp.");
+            }
+            else
+            {
+                type = CheckType.Tcp;
+            }
+        }
+
+        var draft = new StatusCheck
+        {
+            Id = id,
+            Name = request.Name.Trim(),
+            ComponentId = request.ComponentId.Trim(),
+            Type = type,
+            Enabled = request.Enabled ?? true,
+            IntervalSeconds = request.IntervalSeconds ?? CheckContract.DefaultIntervalSeconds,
+            TimeoutSeconds = request.TimeoutSeconds ?? CheckContract.DefaultTimeoutSeconds,
+            FailureThreshold = request.FailureThreshold ?? CheckContract.DefaultFailureThreshold,
+            SuccessThreshold = request.SuccessThreshold ?? CheckContract.DefaultSuccessThreshold,
+            Target = new CheckTargetSpec
+            {
+                Url = request.Target.Url,
+                Host = request.Target.Host,
+                Port = request.Target.Port,
+                Path = request.Target.Path
+            },
+            Http = new HttpCheckSpec
+            {
+                Method = string.IsNullOrWhiteSpace(request.Http?.Method) ? "GET" : request.Http!.Method,
+                ExpectedStatus = request.Http?.ExpectedStatus is { Count: > 0 } statuses
+                    ? [.. statuses]
+                    : [.. CheckContract.DefaultExpectedStatus],
+                BodyContains = request.Http?.BodyContains
+            },
+            NextRunAt = DateTimeOffset.UtcNow
+        };
+
+        if (draft.IntervalSeconds < CheckContract.MinIntervalSeconds || draft.IntervalSeconds > 86_400)
+        {
+            throw new ArgumentException($"Interval must be between {CheckContract.MinIntervalSeconds} and 86400 seconds.");
+        }
+
+        if (draft.TimeoutSeconds < 1 || draft.TimeoutSeconds >= draft.IntervalSeconds)
+        {
+            throw new ArgumentException("Timeout must be at least 1 second and less than the interval.");
+        }
+
+        if (!CheckRunner.TryResolve(draft, out _, out var error))
+        {
+            throw new ArgumentException(error);
+        }
+
+        return draft;
+    }
+
+    private void ApplyCheckRollup(string componentId, DateTimeOffset at)
+    {
+        var component = _state.Components.FirstOrDefault(c => c.Id == componentId);
+        if (component is null)
+        {
+            return;
+        }
+
+        if (component.ManualStatus == ComponentStatus.UnderMaintenance
+            || component.Status == ComponentStatus.UnderMaintenance && !_state.Checks.Any(c => c.Enabled && c.ComponentId == componentId))
+        {
+            component.Status = ComponentStatus.UnderMaintenance;
+            RefreshGroupStatuses(at);
+            _state.Page.UpdatedAt = at;
+            return;
+        }
+
+        var states = _state.Checks
+            .Where(c => c.Enabled && c.ComponentId == componentId)
+            .Select(c => c.State)
+            .ToList();
+        var derived = CheckRollup.FromCheckStates(states);
+        var next = derived ?? component.ManualStatus;
+        var previous = component.Status;
+        if (previous != next)
+        {
+            component.Status = next;
+            component.UpdatedAt = at;
+            SyncAutoIncident(component, previous, next, at);
+        }
+
+        RefreshGroupStatuses(at);
+        _state.Page.UpdatedAt = at;
+    }
+
+    private void SyncAutoIncident(Component component, ComponentStatus previous, ComponentStatus next, DateTimeOffset at)
+    {
+        var leavingOperational = previous == ComponentStatus.Operational
+                                 && next is ComponentStatus.PartialOutage or ComponentStatus.MajorOutage;
+        var recovered = next == ComponentStatus.Operational
+                        && previous is ComponentStatus.PartialOutage or ComponentStatus.MajorOutage;
+
+        if (leavingOperational)
+        {
+            var existing = _state.Incidents.FirstOrDefault(i =>
+                i.AutoFromChecks && i.ComponentIds.Contains(component.Id) && i.Status.IsUnresolvedIncident());
+            if (existing is null)
+            {
+                var incident = new Incident
+                {
+                    Id = NewId(),
+                    Name = $"{component.Name} checks failing",
+                    Status = IncidentStatus.Investigating,
+                    Impact = next == ComponentStatus.MajorOutage ? IncidentImpact.Critical : IncidentImpact.Major,
+                    ComponentIds = [component.Id],
+                    AutoFromChecks = true,
+                    CreatedAt = at,
+                    UpdatedAt = at
+                };
+                incident.Updates.Add(NewUpdate(
+                    incident.Id,
+                    IncidentStatus.Investigating,
+                    $"Investigating: automated checks report {component.Name} is {next.ApiValue()}.",
+                    at));
+                _state.Incidents.Add(incident);
+                component.AutoIncidentId = incident.Id;
+            }
+            else
+            {
+                existing.UpdatedAt = at;
+                existing.Impact = next == ComponentStatus.MajorOutage ? IncidentImpact.Critical : IncidentImpact.Major;
+                existing.Updates.Insert(0, NewUpdate(
+                    existing.Id,
+                    IncidentStatus.Investigating,
+                    $"Update: automated checks now report {component.Name} is {next.ApiValue()}.",
+                    at));
+                component.AutoIncidentId = existing.Id;
+            }
+        }
+
+        if (recovered && component.AutoIncidentId is { } autoId)
+        {
+            var incident = _state.Incidents.FirstOrDefault(i => i.Id == autoId && i.AutoFromChecks);
+            if (incident is not null && incident.Status.IsUnresolvedIncident())
+            {
+                incident.Status = IncidentStatus.Resolved;
+                incident.ResolvedAt = at;
+                incident.UpdatedAt = at;
+                incident.Updates.Insert(0, NewUpdate(
+                    incident.Id,
+                    IncidentStatus.Resolved,
+                    $"Resolved: all enabled checks for {component.Name} are Up.",
+                    at));
+            }
+
+            component.AutoIncidentId = null;
+        }
+    }
+
+    private void PersistChecks()
+    {
+        _persistChecks?.Invoke(_state.Checks.Select(Clone).ToList());
     }
 
     private void RefreshGroupStatuses(DateTimeOffset at)
@@ -420,7 +625,9 @@ public sealed class InMemoryStatusStore : IStatusStore
         Showcase = component.Showcase,
         OnlyShowIfDegraded = component.OnlyShowIfDegraded,
         CreatedAt = component.CreatedAt,
-        UpdatedAt = component.UpdatedAt
+        UpdatedAt = component.UpdatedAt,
+        ManualStatus = component.ManualStatus,
+        AutoIncidentId = component.AutoIncidentId
     };
 
     private static Incident Clone(Incident incident) => new()
@@ -445,28 +652,46 @@ public sealed class InMemoryStatusStore : IStatusStore
         MonitoringAt = incident.MonitoringAt,
         ResolvedAt = incident.ResolvedAt,
         ScheduledFor = incident.ScheduledFor,
-        ScheduledUntil = incident.ScheduledUntil
+        ScheduledUntil = incident.ScheduledUntil,
+        AutoFromChecks = incident.AutoFromChecks
     };
 
     private static StatusCheck Clone(StatusCheck check) => new()
     {
         Id = check.Id,
         Name = check.Name,
-        Target = check.Target,
+        ComponentId = check.ComponentId,
         Type = check.Type,
+        Enabled = check.Enabled,
         IntervalSeconds = check.IntervalSeconds,
         TimeoutSeconds = check.TimeoutSeconds,
-        ExpectedStatus = check.ExpectedStatus,
-        Keyword = check.Keyword,
-        ComponentId = check.ComponentId,
         FailureThreshold = check.FailureThreshold,
         SuccessThreshold = check.SuccessThreshold,
+        Target = new CheckTargetSpec
+        {
+            Url = check.Target.Url,
+            Host = check.Target.Host,
+            Port = check.Target.Port,
+            Path = check.Target.Path
+        },
+        Http = new HttpCheckSpec
+        {
+            Method = check.Http.Method,
+            ExpectedStatus = [.. check.Http.ExpectedStatus],
+            BodyContains = check.Http.BodyContains
+        },
+        State = check.State,
         ConsecutiveFailures = check.ConsecutiveFailures,
         ConsecutiveSuccesses = check.ConsecutiveSuccesses,
-        LastRunAt = check.LastRunAt,
         NextRunAt = check.NextRunAt,
-        LastOk = check.LastOk,
-        LastMessage = check.LastMessage,
-        CreatedAt = check.CreatedAt
+        CreatedAt = check.CreatedAt,
+        Results = check.Results.Select(r => new CheckResult
+        {
+            Status = r.Status,
+            HttpStatus = r.HttpStatus,
+            LatencyMs = r.LatencyMs,
+            Error = r.Error,
+            CheckedAtUtc = r.CheckedAtUtc
+        }).ToList()
     };
 }

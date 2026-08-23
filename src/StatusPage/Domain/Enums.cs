@@ -46,6 +46,18 @@ public enum CheckType
     Tcp
 }
 
+public enum CheckResultStatus
+{
+    Ok,
+    Fail
+}
+
+public enum CheckState
+{
+    Up,
+    Down
+}
+
 public static class DomainEnums
 {
     public static string ApiValue(this ComponentStatus status) => status switch
@@ -98,6 +110,12 @@ public static class DomainEnums
         CheckType.Tcp => "tcp",
         _ => "http"
     };
+
+    public static string ApiValue(this CheckResultStatus status) =>
+        status == CheckResultStatus.Ok ? "ok" : "fail";
+
+    public static string ApiValue(this CheckState state) =>
+        state == CheckState.Up ? "Up" : "Down";
 
     public static bool TryParseComponentStatus(string? value, out ComponentStatus status)
     {

@@ -7,23 +7,7 @@ public static class OperatorEndpoints
 {
     public static void MapOperatorApi(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/operator").AddEndpointFilter(RequireApiKey);
-
-        group.MapGet("/checks", (IStatusStore store) =>
-            Results.Json(store.ListChecks().Select(OperatorCheckDto.From)));
-
-        group.MapPost("/checks", (CreateCheckJson body, IStatusStore store) =>
-        {
-            try
-            {
-                var created = store.CreateCheck(body.ToRequest());
-                return Results.Created($"/api/operator/checks/{created.Id}", OperatorCheckDto.From(created));
-            }
-            catch (ArgumentException ex)
-            {
-                return Results.BadRequest(new { error = ex.Message });
-            }
-        });
+        var group = app.MapGroup("/api/operator").AddEndpointFilter(OperatorAuth.RequireApiKey);
 
         group.MapGet("/components", (IStatusStore store) =>
         {
@@ -87,30 +71,6 @@ public static class OperatorEndpoints
         });
     }
 
-    private static async ValueTask<object?> RequireApiKey(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
-    {
-        var config = context.HttpContext.RequestServices.GetRequiredService<IConfiguration>();
-        var env = context.HttpContext.RequestServices.GetRequiredService<IHostEnvironment>();
-        var expected = config["STATUSPAGE_API_KEY"] ?? config["StatusPage:ApiKey"];
-
-        if (string.IsNullOrWhiteSpace(expected))
-        {
-            if (!env.IsDevelopment())
-            {
-                return Results.Json(new { error = "Operator API is disabled. Set STATUSPAGE_API_KEY." }, statusCode: 401);
-            }
-
-            expected = "dev-key";
-        }
-
-        var provided = context.HttpContext.Request.Headers["X-Api-Key"].ToString();
-        if (!string.Equals(provided, expected, StringComparison.Ordinal))
-        {
-            return Results.Json(new { error = "Invalid or missing X-Api-Key header." }, statusCode: 401);
-        }
-
-        return await next(context);
-    }
 }
 
 public sealed class CreateIncidentJson

@@ -97,21 +97,26 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
     public async Task Operator_can_create_check_and_incident_with_api_key()
     {
         using var unauthorizedClient = _factory.CreateClient();
-        using var denied = await unauthorizedClient.PostAsync("/api/operator/checks",
-            JsonContent.Create(new { name = "x", target = "https://example.org" }));
+        using var denied = await unauthorizedClient.PostAsync("/api/checks",
+            JsonContent.Create(new { name = "x", componentId = "deib-portal", type = "tcp", target = new { host = "127.0.0.1", port = 9 } }));
         Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
 
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
 
-        using var created = await client.PostAsync("/api/operator/checks", JsonContent.Create(new
+        using var created = await client.PostAsync("/api/checks", JsonContent.Create(new
         {
-            name = "example.org",
-            target = "https://example.org",
-            type = "https",
-            interval_seconds = 60
+            name = "portal tcp",
+            componentId = "deib-portal",
+            type = "tcp",
+            intervalSeconds = 15,
+            timeoutSeconds = 2,
+            target = new { host = "127.0.0.1", port = 9 }
         }));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        using var statusComponents = await client.GetAsync("/api/status/components");
+        Assert.Equal(HttpStatusCode.OK, statusComponents.StatusCode);
 
         using var incident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
         {
@@ -141,16 +146,18 @@ public class StatusPageFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
+        var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
-        builder.UseSetting("STATUSPAGE_API_KEY", "dev-key");
+        builder.UseSetting("StatusPage:ChecksPath", checksPath);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["StatusPage:EnableCheckWorker"] = "false",
-                ["StatusPage:ApiKey"] = "dev-key"
+                ["StatusPage:ApiKey"] = "dev-key",
+                ["StatusPage:ChecksPath"] = checksPath
             });
         });
     }

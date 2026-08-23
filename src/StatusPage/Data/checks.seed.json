@@ -1,0 +1,42 @@
+{
+  "checks": [
+    {
+      "id": "chk-example-com",
+      "name": "example.com HTTPS",
+      "componentId": "example-com",
+      "type": "https",
+      "enabled": true,
+      "intervalSeconds": 60,
+      "timeoutSeconds": 10,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "https://example.com"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200, 201, 204],
+        "bodyContains": null
+      }
+    },
+    {
+      "id": "chk-local-health",
+      "name": "local status page HTTP",
+      "componentId": "local-health",
+      "type": "http",
+      "enabled": true,
+      "intervalSeconds": 30,
+      "timeoutSeconds": 5,
+      "failureThreshold": 3,
+      "successThreshold": 2,
+      "target": {
+        "url": "__SELF_HEALTH__"
+      },
+      "http": {
+        "method": "GET",
+        "expectedStatus": [200],
+        "bodyContains": "ok"
+      }
+    }
+  ]
+}

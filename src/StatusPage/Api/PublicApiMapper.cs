@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using StatusPage.Domain;
 using StatusPage.Services;
 
@@ -124,80 +123,4 @@ public static class PublicApiMapper
         value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'");
 
     public static string? Iso(DateTimeOffset? value) => value is null ? null : Iso(value.Value);
-}
-
-public sealed class OperatorCheckDto
-{
-    public required string Id { get; init; }
-    public required string Name { get; init; }
-    public required string Target { get; init; }
-    public required string Type { get; init; }
-    public int IntervalSeconds { get; init; }
-    public int TimeoutSeconds { get; init; }
-    public int ExpectedStatus { get; init; }
-    public string? Keyword { get; init; }
-    public required string ComponentId { get; init; }
-    public int ConsecutiveFailures { get; init; }
-    public int ConsecutiveSuccesses { get; init; }
-    public bool? LastOk { get; init; }
-    public string? LastMessage { get; init; }
-    public string? LastRunAt { get; init; }
-    public string? NextRunAt { get; init; }
-
-    public static OperatorCheckDto From(StatusCheck check) => new()
-    {
-        Id = check.Id,
-        Name = check.Name,
-        Target = check.Target,
-        Type = check.Type.ApiValue(),
-        IntervalSeconds = check.IntervalSeconds,
-        TimeoutSeconds = check.TimeoutSeconds,
-        ExpectedStatus = check.ExpectedStatus,
-        Keyword = check.Keyword,
-        ComponentId = check.ComponentId,
-        ConsecutiveFailures = check.ConsecutiveFailures,
-        ConsecutiveSuccesses = check.ConsecutiveSuccesses,
-        LastOk = check.LastOk,
-        LastMessage = check.LastMessage,
-        LastRunAt = PublicApiMapper.Iso(check.LastRunAt),
-        NextRunAt = PublicApiMapper.Iso(check.NextRunAt)
-    };
-}
-
-public sealed class CreateCheckJson
-{
-    public string? Name { get; set; }
-    public string? Target { get; set; }
-    public string? Type { get; set; }
-    [JsonPropertyName("interval_seconds")]
-    public int? IntervalSeconds { get; set; }
-    [JsonPropertyName("timeout_seconds")]
-    public int? TimeoutSeconds { get; set; }
-    [JsonPropertyName("expected_status")]
-    public int? ExpectedStatus { get; set; }
-    public string? Keyword { get; set; }
-    [JsonPropertyName("component_id")]
-    public string? ComponentId { get; set; }
-    [JsonPropertyName("component_name")]
-    public string? ComponentName { get; set; }
-    [JsonPropertyName("group_id")]
-    public string? GroupId { get; set; }
-    [JsonPropertyName("failure_threshold")]
-    public int? FailureThreshold { get; set; }
-    [JsonPropertyName("success_threshold")]
-    public int? SuccessThreshold { get; set; }
-
-    public CreateCheckRequest ToRequest() => new(
-        Name ?? "",
-        Target ?? "",
-        Type,
-        IntervalSeconds,
-        TimeoutSeconds,
-        ExpectedStatus,
-        Keyword,
-        ComponentId,
-        ComponentName,
-        GroupId,
-        FailureThreshold,
-        SuccessThreshold);
 }

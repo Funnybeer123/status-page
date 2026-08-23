@@ -75,39 +75,6 @@ public static class DemoSeed
             ]
         };
 
-        var exampleCheck = new StatusCheck
-        {
-            Id = "chk-example-com",
-            Name = "example.com HTTPS",
-            Target = "https://example.com",
-            Type = CheckType.Https,
-            IntervalSeconds = 60,
-            TimeoutSeconds = 10,
-            ExpectedStatus = 200,
-            ComponentId = example.Id,
-            FailureThreshold = 3,
-            SuccessThreshold = 1,
-            NextRunAt = now,
-            CreatedAt = now
-        };
-
-        var localCheck = new StatusCheck
-        {
-            Id = "chk-local-health",
-            Name = "local status page HTTP",
-            Target = "__SELF_HEALTH__",
-            Type = CheckType.Http,
-            IntervalSeconds = 30,
-            TimeoutSeconds = 5,
-            ExpectedStatus = 200,
-            Keyword = "ok",
-            ComponentId = local.Id,
-            FailureThreshold = 3,
-            SuccessThreshold = 1,
-            NextRunAt = now.AddSeconds(5),
-            CreatedAt = now
-        };
-
         return new StatusPageState
         {
             Page = page,
@@ -118,16 +85,15 @@ public static class DemoSeed
                 example, local
             ],
             Incidents = [resolved],
-            ScheduledMaintenances = [maintenance],
-            Checks = [exampleCheck, localCheck]
+            ScheduledMaintenances = [maintenance]
         };
     }
 
-    public static void BindSelfHealthChecks(StatusPageState state, string healthUrl)
+    public static void BindSelfHealthChecks(IEnumerable<StatusCheck> checks, string healthUrl)
     {
-        foreach (var check in state.Checks.Where(c => c.Target == "__SELF_HEALTH__"))
+        foreach (var check in checks.Where(c => c.Target.Url == "__SELF_HEALTH__"))
         {
-            check.Target = healthUrl;
+            check.Target.Url = healthUrl;
             check.Type = CheckType.Http;
         }
     }

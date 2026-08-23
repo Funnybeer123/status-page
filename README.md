@@ -2,13 +2,13 @@
 
 Public status page for **Cloud Cost Agent** and **DevOps Engineer-in-a-Box**, modeled on [status.atlassian.com](https://status.atlassian.com/) (Statuspage.io UX + public API).
 
-This is a local ASP.NET Core (.NET 10 LTS) Razor Pages app. Persistence is **in-memory**, seeded at startup. Operator changes last until the process exits. Email/SMS subscribe is not implemented.
+Local ASP.NET Core (.NET 10 LTS) Razor Pages app. Checks are stored as local JSON. Operator changes last until process exit except check config written to `data/checks.json`. Email/SMS subscribe is not implemented.
 
 ## Constraints
 
 - Local only: `dotnet run` or `docker compose up`.
 - No Azure, Terraform, paid hostname, secrets, or PATs in this repo.
-- Do not point the check worker at hosts you did not configure. There is no network scanner.
+- Probe only targets Evan configured. There is no network scanner. ICMP is later.
 
 ## Run locally
 
@@ -19,9 +19,7 @@ dotnet test
 dotnet run --project src/StatusPage
 ```
 
-Then open [http://localhost:5080](http://localhost:5080).
-
-Docker:
+Open [http://localhost:5080](http://localhost:5080).
 
 ```bash
 docker compose up --build
@@ -31,15 +29,13 @@ Same URL: [http://localhost:5080](http://localhost:5080).
 
 ## Public page
 
-The home page shows:
-
 - Overall banner: All Systems Operational / Partial Outage / Major Outage / Under Maintenance
-- Product components and subcomponents, plus any check-created endpoints
+- Product components and subcomponents, plus check-mapped endpoints
 - Active incidents with timestamped updates
 - Upcoming or in-progress scheduled maintenance
 - Past incidents for the last 15 days
 
-Seed data includes a resolved Cloud Cost Agent API incident so history is not empty, an upcoming ingestion maintenance window, and two example checks.
+Seed includes a resolved Cloud Cost Agent API incident so history is not empty.
 
 ## Public API (Statuspage-compatible)
 
@@ -47,82 +43,82 @@ Seed data includes a resolved Cloud Cost Agent API incident so history is not em
 curl -s http://localhost:5080/api/v2/summary.json
 curl -s http://localhost:5080/api/v2/status.json
 curl -s http://localhost:5080/api/v2/components.json
+curl -s http://localhost:5080/api/status/components
 ```
 
-`summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents` (unresolved), and `scheduled_maintenances` (upcoming or in progress).
+`summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`.
 
-Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only; only leaf components count toward the page indicator.
+Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only.
 
-## Health checks (any public site or internal service)
+## Status checks (any public URL or internal host)
 
-A check is **not** limited to the two seeded products. Create one for any single URL or `host:port` you operate or are allowed to probe.
+Typed contract is in `src/StatusPage/Contracts/CheckContract.cs` and `Data/checks.seed.json`.
 
-| Field | Notes |
-| --- | --- |
-| `name` | Display name |
-| `target` | One `https://…` / `http://…` URL, or `host:port` |
-| `type` | `http`, `https`, or `tcp` (inferred from the target when omitted) |
-| `interval_seconds` | Default 60 (min 10) |
-| `timeout_seconds` | Default 10 |
-| `expected_status` | HTTP only, default 200 |
-| `keyword` | Optional substring that must appear in the HTTP body |
-| `component_id` | Existing leaf component. If omitted, a new component is created |
-| `group_id` | Optional product group when auto-creating a component |
+```json
+{
+  "id": "guid",
+  "name": "string",
+  "componentId": "existing-leaf-id",
+  "type": "http | https | tcp",
+  "enabled": true,
+  "intervalSeconds": 60,
+  "timeoutSeconds": 10,
+  "failureThreshold": 3,
+  "successThreshold": 2,
+  "target": { "url": "https://example.com/health" },
+  "http": { "method": "GET", "expectedStatus": [200, 201, 204], "bodyContains": null }
+}
+```
 
-A background worker runs **only configured checks** and updates the mapped component:
+TCP target is `{ "host": "10.0.0.5", "port": 5432 }`. Defaults: interval 60s (min 15), timeout 10s (must be `<` interval), failureThreshold 3, successThreshold 2, method GET, expectedStatus `[200,201,204]`.
 
-- 1 consecutive failure → degraded performance
-- 2 → partial outage
-- 3+ (default failure threshold) → major outage
-- Enough consecutive successes (default 1) → operational
-- Components already `under_maintenance` are left alone
+Probe rules:
 
-Seeded examples:
+- HTTP/HTTPS: fail if status is not in `expectedStatus`, fail if `bodyContains` is set and missing (**case-sensitive**), fail on timeout/connect/TLS.
+- TCP: connect to host:port, then close. No payload.
+- Result: `ok|fail`, `httpStatus?`, `latencyMs`, `error?`, `checkedAtUtc`.
+- Check state hysteresis: 3 consecutive fails → `Down`; 2 consecutive oks → `Up`; otherwise keep last state. Initial state is `Up`.
+- Component from enabled checks: all Up → `operational`; mix → `partial_outage`; all Down → `major_outage`; zero checks → leave operator status.
+- Probes never emit `degraded_performance`. That and `under_maintenance` are operator-only.
+- When a check-driven component leaves operational, an auto incident (Investigating) is opened. It is resolved when all checks recover. Operator-written incidents are never auto-resolved.
 
-- `https://example.com` → component `example.com`
-- `http://127.0.0.1:5080/health` → component `Local status page`
+Seeded examples (local demo only; tests use localhost/mocks):
 
-## Operator API (env-gated key)
+- `https://example.com` → `example-com`
+- `http://127.0.0.1:5080/health` → `local-health`
 
-No auth vendor. Send header `X-Api-Key`.
-
-- Development default key: `dev-key` (`StatusPage:ApiKey` in `appsettings.Development.json`)
-- Override or set in any environment with `STATUSPAGE_API_KEY`
-- If the key is unset outside Development, operator routes return 401
+CRUD (env API key):
 
 ```bash
-# Create a check against any single public site
-curl -s -X POST http://localhost:5080/api/operator/checks \
+curl -s http://localhost:5080/api/checks -H "X-Api-Key: dev-key"
+
+curl -s -X POST http://localhost:5080/api/checks \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"example.org","target":"https://example.org","type":"https","interval_seconds":60}'
+  -d '{"name":"billing API","componentId":"cca-api","type":"https","intervalSeconds":60,"timeoutSeconds":10,"target":{"url":"https://example.com"},"http":{"expectedStatus":[200]}}'
 
-# TCP check against an internal listener you already run
-curl -s -X POST http://localhost:5080/api/operator/checks \
+curl -s http://localhost:5080/api/checks/chk-local-health/results -H "X-Api-Key: dev-key"
+```
+
+`GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for the public page and `/api/v2/summary.json` mapping.
+
+## Operator incidents
+
+Header `X-Api-Key`. Development default `dev-key`. Override with `STATUSPAGE_API_KEY`. Unset key outside Development disables writes (401).
+
+```bash
+curl -s -X PATCH http://localhost:5080/api/operator/components/cca-dashboard \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"local ssh","target":"127.0.0.1:22","type":"tcp","group_id":"devops-eia-box"}'
+  -d '{"status":"under_maintenance"}'
 
-# Change a component status
-curl -s -X PATCH http://localhost:5080/api/operator/components/cca-api \
-  -H "X-Api-Key: dev-key" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"partial_outage"}'
-
-# Open an incident (also moves listed components)
 curl -s -X POST http://localhost:5080/api/operator/incidents \
   -H "X-Api-Key: dev-key" \
   -H "Content-Type: application/json" \
   -d '{"name":"API errors","status":"investigating","impact":"minor","body":"Investigating 5xx on the API.","componentIds":["cca-api"]}'
-
-# Add an update / resolve
-curl -s -X POST http://localhost:5080/api/operator/incidents/inc-cca-api-timeouts/updates \
-  -H "X-Api-Key: dev-key" \
-  -H "Content-Type: application/json" \
-  -d '{"status":"resolved","body":"Traffic is normal."}'
 ```
 
-Component ids from seed: `cloud-cost-agent`, `cca-api`, `cca-dashboard`, `cca-ingestion`, `devops-eia-box`, `deib-api`, `deib-runner`, `deib-portal`, `example-com`, `local-health`.
+Leaf component ids: `cca-api`, `cca-dashboard`, `cca-ingestion`, `deib-api`, `deib-runner`, `deib-portal`, `example-com`, `local-health`.
 
 ## Tests
 
@@ -130,10 +126,11 @@ Component ids from seed: `cloud-cost-agent`, `cca-api`, `cca-dashboard`, `cca-in
 dotnet test
 ```
 
-Coverage includes status rollup (component statuses → page indicator) and the `summary.json` shape.
+Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword, TCP pass/fail, hysteresis, and component rollup for 0/1/N checks. CI does not hit random public hosts.
 
 ## Out of scope
 
 - Email / SMS subscribe
+- ICMP
 - Paid hosting, custom domains, Terraform
-- Scanning or probing hosts that were not explicitly configured
+- Probing hosts that were not explicitly configured

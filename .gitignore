@@ -5,6 +5,7 @@ obj/
 *.user
 *.suo
 data/store.json
+data/checks.json
 **/store.json
 .dotnet/
 .nuget/

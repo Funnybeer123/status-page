@@ -97,32 +97,6 @@ public static class StatusRollup
         return worst;
     }
 
-    public static ComponentStatus FromCheckStreak(int consecutiveFailures, int consecutiveSuccesses, int failureThreshold, int successThreshold)
-    {
-        if (consecutiveSuccesses >= Math.Max(1, successThreshold))
-        {
-            return ComponentStatus.Operational;
-        }
-
-        if (consecutiveFailures <= 0)
-        {
-            return ComponentStatus.Operational;
-        }
-
-        var threshold = Math.Max(1, failureThreshold);
-        if (consecutiveFailures >= threshold)
-        {
-            return ComponentStatus.MajorOutage;
-        }
-
-        if (consecutiveFailures >= Math.Max(1, (int)Math.Ceiling(threshold * 2.0 / 3.0)))
-        {
-            return ComponentStatus.PartialOutage;
-        }
-
-        return ComponentStatus.DegradedPerformance;
-    }
-
     private static int Rank(ComponentStatus status) => status switch
     {
         ComponentStatus.MajorOutage => 4,

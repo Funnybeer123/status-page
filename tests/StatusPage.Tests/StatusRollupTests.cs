@@ -107,14 +107,4 @@ public class StatusRollupTests
         Assert.Equal(PageIndicator.None, status.Indicator);
     }
 
-    [Theory]
-    [InlineData(0, 1, ComponentStatus.Operational)]
-    [InlineData(1, 0, ComponentStatus.DegradedPerformance)]
-    [InlineData(2, 0, ComponentStatus.PartialOutage)]
-    [InlineData(3, 0, ComponentStatus.MajorOutage)]
-    [InlineData(5, 0, ComponentStatus.MajorOutage)]
-    public void Check_streak_maps_to_component_status(int failures, int successes, ComponentStatus expected)
-    {
-        Assert.Equal(expected, StatusRollup.FromCheckStreak(failures, successes, 3, 1));
-    }
 }

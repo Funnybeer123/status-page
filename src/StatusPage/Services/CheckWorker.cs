@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using StatusPage.Domain;
+
 namespace StatusPage.Services;
 
 public sealed class CheckWorker(
@@ -5,9 +8,10 @@ public sealed class CheckWorker(
     CheckRunner runner,
     ILogger<CheckWorker> logger) : BackgroundService
 {
+    private readonly ConcurrentDictionary<string, byte> _running = new();
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Let the web server bind before the self-health check runs.
         await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -33,16 +37,33 @@ public sealed class CheckWorker(
     {
         var now = DateTimeOffset.UtcNow;
         var due = store.ListChecks()
+            .Where(c => c.Enabled)
             .Where(c => c.NextRunAt is null || c.NextRunAt <= now)
             .ToList();
 
         foreach (var check in due)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            logger.LogInformation("Running check {Name} ({Id}) against {Target}", check.Name, check.Id, check.Target);
-            var (ok, message) = await runner.RunAsync(check, cancellationToken);
-            store.RecordCheckResult(check.Id, ok, message, DateTimeOffset.UtcNow);
-            logger.LogInformation("Check {Id} {Result}: {Message}", check.Id, ok ? "ok" : "fail", message);
+            if (!_running.TryAdd(check.Id, 0))
+            {
+                continue;
+            }
+
+            try
+            {
+                logger.LogInformation("Running check {Name} ({Id}) against {Target}", check.Name, check.Id, check.DisplayTarget);
+                var result = await runner.RunAsync(check, cancellationToken);
+                store.RecordCheckResult(check.Id, result);
+                logger.LogInformation(
+                    "Check {Id} {Result}: {Detail}",
+                    check.Id,
+                    result.Status.ApiValue(),
+                    result.Error ?? $"HTTP {result.HttpStatus}");
+            }
+            finally
+            {
+                _running.TryRemove(check.Id, out _);
+            }
         }
     }
 }

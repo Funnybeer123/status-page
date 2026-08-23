@@ -7,11 +7,35 @@ builder.Services.AddRazorPages();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.WriteIndented = true;
+    options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 
 var publicUrl = builder.Configuration["StatusPage:PublicUrl"] ?? "http://localhost:5080";
+var selfHealth = builder.Configuration["StatusPage:SelfHealthUrl"]
+                 ?? $"{publicUrl.TrimEnd('/')}/health";
 var seed = DemoSeed.Create(publicUrl, DateTimeOffset.UtcNow);
-builder.Services.AddSingleton<IStatusStore>(new InMemoryStatusStore(seed));
+
+var seedPath = Path.Combine(builder.Environment.ContentRootPath, "Data", "checks.seed.json");
+var runtimePath = builder.Configuration["StatusPage:ChecksPath"]
+                  ?? Path.Combine(builder.Environment.ContentRootPath, "data", "checks.json");
+var checks = File.Exists(runtimePath)
+    ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
+    : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
+DemoSeed.BindSelfHealthChecks(checks, selfHealth);
+seed.Checks = checks;
+
+builder.Services.AddSingleton<IStatusStore>(_ =>
+    new InMemoryStatusStore(seed, persist =>
+    {
+        try
+        {
+            CheckConfigStore.Save(runtimePath, persist);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not persist checks.json: {ex.Message}");
+        }
+    }));
 builder.Services.AddSingleton<CheckRunner>();
 builder.Services.AddHttpClient("StatusChecks", client =>
 {
@@ -25,10 +49,6 @@ if (builder.Configuration.GetValue("StatusPage:EnableCheckWorker", true))
 }
 
 var app = builder.Build();
-
-var selfHealth = builder.Configuration["StatusPage:SelfHealthUrl"]
-                 ?? $"{publicUrl.TrimEnd('/')}/health";
-DemoSeed.BindSelfHealthChecks(seed, selfHealth);
 
 if (!app.Environment.IsDevelopment())
 {
@@ -44,6 +64,7 @@ app.MapGet("/api/v2/summary.json", (IStatusStore store) => Results.Json(PublicAp
 app.MapGet("/api/v2/status.json", (IStatusStore store) => Results.Json(PublicApiMapper.Status(store.Snapshot())));
 app.MapGet("/api/v2/components.json", (IStatusStore store) => Results.Json(PublicApiMapper.Components(store.Snapshot())));
 
+app.MapCheckApi();
 app.MapOperatorApi();
 app.MapRazorPages();
 
