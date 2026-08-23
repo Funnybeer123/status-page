@@ -18,8 +18,9 @@ public sealed record LeafUptime(
 
 /// <summary>
 /// Public leaf uptime from persisted check-results.json samples.
-/// Percent is ok/(ok+fail) over the last 15 UTC days. No samples means
-/// no percent — never 100. Mute windows do not invent ok samples.
+/// Percent is ok/(ok+fail) over the last 15 UTC days. Page IANA time zone
+/// is labels and page.time_zone only — it does not shift these UTC buckets.
+/// No samples means no percent — never 100. Mute windows do not invent ok samples.
 /// </summary>
 public static class PublicUptime
 {

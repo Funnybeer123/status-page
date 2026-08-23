@@ -36,8 +36,9 @@ Anonymous. Shows public components only.
 - Product components and subcomponents, plus check-mapped **public** endpoints
 - Active incidents with timestamped updates
 - Upcoming or in-progress scheduled maintenance
-- Past incidents for the last 15 days
+- Past incidents for the last 15 days (UTC day buckets; the operator IANA zone is labels only)
 - Published postmortems on the public incident page (stored markdown; HTML in the source is escaped and never executed)
+- Display timestamps on `/`, `/embed`, ICS, and RSS use the operator IANA zone (`page.time_zone`, default `Etc/UTC`)
 
 Internal `host:port` leaves (loopback, RFC1918, `*.internal` / `*.local`) are hidden here. Sign in at `/operator` to see them. Entra login is for operators and those private components only.
 
@@ -56,7 +57,7 @@ curl -s http://localhost:5080/incidents.atom
 curl -s http://localhost:5080/maintenance.ics
 ```
 
-These stay anonymous and omit internal host:port leaves. Unpublished postmortems never appear on anonymous `/` or v2 JSON. `summary.json` includes `page`, `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`). A published postmortem is included as `postmortem` (markdown body, no check targets / host:port / result errors). Publishing a postmortem on an internal-only incident does not make that incident public.
+These stay anonymous and omit internal host:port leaves. Unpublished postmortems never appear on anonymous `/` or v2 JSON. `summary.json` includes `page` (`time_zone` is the operator IANA zone, default `Etc/UTC`), `status` (`indicator` is `none` | `minor` | `major` | `critical`), `components`, `incidents`, and `scheduled_maintenances`. v2 ISO timestamps stay UTC. The IANA zone is labels and `page.time_zone` only. `incidents.json` lists every public incident in the snapshot (not only active) and omits incidents that only affect internal leaves — the same visibility as `summary.json`. Mixed incidents keep public component ids only. Incident objects use Statuspage fields (`started_at`, full `components`, `incident_updates.affected_components`, `deliver_notifications=false`). A published postmortem is included as `postmortem` (markdown body, no check targets / host:port / result errors). Publishing a postmortem on an internal-only incident does not make that incident public.
 
 Page indicator rollup follows [Statuspage's component rules](https://support.atlassian.com/statuspage/docs/top-level-status-and-incident-impact-calculations/). Group parents are display-only.
 
@@ -73,7 +74,7 @@ Anonymous `/embed` shows overall status plus public components using the same `F
 <script src="http://localhost:5080/js/embed.js" async></script>
 ```
 
-`embed.js` reads `/api/v2/summary.json` and `/api/status/uptime`. Email/SMS subscribe is not implemented.
+`embed.js` reads `/api/v2/summary.json` and `/api/status/uptime`. The embed labels the updated time with `page.time_zone`. Email/SMS subscribe is not implemented.
 
 ## Public CORS
 
@@ -85,9 +86,9 @@ Operator allow-list is gitignored `data/cors.json`. Copy `Data/cors.example.json
 
 ## Public incident feeds
 
-`/incidents.rss` and `/incidents.atom` list public incidents with the same visibility as `/api/v2/incidents.json`. Incidents that only touch internal leaves are omitted. Mixed incidents keep public component names only. Feeds do not include check targets or probe errors.
+`/incidents.rss` and `/incidents.atom` list public incidents with the same visibility as `/api/v2/incidents.json`. Incidents that only touch internal leaves are omitted. Mixed incidents keep public component names only. Feeds do not include check targets or probe errors. RSS `pubDate` / `lastBuildDate` use the page IANA zone offset; Atom stays UTC ISO.
 
-`GET /maintenance.ics` is scheduled maintenance only, using the same `ForPublic` filter. Internal-only items are omitted. Check mute windows are not public maintenance and do not appear here.
+`GET /maintenance.ics` is scheduled maintenance only, using the same `ForPublic` filter. Internal-only items are omitted. Check mute windows are not public maintenance and do not appear here. ICS event instants stay UTC (`Z`); `X-WR-TIMEZONE` is the page IANA zone for display.
 
 ## Status checks (any public URL or internal host)
 
@@ -207,7 +208,7 @@ Check admin (APIs + UI):
 
 The operator check UI calls these APIs (it does not post check writes through Razor page handlers).
 
-Probe results persist to gitignored `data/check-results.json` (`checkedAtUtc`, `status`, `httpStatus`, `latencyMs`, `error` only — no response body, no headers). Public uptime bars and per-leaf percents use the last **15** UTC days of **enabled public** samples after restart. No sample → no percent (do not show 100). Mute windows skip the probe and do not invent ok samples. Internal-host samples never appear on anonymous `/`, `/embed`, or `/api/status/uptime`.
+Probe results persist to gitignored `data/check-results.json` (`checkedAtUtc`, `status`, `httpStatus`, `latencyMs`, `error` only — no response body, no headers). Public uptime bars and per-leaf percents use the last **15** UTC days of **enabled public** samples after restart. The operator IANA zone does not shift those UTC buckets. No sample → no percent (do not show 100). Mute windows skip the probe and do not invent ok samples. Internal-host samples never appear on anonymous `/`, `/embed`, or `/api/status/uptime`.
 
 Page admin (operator UI and `/api/operator/*`, not public `/`):
 
@@ -215,7 +216,7 @@ Page admin (operator UI and `/api/operator/*`, not public `/`):
 - Incident open / update / resolve (operator incidents never override checked components except `under_maintenance` PATCH)
 - Postmortem markdown after resolve (default unpublished; StatusViewer can read; only StatusOperator can write or publish)
 - Scheduled maintenance
-- Local branding: page title plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN)
+- Local branding: page title, IANA time zone (default `Etc/UTC`; invalid/unknown → **400**), plus logo file or http(s) URL, stored in gitignored `data/page.json` and `data/branding/` (png/jpg/gif/webp, not a paid CDN). The zone is labels and v2 `page.time_zone` only — probes, mute windows, check-results.json, and 15-day uptime stay UTC.
 - Operator audit log on `/operator` from gitignored `data/audit.jsonl` (actor is `api-key`, Entra object ID, or inbound `webhook` — never an email or the webhook secret)
 - Outbound webhooks: operator add/delete URLs in gitignored `data/webhooks.json`. Loopback, link-local, RFC1918, and cloud metadata (`169.254.169.254`, `metadata.google.internal`) are rejected. On incident create/update the app POSTs the **public** incident plus **public** component status only (5s timeout, best-effort — a failed POST never fails the request). Payloads never include check targets, internal-leaf ids, probe errors, bodies, or headers. The public page does not list webhook URLs.
 - Inbound incident webhook: optional `POST /api/hooks/incidents`. Disabled (**404**, not 401) when `StatusPage:EnableIncidentWebhook` is `false` **or** the env secret is unset. Set `STATUSPAGE_INCIDENT_WEBHOOK_SECRET` or `StatusPage:IncidentWebhookSecret` in the process environment only — never commit it. Send the same value in `X-Incident-Webhook-Secret` (constant-time compare). Wrong/missing secret while enabled → **401**. Receive-only: the handler does not fetch caller URLs (no SSRF). POST can open or update a **public** incident only; internal component ids are **400**. It never writes `CheckResult` and does not override a leaf that has enabled checks (same lock as connector imports). Audit actor is `webhook`.
@@ -224,7 +225,7 @@ Page admin (operator UI and `/api/operator/*`, not public `/`):
 curl -s http://localhost:5080/api/operator/page -H "X-Api-Key: dev-key"
 curl -s -X PATCH http://localhost:5080/api/operator/page \
   -H "X-Api-Key: dev-key" -H "Content-Type: application/json" \
-  -d '{"name":"Local brand"}'
+  -d '{"name":"Local brand","timeZone":"America/Los_Angeles"}'
 curl -s http://localhost:5080/api/operator/components -H "X-Api-Key: dev-key"
 curl -s http://localhost:5080/api/operator/incidents -H "X-Api-Key: dev-key"
 curl -s http://localhost:5080/api/operator/incidents/<id>/postmortem -H "X-Api-Key: dev-key"
@@ -312,7 +313,7 @@ Never put PATs or tokens in the repo. The static snapshot workflow unsets these 
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, inbound `POST /api/hooks/incidents` (unset/disabled secret → 404; bad secret → 401; internal ids → 400; checked leaf not overridden; audit actor `webhook`), authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, and publishing on an internal-only incident leaving it anonymous-404. Unit tests do not hit the three public health hosts.
+Covers page-status rollup, `summary.json` / `incidents.json` / `scheduled-maintenances.json` shape, default `page.time_zone` `Etc/UTC`, valid IANA zone on summary plus public/embed/ICS/RSS labels, invalid zone **400**, samples still stored UTC with unshifted 15-day UTC uptime buckets, public embed and RSS/Atom omitting internals, `maintenance.ics` omitting internal-only scheduled maintenance, incident templates rejecting internal component ids, anonymous-GET CORS (`summary.json` has ACAO; `POST /api/checks` does not; bad origins rejected when the allow-list is set; `/api/status/components` stays `ForPublic`), HTTP expected status + keyword + jsonPath, TCP pass/fail, TLS expiry fail, DNS evaluate (including expected addresses), hysteresis, mute windows skipping probes and auto-incidents, component rollup for 0/1/N checks, check/page admin APIs, operator audit writes, persisted 15-day public check history (internals hidden), public page not exposing admin or webhook URLs, webhook URL rejects (loopback / RFC1918 / metadata) and public-only payloads, inbound `POST /api/hooks/incidents` (unset/disabled secret → 404; bad secret → 401; internal ids → 400; checked leaf not overridden; audit actor `webhook`), authenticated check export (401 anonymous; viewer omits internals and headers; operator redacts secrets) plus operator-only import, connector imports with mocked HTTP, Entra `StatusViewer` read-only vs `StatusOperator` write, Entra-disabled API-key fallback, `/operator` not being public, unpublished postmortems hidden from anonymous `/` and v2 JSON, published postmortems visible without check internals, HTML in postmortem markdown not executed, StatusViewer reading unpublished notes, and publishing on an internal-only incident leaving it anonymous-404. Unit tests do not hit the three public health hosts.
 
 ## Static snapshot (no paid compute)
 

@@ -33,7 +33,7 @@
         <div class="overall-copy">
             <p class="overall-kicker">CURRENT STATUS</p>
             <h2 class="overall-headline">@Sentence(Model.Overall.Banner)</h2>
-            <p class="overall-meta">Updated @Model.PageInfo.UpdatedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm") UTC</p>
+            <p class="overall-meta">Updated @PageTimeZone.Label(Model.PageInfo.UpdatedAt, Model.PageInfo.TimeZone)</p>
         </div>
         <span class="pill pill-@overallPill">@PillLabel(overallPill)</span>
     </section>

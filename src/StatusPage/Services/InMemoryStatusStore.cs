@@ -22,7 +22,7 @@ public interface IStatusStore
     Component CreateComponent(WriteComponentRequest request);
     Component UpdateComponentMeta(string id, WriteComponentRequest request);
     void DeleteComponent(string id);
-    StatusPageInfo UpdatePage(string? name, string? logoUrl);
+    StatusPageInfo UpdatePage(string? name, string? logoUrl, string? timeZone = null);
     void RecordCheckResult(string checkId, CheckResult result);
     IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses();
     void ApplyConnectorImport(ConnectorSnapshot snapshot);
@@ -650,7 +650,7 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
-    public StatusPageInfo UpdatePage(string? name, string? logoUrl)
+    public StatusPageInfo UpdatePage(string? name, string? logoUrl, string? timeZone = null)
     {
         lock (_gate)
         {
@@ -662,6 +662,11 @@ public sealed class InMemoryStatusStore : IStatusStore
             if (logoUrl is not null)
             {
                 _state.Page.LogoUrl = string.IsNullOrWhiteSpace(logoUrl) ? null : NormalizeLogoUrl(logoUrl);
+            }
+
+            if (timeZone is not null)
+            {
+                _state.Page.TimeZone = PageTimeZone.Require(timeZone);
             }
 
             _state.Page.UpdatedAt = DateTimeOffset.UtcNow;

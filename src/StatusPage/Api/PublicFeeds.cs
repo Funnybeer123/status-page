@@ -21,7 +21,7 @@ public static class PublicFeeds
                 new XElement("title", incident.Name),
                 new XElement("link", link),
                 new XElement("guid", new XAttribute("isPermaLink", "true"), link),
-                new XElement("pubDate", incident.UpdatedAt.ToUniversalTime().ToString("r")),
+                new XElement("pubDate", PageTimeZone.Rfc822(incident.UpdatedAt, page.TimeZone)),
                 new XElement("description", ItemBody(publicState, incident)));
         });
 
@@ -33,7 +33,7 @@ public static class PublicFeeds
                     new XElement("title", $"{page.Name} — Incidents"),
                     new XElement("link", channelLink),
                     new XElement("description", "Public incidents"),
-                    new XElement("lastBuildDate", lastBuild.ToUniversalTime().ToString("r")),
+                    new XElement("lastBuildDate", PageTimeZone.Rfc822(lastBuild, page.TimeZone)),
                     items)));
         return document.ToString();
     }

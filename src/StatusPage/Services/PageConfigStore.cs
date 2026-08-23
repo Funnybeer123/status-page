@@ -26,6 +26,11 @@ public static class PageConfigStore
         }
 
         state.Page.LogoUrl = string.IsNullOrWhiteSpace(file.LogoUrl) ? null : file.LogoUrl.Trim();
+        if (PageTimeZone.TryResolve(file.TimeZone, out var timeZone))
+        {
+            state.Page.TimeZone = timeZone;
+        }
+
         if (file.Components.Count == 0)
         {
             return;
@@ -41,6 +46,7 @@ public static class PageConfigStore
         {
             Name = state.Page.Name,
             LogoUrl = state.Page.LogoUrl,
+            TimeZone = state.Page.TimeZone,
             Components = state.Components.Select(ToDocument).ToList()
         };
         File.WriteAllText(path, JsonSerializer.Serialize(file, JsonOptions));
@@ -85,6 +91,7 @@ public static class PageConfigStore
     {
         public string Name { get; set; } = "Status";
         public string? LogoUrl { get; set; }
+        public string? TimeZone { get; set; }
         public List<ComponentDocument> Components { get; set; } = [];
     }
 

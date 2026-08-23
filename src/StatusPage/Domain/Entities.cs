@@ -206,7 +206,7 @@ public sealed record WriteComponentRequest(
     string? GroupId,
     int? Position);
 
-public sealed record WritePageRequest(string? Name, string? LogoUrl);
+public sealed record WritePageRequest(string? Name, string? LogoUrl, string? TimeZone = null);
 
 public sealed record HttpPatchSpec(
     string? Method,
