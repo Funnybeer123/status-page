@@ -30,19 +30,21 @@ public class IndexModel(
         Load();
     }
 
-    public IActionResult OnPostReport(string? title, string? body)
+    public IActionResult OnPostReport(string? title, string? body, string[]? componentIds)
     {
-        if (!reportLimiter.TryAcquire(ReportEndpoints.ClientKey(HttpContext)))
+        var hashedKey = ReportEndpoints.ClientKey(HttpContext);
+        if (!reportLimiter.TryAcquire(hashedKey))
         {
             Response.StatusCode = StatusCodes.Status429TooManyRequests;
-            ReportError = "Too many reports from this address. Try again later.";
+            ReportError = "Too many reports. Try again later.";
             Load();
             return Page();
         }
 
         try
         {
-            reports.Create(title, body);
+            var ids = IncidentTemplateRules.NormalizePublicComponentIds(componentIds, store, "Report");
+            reports.Create(title, body, ids, hashedKey);
             return Redirect("/?reported=1#report");
         }
         catch (ArgumentException ex)

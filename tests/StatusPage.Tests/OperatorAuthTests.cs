@@ -481,6 +481,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-webhooks-{Guid.NewGuid():N}.json");
         var templatesPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-templates-{Guid.NewGuid():N}.json");
         var templatesSeed = Path.Combine(Path.GetTempPath(), $"status-page-entra-templates-seed-{Guid.NewGuid():N}.json");
+        var reportsPath = Path.Combine(Path.GetTempPath(), $"status-page-entra-reports-{Guid.NewGuid():N}.json");
         builder.UseEnvironment("Development");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
         builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
@@ -493,6 +494,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
         builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
         builder.UseSetting("StatusPage:TemplatesPath", templatesPath);
         builder.UseSetting("StatusPage:TemplatesSeedPath", templatesSeed);
+        builder.UseSetting("StatusPage:ReportsPath", reportsPath);
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
@@ -508,6 +510,7 @@ public sealed class EntraOperatorFactory : WebApplicationFactory<Program>
                 ["StatusPage:WebhooksPath"] = webhooksPath,
                 ["StatusPage:TemplatesPath"] = templatesPath,
                 ["StatusPage:TemplatesSeedPath"] = templatesSeed,
+                ["StatusPage:ReportsPath"] = reportsPath,
                 ["AzureAd:Instance"] = "https://login.microsoftonline.com/",
                 ["AzureAd:TenantId"] = "test-tenant",
                 ["AzureAd:ClientId"] = "test-client",

@@ -5,7 +5,7 @@ public interface IReportRateLimiter
     bool TryAcquire(string key);
 }
 
-/// <summary>In-memory per-key sliding window. Used to rate-limit anonymous reports by IP.</summary>
+/// <summary>In-memory per-key sliding window. Keys are hashed; raw IPs are never stored.</summary>
 public sealed class InMemoryReportRateLimiter : IReportRateLimiter
 {
     public const int DefaultMax = 5;

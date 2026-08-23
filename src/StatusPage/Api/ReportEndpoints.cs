@@ -13,27 +13,32 @@ public static class ReportEndpoints
             () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed));
     }
 
+    /// <summary>Hashed client key. Raw IP is never returned or stored.</summary>
     public static string ClientKey(HttpContext http) =>
-        http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        ProblemReportRules.HashRateLimitKey(http.Connection.RemoteIpAddress?.ToString());
 
     public static IResult RateLimited() =>
-        Results.Json(new { error = "Too many reports from this address. Try again later." },
+        Results.Json(new { error = "Too many reports. Try again later." },
             statusCode: StatusCodes.Status429TooManyRequests);
 
     private static IResult Create(
         CreateReportJson body,
         IProblemReportStore reports,
         IReportRateLimiter limiter,
+        IStatusStore store,
         HttpContext http)
     {
-        if (!limiter.TryAcquire(ClientKey(http)))
+        var hashedKey = ClientKey(http);
+        if (!limiter.TryAcquire(hashedKey))
         {
             return RateLimited();
         }
 
         try
         {
-            var created = reports.Create(body.Title, body.Body);
+            var componentIds = IncidentTemplateRules.NormalizePublicComponentIds(
+                body.ComponentIds, store, "Report");
+            var created = reports.Create(body.Title, body.Body, componentIds, hashedKey);
             return Results.Created($"{Path}/{created.Id}", new
             {
                 id = created.Id,
@@ -51,4 +56,5 @@ public sealed class CreateReportJson
 {
     public string? Title { get; set; }
     public string? Body { get; set; }
+    public List<string>? ComponentIds { get; set; }
 }

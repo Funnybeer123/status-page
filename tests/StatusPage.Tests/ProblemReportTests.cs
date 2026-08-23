@@ -72,12 +72,19 @@ public class ProblemReportTests : IClassFixture<ProblemReportFactory>
         var row = listedDoc.RootElement.EnumerateArray().Single(r => r.GetProperty("id").GetString() == id);
         Assert.Equal(title, row.GetProperty("title").GetString());
         Assert.Equal(body, row.GetProperty("body").GetString());
+        Assert.Equal("open", row.GetProperty("status").GetString());
         Assert.Equal(JsonValueKind.Null, row.GetProperty("promotedIncidentId").ValueKind);
+        var hashedKey = row.GetProperty("rateLimitKey").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(hashedKey));
+        Assert.False(ProblemReportRules.LooksLikeAddress(hashedKey));
+        Assert.Equal(64, hashedKey!.Length);
 
         using var operatorPage = await operatorClient.GetAsync("/operator");
         var operatorHtml = await operatorPage.Content.ReadAsStringAsync();
         Assert.Contains("Problem reports", operatorHtml);
         Assert.Contains(title, operatorHtml);
+        Assert.Contains(hashedKey, operatorHtml);
+        Assert.DoesNotContain("Rate-limit IP", operatorHtml);
     }
 
     [Fact]
@@ -130,6 +137,7 @@ public class ProblemReportTests : IClassFixture<ProblemReportFactory>
         using var listedDoc = JsonDocument.Parse(await listed.Content.ReadAsStringAsync());
         var row = listedDoc.RootElement.EnumerateArray().Single(r => r.GetProperty("id").GetString() == reportId);
         Assert.Equal(incidentId, row.GetProperty("promotedIncidentId").GetString());
+        Assert.Equal("promoted", row.GetProperty("status").GetString());
 
         using var again = await operatorClient.PostAsJsonAsync($"/api/operator/reports/{reportId}/promote", new
         {
@@ -175,6 +183,76 @@ public class ProblemReportTests : IClassFixture<ProblemReportFactory>
         Assert.Throws<ArgumentException>(() => store.Create("title", " "));
         Assert.Empty(store.List());
     }
+
+    [Fact]
+    public void Reports_reload_from_file_without_raw_ip()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"reports-reload-{Guid.NewGuid():N}.json");
+        var rawIp = "203.0.113.77";
+        var hash = ProblemReportRules.HashRateLimitKey(rawIp);
+        var store = new FileProblemReportStore(path);
+        var created = store.Create(
+            "reload-title",
+            "reload-body",
+            ["azure-status"],
+            rawIp);
+
+        var json = File.ReadAllText(path);
+        Assert.DoesNotContain(rawIp, json);
+        Assert.DoesNotContain("127.0.0.1", json);
+        Assert.DoesNotContain("::1", json);
+        Assert.DoesNotContain("remoteIp", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"ip\"", json, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(hash, json);
+        Assert.Contains("azure-status", json);
+        Assert.Contains("\"status\"", json);
+        Assert.Equal("open", created.Status);
+        Assert.Equal(hash, created.RateLimitKey);
+
+        var reloaded = new FileProblemReportStore(path);
+        var report = Assert.Single(reloaded.List());
+        Assert.Equal(created.Id, report.Id);
+        Assert.Equal("reload-title", report.Title);
+        Assert.Equal("reload-body", report.Body);
+        Assert.Equal(["azure-status"], report.ComponentIds);
+        Assert.Equal("open", report.Status);
+        Assert.Equal(hash, report.RateLimitKey);
+        Assert.False(ProblemReportRules.LooksLikeAddress(report.RateLimitKey));
+    }
+
+    [Fact]
+    public async Task Public_create_stores_public_component_ids_and_rejects_internal()
+    {
+        using var client = _factory.CreateClient();
+        var title = $"components-report-{Guid.NewGuid():N}";
+        using var created = await client.PostAsJsonAsync("/api/reports", new
+        {
+            title,
+            body = "Affects Azure public status.",
+            componentIds = new[] { "azure-status" }
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        using var createdDoc = JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+        Assert.False(createdDoc.RootElement.TryGetProperty("componentIds", out _));
+        Assert.False(createdDoc.RootElement.TryGetProperty("rateLimitKey", out _));
+
+        using var operatorClient = _factory.CreateClient();
+        operatorClient.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
+        using var listed = await operatorClient.GetAsync("/api/operator/reports");
+        using var listedDoc = JsonDocument.Parse(await listed.Content.ReadAsStringAsync());
+        var row = listedDoc.RootElement.EnumerateArray().Single(r => r.GetProperty("title").GetString() == title);
+        Assert.Contains(row.GetProperty("componentIds").EnumerateArray(), c => c.GetString() == "azure-status");
+        Assert.DoesNotContain(row.GetProperty("componentIds").EnumerateArray(), c => c.GetString() == "local-health");
+
+        using var internalIds = await client.PostAsJsonAsync("/api/reports", new
+        {
+            title = $"internal-ids-{Guid.NewGuid():N}",
+            body = "Must reject internal leaf.",
+            componentIds = new[] { "local-health" }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, internalIds.StatusCode);
+        Assert.Contains("internal", await internalIds.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public class ProblemReportRateLimitTests : IClassFixture<ProblemReportRateLimitFactory>
@@ -200,7 +278,42 @@ public class ProblemReportRateLimitTests : IClassFixture<ProblemReportRateLimitF
             body = "Should be rate limited."
         });
         Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
-        Assert.Contains("Too many reports", await second.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+        var limitedBody = await second.Content.ReadAsStringAsync();
+        Assert.Contains("Too many reports", limitedBody, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("127.0.0.1", limitedBody);
+        Assert.DoesNotContain("::1", limitedBody);
+
+        var store = _factory.Services.GetRequiredService<IProblemReportStore>();
+        var report = Assert.Single(store.List());
+        Assert.False(ProblemReportRules.LooksLikeAddress(report.RateLimitKey));
+        Assert.Equal(64, report.RateLimitKey.Length);
+        Assert.DoesNotContain(".", report.RateLimitKey);
+        Assert.DoesNotContain(":", report.RateLimitKey);
+
+        var json = File.ReadAllText(_factory.ReportsPath);
+        Assert.DoesNotContain("127.0.0.1", json);
+        Assert.DoesNotContain("::1", json);
+        Assert.Contains(report.RateLimitKey, json);
+
+        var limiter = _factory.Services.GetRequiredService<IReportRateLimiter>();
+        Assert.False(limiter.TryAcquire(report.RateLimitKey));
+        Assert.True(limiter.TryAcquire(ProblemReportRules.HashRateLimitKey("203.0.113.8")));
+    }
+
+    [Fact]
+    public void Rate_limit_429_is_keyed_by_hash_not_raw_ip()
+    {
+        var rawIp = "198.51.100.23";
+        var hash = ProblemReportRules.HashRateLimitKey(rawIp);
+        Assert.NotEqual(rawIp, hash);
+        Assert.DoesNotContain(rawIp, hash);
+        Assert.False(ProblemReportRules.LooksLikeAddress(hash));
+
+        var limiter = new InMemoryReportRateLimiter(1, TimeSpan.FromMinutes(10));
+        Assert.True(limiter.TryAcquire(hash));
+        Assert.False(limiter.TryAcquire(hash));
+        Assert.True(limiter.TryAcquire(ProblemReportRules.HashRateLimitKey("198.51.100.24")));
+        Assert.True(limiter.TryAcquire(rawIp));
     }
 }
 

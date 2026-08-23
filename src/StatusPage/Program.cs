@@ -78,6 +78,8 @@ var templatesPath = builder.Configuration["StatusPage:TemplatesPath"]
                     ?? Path.Combine(builder.Environment.ContentRootPath, "data", "incident-templates.json");
 var templatesSeed = builder.Configuration["StatusPage:TemplatesSeedPath"]
                     ?? Path.Combine(builder.Environment.ContentRootPath, "Data", "incident-templates.seed.json");
+var reportsPath = builder.Configuration["StatusPage:ReportsPath"]
+                  ?? Path.Combine(builder.Environment.ContentRootPath, "data", "reports.json");
 var checks = File.Exists(runtimePath)
     ? CheckConfigStore.Load(runtimePath, DateTimeOffset.UtcNow)
     : CheckConfigStore.Load(seedPath, DateTimeOffset.UtcNow);
@@ -91,7 +93,7 @@ builder.Services.AddSingleton<ICheckResultStore>(resultStore);
 builder.Services.AddSingleton<IAuditLog>(_ => new FileAuditLog(auditPath));
 builder.Services.AddSingleton<IWebhookStore>(_ => new FileWebhookStore(webhooksPath));
 builder.Services.AddSingleton<IIncidentTemplateStore>(_ => new FileIncidentTemplateStore(templatesPath, templatesSeed));
-builder.Services.AddSingleton<IProblemReportStore, InMemoryProblemReportStore>();
+builder.Services.AddSingleton<IProblemReportStore>(_ => new FileProblemReportStore(reportsPath));
 var reportMax = builder.Configuration.GetValue("StatusPage:ReportRateLimitMax", InMemoryReportRateLimiter.DefaultMax);
 var reportWindow = builder.Configuration.GetValue("StatusPage:ReportRateLimitWindowSeconds", InMemoryReportRateLimiter.DefaultWindowSeconds);
 builder.Services.AddSingleton<IReportRateLimiter>(_ =>

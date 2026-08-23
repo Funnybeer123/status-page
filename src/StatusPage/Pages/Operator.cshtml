@@ -282,7 +282,7 @@
 
     <section class="operator-card" id="reports">
         <h2>Problem reports</h2>
-        <p class="muted">Anonymous submissions. Not public incidents and they do not change component status. StatusViewer can read. Only StatusOperator can promote to a public incident (public component ids only).</p>
+        <p class="muted">Anonymous submissions stored in gitignored data/reports.json (title, body, public component ids, status). Rate-limit key is hashed; raw IP is never stored or shown. Not public incidents. StatusViewer can read. Only StatusOperator can promote to a public incident (public component ids only).</p>
         @if (Model.Reports.Count == 0)
         {
             <p class="muted">No problem reports.</p>
@@ -293,6 +293,8 @@
                 <thead>
                     <tr>
                         <th>Report</th>
+                        <th>Status</th>
+                        <th>Rate-limit key</th>
                         <th>Submitted</th>
                         <th></th>
                     </tr>
@@ -304,11 +306,17 @@
                         <td>
                             <strong>@report.Title</strong>
                             <div class="muted">@report.Body</div>
+                            @if (report.ComponentIds.Count > 0)
+                            {
+                                <div class="muted">Components: <code>@string.Join(", ", report.ComponentIds)</code></div>
+                            }
                             @if (report.PromotedIncidentId is { } incidentId)
                             {
                                 <div class="muted">Promoted to <code>@incidentId</code></div>
                             }
                         </td>
+                        <td>@report.Status</td>
+                        <td><code>@report.RateLimitKey</code></td>
                         <td>@OperatorModel.IsoUtc(report.CreatedAt)</td>
                         <td>
                             @if (Model.CanWrite && report.PromotedIncidentId is null)

@@ -439,6 +439,9 @@ public static class OperatorEndpoints
         id = report.Id,
         title = report.Title,
         body = report.Body,
+        componentIds = report.ComponentIds,
+        status = report.Status,
+        rateLimitKey = report.RateLimitKey,
         createdAt = PublicApiMapper.Iso(report.CreatedAt),
         promotedIncidentId = report.PromotedIncidentId,
         promotedAt = PublicApiMapper.Iso(report.PromotedAt)
