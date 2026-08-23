@@ -385,6 +385,27 @@ a:hover { text-decoration: underline; }
 .uptime-bar.good { background: linear-gradient(180deg, #33c292, #129f70); }
 .uptime-bar.bad { background: #db4a56; }
 
+.service-uptime,
+.history-uptime {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.service-uptime { margin-top: 8px; }
+.history-uptime { margin: 0 0 8px; }
+.uptime-bars-leaf {
+    height: 18px;
+    margin: 0;
+    flex: 1;
+    min-width: 72px;
+}
+.uptime-percent {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
 .history-day { margin-top: 18px; }
 .history-day h3 {
     margin: 0 0 8px;
@@ -523,6 +544,11 @@ a:hover { text-decoration: underline; }
     padding: 8px 0;
     border-top: 1px solid var(--line);
     font-size: 14px;
+}
+.embed-components .service-uptime {
+    flex: 1;
+    margin-top: 0;
+    min-width: 0;
 }
 .embed-more { margin: 12px 0 0; font-size: 13px; }
 

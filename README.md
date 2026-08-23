@@ -49,6 +49,7 @@ curl -s http://localhost:5080/api/v2/components.json
 curl -s http://localhost:5080/api/v2/incidents.json
 curl -s http://localhost:5080/api/v2/scheduled-maintenances.json
 curl -s http://localhost:5080/api/status/components
+curl -s http://localhost:5080/api/status/uptime
 curl -s http://localhost:5080/incidents.rss
 curl -s http://localhost:5080/incidents.atom
 curl -s http://localhost:5080/maintenance.ics
@@ -71,7 +72,7 @@ Anonymous `/embed` shows overall status plus public components using the same `F
 <script src="http://localhost:5080/js/embed.js" async></script>
 ```
 
-`embed.js` reads `/api/v2/summary.json` only. Email/SMS subscribe is not implemented.
+`embed.js` reads `/api/v2/summary.json` and `/api/status/uptime`. Email/SMS subscribe is not implemented.
 
 ## Public incident feeds
 
@@ -174,6 +175,8 @@ curl -s http://localhost:5080/api/checks/chk-github-status/results -H "X-Api-Key
 
 `GET /api/status/components` returns `{ componentId, status, checkCount, downCount, updatedAtUtc }` for public leaves only.
 
+`GET /api/status/uptime` is anonymous and uses the same `ForPublic` snapshot. Each public leaf is `ok / (ok + fail)` from enabled public checks over the last 15 UTC days in persisted `data/check-results.json`. No samples → `uptimePercent` is omitted (never 100). Day bars may be empty. Mute windows do not invent ok samples. The payload has no internals, probe errors, or check targets. `/` and `/embed` show that percent next to the existing 15-day bars.
+
 `GET /api/checks`, `GET /api/checks/{id}`, `GET /api/checks/{id}/results`, and `GET /api/checks/export` are always authenticated (anonymous → **401**). `StatusOperator` (or `AllowedObjectIds` / API key) sees every check, including internals, with secret header values redacted. `StatusViewer` sees **public checks only** and **no headers at all**. An internal id for a viewer is **404**. `POST /api/checks/import` is StatusOperator-only: create-if-missing like `POST /api/checks`, and an existing id keeps its stored host unless the imported host is the same. Viewers cannot import, PATCH, PUT, or `/run`.
 
 ## Operator admin
@@ -195,7 +198,7 @@ Check admin (APIs + UI):
 
 The operator check UI calls these APIs (it does not post check writes through Razor page handlers).
 
-Probe results persist to gitignored `data/check-results.json` (`checkedAtUtc`, `status`, `httpStatus`, `latencyMs`, `error` only — no response body, no headers). Public uptime bars use the last **15** days of **public** samples after restart. Internal-host samples never appear on anonymous `/` or those bars.
+Probe results persist to gitignored `data/check-results.json` (`checkedAtUtc`, `status`, `httpStatus`, `latencyMs`, `error` only — no response body, no headers). Public uptime bars and per-leaf percents use the last **15** UTC days of **enabled public** samples after restart. No sample → no percent (do not show 100). Mute windows skip the probe and do not invent ok samples. Internal-host samples never appear on anonymous `/`, `/embed`, or `/api/status/uptime`.
 
 Page admin (operator UI and `/api/operator/*`, not public `/`):
 

@@ -203,6 +203,21 @@ summary = {
     }
     for c in checks
 ], indent=2) + "\n")
+empty_days = [{"date": "", "ok": 0, "fail": 0} for _ in range(15)]
+(out / "api/status/uptime.json").write_text(json.dumps({
+    "windowDays": 15,
+    "components": [
+        {
+            "id": c["id"],
+            "name": c["name"],
+            "ok": 0,
+            "fail": 0,
+            "uptimePercent": None,
+            "days": empty_days,
+        }
+        for c in checks
+    ],
+}, indent=2) + "\n")
 (out / "probes.json").write_text(json.dumps({
     "checkedAtUtc": now_utc,
     "probes": [{"id": c["id"], "url": c["url"], "httpStatus": c["http"], "status": c["status"]} for c in checks],
@@ -210,7 +225,8 @@ summary = {
 (out / "staticwebapp.config.json").write_text(json.dumps({
     "trailingSlash": "auto",
     "routes": [
-        {"route": "/api/status/components", "rewrite": "/api/status/components.json"}
+        {"route": "/api/status/components", "rewrite": "/api/status/components.json"},
+        {"route": "/api/status/uptime", "rewrite": "/api/status/uptime.json"}
     ],
 }, indent=2) + "\n")
 

@@ -52,6 +52,7 @@ public class EmbedFeedTemplateTests : IClassFixture<StatusPageFactory>
         Assert.Equal(HttpStatusCode.OK, script.StatusCode);
         var js = await script.Content.ReadAsStringAsync();
         Assert.Contains("/api/v2/summary.json", js);
+        Assert.Contains("/api/status/uptime", js);
         Assert.DoesNotContain("10.0.0.8", js);
         Assert.DoesNotContain("probe-label-only", js);
         Assert.DoesNotContain("error", js, StringComparison.OrdinalIgnoreCase);
