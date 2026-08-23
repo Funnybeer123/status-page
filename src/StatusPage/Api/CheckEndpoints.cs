@@ -161,13 +161,12 @@ public static class CheckEndpoints
 
         app.MapGet("/api/status/components", (IStatusStore store) =>
         {
-            var checksList = store.ListChecks();
+            var publicIds = PublicApiMapper.ForPublic(store).Components
+                .Where(c => !c.Group)
+                .Select(c => c.Id)
+                .ToHashSet(StringComparer.Ordinal);
             return Results.Json(store.ComponentCheckStatuses()
-                .Where(s =>
-                {
-                    var component = store.FindComponent(s.ComponentId);
-                    return component is null || !ComponentVisibility.IsInternalLeaf(component, checksList);
-                })
+                .Where(s => publicIds.Contains(s.ComponentId))
                 .Select(s => new ComponentCheckStatusDocument
                 {
                     ComponentId = s.ComponentId,
