@@ -11,3 +11,4 @@ data/checks.json
 .dotnet/
 .nuget/
 *.log
+static/

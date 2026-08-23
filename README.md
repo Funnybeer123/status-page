@@ -134,11 +134,23 @@ Seeded leaf ids: `azure-status`, `azure-devops-status`, `github-status`, `local-
 dotnet test
 ```
 
-Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword, TCP pass/fail, hysteresis, and component rollup for 0/1/N checks. CI does not hit random public hosts.
+Covers page-status rollup, `summary.json` shape, HTTP expected status + keyword, TCP pass/fail, hysteresis, and component rollup for 0/1/N checks. Unit tests do not hit the three public health hosts.
+
+## Static snapshot (no paid compute)
+
+`scripts/export-static.sh` curls the three locked health URLs and writes `static/` (public HTML + `/api/v2/*.json`). A non-200 is recorded as outage; the script still exits 0.
+
+```bash
+bash scripts/export-static.sh
+```
+
+GitHub Actions workflow `.github/workflows/status-snapshot.yml` runs that script every 15 minutes (`workflow_dispatch` too). It deploys to an **existing** Azure Static Web App only when repository secret `AZURE_STATIC_WEB_APPS_API_TOKEN` is set. If the secret is missing, deploy is skipped with a log line and the job stays green. No token is stored in git. This workflow is not a pull_request check.
+
+Scheduled Actions only run on the repository default branch.
 
 ## Out of scope
 
 - Email / SMS subscribe
 - ICMP
-- Paid hosting, custom domains, Terraform
+- Creating Azure resources, ACR/ACA/App Service, or custom domains
 - Probing hosts that were not explicitly configured
