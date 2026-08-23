@@ -154,6 +154,52 @@ public class CheckRollupTests
         Assert.Equal(IncidentStatus.Investigating, store.Snapshot().Incidents.First(i => i.Id == incident.Id).Status);
     }
 
+    [Fact]
+    public void Only_under_maintenance_patch_overrides_enabled_checks()
+    {
+        var store = EmptyStore();
+        store.CreateCheck(Check("api", "cca-api"));
+
+        store.UpdateComponentStatus("cca-api", ComponentStatus.DegradedPerformance);
+        Assert.Equal(ComponentStatus.Operational, store.FindComponent("cca-api")!.Status);
+
+        store.UpdateComponentStatus("cca-api", ComponentStatus.UnderMaintenance);
+        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("cca-api")!.Status);
+
+        Fail(store, "api", 3);
+        Assert.Equal(ComponentStatus.UnderMaintenance, store.FindComponent("cca-api")!.Status);
+    }
+
+    [Fact]
+    public void Resolving_operator_incident_does_not_override_check_rollup()
+    {
+        var store = EmptyStore();
+        store.CreateCheck(Check("api", "cca-api"));
+        Fail(store, "api", 3);
+        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("cca-api")!.Status);
+
+        var incident = store.CreateIncident(new CreateIncidentRequest(
+            "Operator note",
+            "investigating",
+            "critical",
+            "Filed while checks are down.",
+            ["cca-api"],
+            null,
+            null), false);
+
+        store.UpdateIncident(incident.Id, new UpdateIncidentRequest(
+            "resolved",
+            "Closing the operator note.",
+            null,
+            null));
+
+        Assert.Equal(IncidentStatus.Resolved, store.Snapshot().Incidents.First(i => i.Id == incident.Id).Status);
+        Assert.Equal(ComponentStatus.MajorOutage, store.FindComponent("cca-api")!.Status);
+        Assert.Contains(
+            store.Snapshot().Incidents,
+            i => i.AutoFromChecks && i.Status == IncidentStatus.Investigating);
+    }
+
     private static CheckState Apply(CheckState current, bool ok, int oks, int fails) =>
         CheckRollup.NextState(current, ok, oks, fails);
 
