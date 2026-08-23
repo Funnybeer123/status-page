@@ -214,7 +214,7 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
     public async Task Entra_user_with_StatusOperator_role_is_operator()
     {
         using var factory = new EntraOperatorFactory();
-        factory.Users.User = EntraPrincipal(roles: ["StatusOperator"]);
+        factory.Users.User = EntraPrincipal(oid: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", roles: ["StatusOperator"]);
         using var client = factory.CreateClient();
         using var page = await client.GetAsync("/operator");
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
@@ -228,6 +228,25 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             body = "StatusOperator can write."
         });
         Assert.Equal(HttpStatusCode.Created, write.StatusCode);
+
+        using var submitted = await client.PostAsJsonAsync("/api/reports", new
+        {
+            title = "Entra operator report",
+            body = "Promote audit actor must be oid."
+        });
+        Assert.Equal(HttpStatusCode.Created, submitted.StatusCode);
+        using var submittedDoc = JsonDocument.Parse(await submitted.Content.ReadAsStringAsync());
+        var reportId = submittedDoc.RootElement.GetProperty("id").GetString();
+        using var promote = await client.PostAsJsonAsync($"/api/operator/reports/{reportId}/promote", new
+        {
+            impact = "minor",
+            componentIds = new[] { "azure-status" }
+        });
+        Assert.Equal(HttpStatusCode.Created, promote.StatusCode);
+        var audit = factory.Services.GetRequiredService<IAuditLog>();
+        var entry = Assert.Single(audit.Recent(), e => e.TargetId == reportId && e.Action == "report.promote");
+        Assert.Equal("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", entry.Actor);
+        Assert.DoesNotContain("@", entry.Actor);
     }
 
     [Fact]
@@ -241,6 +260,7 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
         Assert.Equal(HttpStatusCode.OK, page.StatusCode);
         var html = await page.Content.ReadAsStringAsync();
         Assert.Contains("Audit log", html);
+        Assert.Contains("Problem reports", html);
         Assert.Contains("StatusViewer is read-only", html);
         Assert.DoesNotContain("Add a check", html);
         Assert.DoesNotContain("Run now", html);
@@ -317,6 +337,23 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             componentIds = new[] { "azure-status" }
         });
         Assert.Equal(HttpStatusCode.Forbidden, createTemplate.StatusCode);
+
+        using var submitted = await client.PostAsJsonAsync("/api/reports", new
+        {
+            title = "Viewer can read this report",
+            body = "StatusViewer must not promote."
+        });
+        Assert.Equal(HttpStatusCode.Created, submitted.StatusCode);
+        using var submittedDoc = JsonDocument.Parse(await submitted.Content.ReadAsStringAsync());
+        var reportId = submittedDoc.RootElement.GetProperty("id").GetString();
+        using var listReports = await client.GetAsync("/api/operator/reports");
+        Assert.Equal(HttpStatusCode.OK, listReports.StatusCode);
+        using var promote = await client.PostAsJsonAsync($"/api/operator/reports/{reportId}/promote", new
+        {
+            impact = "minor",
+            componentIds = new[] { "azure-status" }
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, promote.StatusCode);
     }
 
     [Fact]
@@ -343,7 +380,8 @@ public class OperatorAuthTests : IClassFixture<StatusPageFactory>
             new TestHostEnvironment(),
             new FileAuditLog(Path.GetTempFileName()),
             new FileWebhookStore(Path.Combine(Path.GetTempPath(), $"op-webhooks-{Guid.NewGuid():N}.json")),
-            new FileIncidentTemplateStore(Path.Combine(Path.GetTempPath(), $"op-templates-{Guid.NewGuid():N}.json")))
+            new FileIncidentTemplateStore(Path.Combine(Path.GetTempPath(), $"op-templates-{Guid.NewGuid():N}.json")),
+            new InMemoryProblemReportStore())
         {
             PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext
             {

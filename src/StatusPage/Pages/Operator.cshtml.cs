@@ -9,7 +9,7 @@ using StatusPage.Services;
 
 namespace StatusPage.Pages;
 
-public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit, IWebhookStore webhooks, IIncidentTemplateStore templates) : PageModel
+public class OperatorModel(IStatusStore store, IConfiguration configuration, IHostEnvironment environment, IAuditLog audit, IWebhookStore webhooks, IIncidentTemplateStore templates, IProblemReportStore reports) : PageModel
 {
     public IReadOnlyList<Component> Groups { get; private set; } = [];
     public IReadOnlyList<OperatorComponentRow> Components { get; private set; } = [];
@@ -19,6 +19,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
     public IReadOnlyList<AuditEntry> AuditEntries { get; private set; } = [];
     public IReadOnlyList<WebhookRecord> Webhooks { get; private set; } = [];
     public IReadOnlyList<IncidentTemplate> Templates { get; private set; } = [];
+    public IReadOnlyList<ProblemReport> Reports { get; private set; } = [];
     public StatusPageInfo PageInfo { get; private set; } = new();
     public StatusCheck? EditingCheck { get; private set; }
     public string? AuthLabel { get; private set; }
@@ -281,6 +282,34 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         });
     }
 
+    public IActionResult OnPostPromoteReport(string id, string? name, string? status, string? impact, string? body, string? componentIds)
+    {
+        return Guarded(() =>
+        {
+            var report = reports.Find(id) ?? throw new KeyNotFoundException($"Unknown report '{id}'.");
+            if (report.PromotedIncidentId is not null)
+            {
+                throw new ArgumentException($"Report '{id}' was already promoted.");
+            }
+
+            var ids = IncidentTemplateRules.NormalizePublicComponentIds(
+                (componentIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                store,
+                "Promote");
+            var created = store.CreateIncident(new CreateIncidentRequest(
+                string.IsNullOrWhiteSpace(name) ? report.Title : name.Trim(),
+                string.IsNullOrWhiteSpace(status) ? "investigating" : status,
+                string.IsNullOrWhiteSpace(impact) ? "minor" : impact,
+                string.IsNullOrWhiteSpace(body) ? report.Body : body,
+                ids,
+                null,
+                null), false);
+            reports.MarkPromoted(id, created.Id);
+            OperatorAuth.Audit(HttpContext, audit, "report.promote", report.Id);
+            return RedirectToPage();
+        });
+    }
+
     private IActionResult RedirectToLogin()
     {
         if (OperatorAuth.IsAzureAdConfigured(configuration))
@@ -328,6 +357,7 @@ public class OperatorModel(IStatusStore store, IConfiguration configuration, IHo
         AuditEntries = audit.Recent(FileAuditLog.RecentDefault);
         Webhooks = webhooks.List();
         Templates = templates.List();
+        Reports = reports.List().OrderByDescending(r => r.CreatedAt).ToList();
         if (CanWrite && !string.IsNullOrWhiteSpace(applyTemplate))
         {
             var template = templates.Find(applyTemplate);

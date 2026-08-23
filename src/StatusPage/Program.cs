@@ -91,6 +91,11 @@ builder.Services.AddSingleton<ICheckResultStore>(resultStore);
 builder.Services.AddSingleton<IAuditLog>(_ => new FileAuditLog(auditPath));
 builder.Services.AddSingleton<IWebhookStore>(_ => new FileWebhookStore(webhooksPath));
 builder.Services.AddSingleton<IIncidentTemplateStore>(_ => new FileIncidentTemplateStore(templatesPath, templatesSeed));
+builder.Services.AddSingleton<IProblemReportStore, InMemoryProblemReportStore>();
+var reportMax = builder.Configuration.GetValue("StatusPage:ReportRateLimitMax", InMemoryReportRateLimiter.DefaultMax);
+var reportWindow = builder.Configuration.GetValue("StatusPage:ReportRateLimitWindowSeconds", InMemoryReportRateLimiter.DefaultWindowSeconds);
+builder.Services.AddSingleton<IReportRateLimiter>(_ =>
+    new InMemoryReportRateLimiter(reportMax, TimeSpan.FromSeconds(reportWindow)));
 builder.Services.AddSingleton<IWebhookSender, WebhookSender>();
 builder.Services.AddSingleton<IStatusStore>(sp =>
     new InMemoryStatusStore(seed, persist =>
@@ -202,6 +207,7 @@ app.MapGet("/maintenance.ics", (IStatusStore store) =>
 app.MapCheckApi();
 app.MapOperatorApi();
 app.MapIncidentWebhookApi();
+app.MapReportApi();
 app.MapRazorPages();
 
 app.Run();

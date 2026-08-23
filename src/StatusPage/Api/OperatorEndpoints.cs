@@ -274,6 +274,50 @@ public static class OperatorEndpoints
             }
         });
 
+        group.MapGet("/reports", (IProblemReportStore reports) =>
+            Results.Json(reports.List().OrderByDescending(r => r.CreatedAt).Select(ReportJson)));
+
+        group.MapPost("/reports/{id}/promote", (
+            string id,
+            PromoteReportJson body,
+            IProblemReportStore reports,
+            IStatusStore store,
+            IAuditLog audit,
+            HttpContext http) =>
+        {
+            var report = reports.Find(id);
+            if (report is null)
+            {
+                return Results.NotFound(new { error = $"Unknown report '{id}'." });
+            }
+
+            if (report.PromotedIncidentId is not null)
+            {
+                return Results.Conflict(new { error = $"Report '{id}' was already promoted." });
+            }
+
+            try
+            {
+                var componentIds = IncidentTemplateRules.NormalizePublicComponentIds(
+                    body.ComponentIds, store, "Promote");
+                var created = store.CreateIncident(new CreateIncidentRequest(
+                    string.IsNullOrWhiteSpace(body.Name) ? report.Title : body.Name.Trim(),
+                    string.IsNullOrWhiteSpace(body.Status) ? "investigating" : body.Status,
+                    string.IsNullOrWhiteSpace(body.Impact) ? "minor" : body.Impact,
+                    string.IsNullOrWhiteSpace(body.Body) ? report.Body : body.Body,
+                    componentIds,
+                    null,
+                    null), false);
+                reports.MarkPromoted(id, created.Id);
+                OperatorAuth.Audit(http, audit, "report.promote", report.Id);
+                return Results.Created($"/api/operator/incidents/{created.Id}", IncidentJson(created));
+            }
+            catch (ArgumentException ex)
+            {
+                return Results.BadRequest(new { error = ex.Message });
+            }
+        });
+
         group.MapGet("/templates", (IIncidentTemplateStore templates) =>
             Results.Json(templates.List().Select(TemplateJson)));
 
@@ -389,6 +433,16 @@ public static class OperatorEndpoints
         componentIds = template.ComponentIds,
         updatedAt = PublicApiMapper.Iso(template.UpdatedAt)
     };
+
+    internal static object ReportJson(ProblemReport report) => new
+    {
+        id = report.Id,
+        title = report.Title,
+        body = report.Body,
+        createdAt = PublicApiMapper.Iso(report.CreatedAt),
+        promotedIncidentId = report.PromotedIncidentId,
+        promotedAt = PublicApiMapper.Iso(report.PromotedAt)
+    };
 }
 
 public sealed class WritePageJson
@@ -459,5 +513,14 @@ public sealed class WriteTemplateJson
 {
     public string? Title { get; set; }
     public string? Impact { get; set; }
+    public List<string>? ComponentIds { get; set; }
+}
+
+public sealed class PromoteReportJson
+{
+    public string? Name { get; set; }
+    public string? Status { get; set; }
+    public string? Impact { get; set; }
+    public string? Body { get; set; }
     public List<string>? ComponentIds { get; set; }
 }

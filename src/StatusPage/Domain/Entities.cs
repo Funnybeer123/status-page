@@ -212,6 +212,16 @@ public sealed record WriteComponentRequest(
     int? Position,
     string? ParentId = null);
 
+public sealed class ProblemReport
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public string? PromotedIncidentId { get; set; }
+    public DateTimeOffset? PromotedAt { get; set; }
+}
+
 public sealed record WritePageRequest(string? Name, string? LogoUrl, string? TimeZone = null);
 
 public sealed record HttpPatchSpec(

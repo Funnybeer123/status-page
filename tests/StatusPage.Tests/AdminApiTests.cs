@@ -313,7 +313,7 @@ public class AdminApiTests : IClassFixture<StatusPageFactory>
                  {
                      "OPERATOR ADMIN", "Add a check", "Create check", "Save branding",
                      "/api/operator", "/api/checks", "Disable", "Upload logo", "Run now",
-                     "Audit log"
+                     "Audit log", "Problem reports"
                  })
         {
             Assert.DoesNotContain(leak, html);
