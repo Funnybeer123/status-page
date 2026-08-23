@@ -16,6 +16,8 @@ public sealed class StatusPageInfo
     public string Url { get; set; } = "http://localhost:5080";
     public string TimeZone { get; set; } = "Etc/UTC";
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    /// <summary>Local logo path or operator-supplied URL. Not a paid CDN.</summary>
+    public string? LogoUrl { get; set; }
 }
 
 public sealed class Component
@@ -51,6 +53,8 @@ public sealed class Incident
     public DateTimeOffset? ScheduledFor { get; set; }
     public DateTimeOffset? ScheduledUntil { get; set; }
     public bool AutoFromChecks { get; set; }
+    /// <summary>Read-only connector import that opened this incident. Not a probe.</summary>
+    public string? ConnectorId { get; set; }
 }
 
 public sealed class IncidentUpdate
@@ -77,6 +81,8 @@ public sealed class StatusCheck
     public int SuccessThreshold { get; set; } = 2;
     public CheckTargetSpec Target { get; set; } = new();
     public HttpCheckSpec Http { get; set; } = new();
+    public TlsCheckSpec Tls { get; set; } = new();
+    public DnsCheckSpec Dns { get; set; } = new();
     public CheckState State { get; set; } = CheckState.Up;
     public int ConsecutiveFailures { get; set; }
     public int ConsecutiveSuccesses { get; set; }
@@ -110,6 +116,19 @@ public sealed class HttpCheckSpec
     public string Method { get; set; } = "GET";
     public List<int> ExpectedStatus { get; set; } = [200, 201, 204];
     public string? BodyContains { get; set; }
+    public string? JsonPath { get; set; }
+    public string? ExpectedJsonValue { get; set; }
+    public Dictionary<string, string> Headers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class TlsCheckSpec
+{
+    public int Days { get; set; } = 14;
+}
+
+public sealed class DnsCheckSpec
+{
+    public List<string> ExpectedAddresses { get; set; } = [];
 }
 
 public sealed class CheckResult
@@ -138,7 +157,9 @@ public sealed record CreateCheckRequest(
     CheckTargetSpec Target,
     HttpCheckSpec? Http,
     string? ComponentName = null,
-    string? GroupId = null);
+    string? GroupId = null,
+    TlsCheckSpec? Tls = null,
+    DnsCheckSpec? Dns = null);
 
 public sealed record CreateIncidentRequest(
     string Name,
@@ -156,3 +177,35 @@ public sealed record UpdateIncidentRequest(
     IReadOnlyDictionary<string, string>? ComponentStatuses);
 
 public sealed record UpdateComponentRequest(string Status);
+
+public sealed record WriteComponentRequest(
+    string? Id,
+    string Name,
+    string? Description,
+    bool Group,
+    string? GroupId,
+    int? Position);
+
+public sealed record WritePageRequest(string? Name, string? LogoUrl);
+
+public sealed record HttpPatchSpec(
+    string? Method,
+    IReadOnlyList<int>? ExpectedStatus,
+    string? BodyContains,
+    bool BodyContainsSpecified,
+    string? JsonPath,
+    bool JsonPathSpecified,
+    string? ExpectedJsonValue,
+    bool ExpectedJsonValueSpecified);
+
+public sealed record PatchCheckRequest(
+    bool? Enabled,
+    string? Name,
+    int? IntervalSeconds,
+    int? TimeoutSeconds,
+    int? FailureThreshold,
+    int? SuccessThreshold,
+    CheckTargetSpec? Target,
+    HttpPatchSpec? Http,
+    TlsCheckSpec? Tls,
+    IReadOnlyList<string>? DnsExpectedAddresses);

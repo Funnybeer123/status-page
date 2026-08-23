@@ -19,6 +19,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Probe locked URLs and write static snapshot
+        env:
+          AZURE_DEVOPS_PAT: ""
+          GITHUB_TOKEN: ""
+          AzureAd__ClientSecret: ""
+          AZURE_CLIENT_SECRET: ""
+          AZURE_CLIENT_ID: ""
+          AZURE_TENANT_ID: ""
+          Azure__SubscriptionId: ""
+          AZURE_SUBSCRIPTION_ID: ""
         run: bash scripts/export-static.sh
 
       - name: Upload snapshot

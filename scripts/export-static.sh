@@ -4,6 +4,16 @@
 # after writing files so republish jobs do not fail when a vendor is down.
 set -uo pipefail
 
+# Public snapshot only. Drop connector / Entra tokens so SWA never receives them.
+unset AZURE_DEVOPS_PAT || true
+unset GITHUB_TOKEN || true
+unset AzureAd__ClientSecret || true
+unset AZURE_CLIENT_SECRET || true
+unset AZURE_CLIENT_ID || true
+unset AZURE_TENANT_ID || true
+unset Azure__SubscriptionId || true
+unset AZURE_SUBSCRIPTION_ID || true
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-"$ROOT/static"}"
 CSS_SRC="$ROOT/src/StatusPage/wwwroot/css/site.css"

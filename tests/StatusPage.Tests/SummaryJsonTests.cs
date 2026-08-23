@@ -112,6 +112,150 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
         Assert.Contains("CURRENT STATUS", html);
         Assert.DoesNotContain("Subscribe", html, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("site-footer", html);
+        Assert.DoesNotContain("OPERATOR ADMIN", html);
+        Assert.DoesNotContain("Add a check", html);
+        Assert.DoesNotContain("/api/operator", html);
+        Assert.DoesNotContain("Create check", html);
+        Assert.DoesNotContain("Run now", html);
+        Assert.DoesNotContain("operator-checks.js", html);
+        Assert.DoesNotContain("Audit log", html);
+        Assert.DoesNotContain("Outbound webhooks", html);
+        Assert.DoesNotContain("data/webhooks.json", html);
+        Assert.DoesNotContain("/api/operator/webhooks", html);
+        Assert.DoesNotContain("example.com/hooks/status", html);
+    }
+
+    [Fact]
+    public async Task Incidents_and_maintenances_endpoints_have_statuspage_shape()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
+
+        using var incident = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "V2 public incident",
+            status = "investigating",
+            impact = "minor",
+            body = "Posted for incidents.json shape.",
+            componentIds = new[] { "azure-status" }
+        }));
+        Assert.Equal(HttpStatusCode.Created, incident.StatusCode);
+
+        using var maintenance = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "V2 public maintenance",
+            status = "scheduled",
+            impact = "maintenance",
+            body = "Posted for scheduled-maintenances.json shape.",
+            maintenance = true,
+            componentIds = new[] { "github-status" },
+            scheduledFor = DateTimeOffset.UtcNow.AddHours(2),
+            scheduledUntil = DateTimeOffset.UtcNow.AddHours(4)
+        }));
+        Assert.Equal(HttpStatusCode.Created, maintenance.StatusCode);
+
+        using var resolved = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "V2 resolved public incident",
+            status = "investigating",
+            impact = "none",
+            body = "Opened then resolved.",
+            componentIds = new[] { "azure-devops-status" }
+        }));
+        Assert.Equal(HttpStatusCode.Created, resolved.StatusCode);
+        using var resolvedDoc = JsonDocument.Parse(await resolved.Content.ReadAsStringAsync());
+        var resolvedId = resolvedDoc.RootElement.GetProperty("id").GetString();
+        using var close = await client.PostAsync($"/api/operator/incidents/{resolvedId}/updates", JsonContent.Create(new
+        {
+            status = "resolved",
+            body = "Recovered."
+        }));
+        Assert.Equal(HttpStatusCode.OK, close.StatusCode);
+
+        using var anonymous = _factory.CreateClient();
+        using var incidentsResponse = await anonymous.GetAsync("/api/v2/incidents.json");
+        Assert.Equal(HttpStatusCode.OK, incidentsResponse.StatusCode);
+        using var incidentsDoc = JsonDocument.Parse(await incidentsResponse.Content.ReadAsStringAsync());
+        Assert.True(incidentsDoc.RootElement.TryGetProperty("page", out _));
+        var listed = incidentsDoc.RootElement.GetProperty("incidents").EnumerateArray().ToList();
+        Assert.Contains(listed, i => i.GetProperty("name").GetString() == "V2 public incident");
+        Assert.Contains(listed, i => i.GetProperty("name").GetString() == "V2 resolved public incident");
+        foreach (var row in listed)
+        {
+            AssertIso8601(row, "started_at");
+            AssertStatuspageIncidentPayload(row);
+        }
+
+        using var summary = await anonymous.GetAsync("/api/v2/summary.json");
+        using var summaryDoc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var summaryNames = summaryDoc.RootElement.GetProperty("incidents").EnumerateArray()
+            .Select(i => i.GetProperty("name").GetString()).ToList();
+        Assert.Contains("V2 public incident", summaryNames);
+        Assert.DoesNotContain("V2 resolved public incident", summaryNames);
+
+        using var maintenancesResponse = await anonymous.GetAsync("/api/v2/scheduled-maintenances.json");
+        Assert.Equal(HttpStatusCode.OK, maintenancesResponse.StatusCode);
+        using var maintenancesDoc = JsonDocument.Parse(await maintenancesResponse.Content.ReadAsStringAsync());
+        var maintenances = maintenancesDoc.RootElement.GetProperty("scheduled_maintenances").EnumerateArray().ToList();
+        var posted = Assert.Single(maintenances, m => m.GetProperty("name").GetString() == "V2 public maintenance");
+        AssertIso8601(posted, "started_at");
+        AssertStatuspageIncidentPayload(posted);
+    }
+
+    [Fact]
+    public async Task Anonymous_incidents_json_omits_internal_only_incidents()
+    {
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add("X-Api-Key", "dev-key");
+
+        using var internalOnly = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "Internal-only warehouse outage",
+            status = "investigating",
+            impact = "major",
+            body = "Internal leaf only.",
+            componentIds = new[] { "local-health" }
+        }));
+        Assert.Equal(HttpStatusCode.Created, internalOnly.StatusCode);
+
+        using var mixed = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "Mixed public and internal incident",
+            status = "investigating",
+            impact = "minor",
+            body = "Public plus internal leaf.",
+            componentIds = new[] { "azure-status", "local-health" }
+        }));
+        Assert.Equal(HttpStatusCode.Created, mixed.StatusCode);
+
+        using var publicOnly = await client.PostAsync("/api/operator/incidents", JsonContent.Create(new
+        {
+            name = "Public-only azure advisory",
+            status = "investigating",
+            impact = "minor",
+            body = "Public leaf only.",
+            componentIds = new[] { "azure-status" }
+        }));
+        Assert.Equal(HttpStatusCode.Created, publicOnly.StatusCode);
+
+        using var anonymous = _factory.CreateClient();
+        using var incidentsResponse = await anonymous.GetAsync("/api/v2/incidents.json");
+        using var incidentsDoc = JsonDocument.Parse(await incidentsResponse.Content.ReadAsStringAsync());
+        var listed = incidentsDoc.RootElement.GetProperty("incidents").EnumerateArray().ToList();
+        Assert.DoesNotContain(listed, i => i.GetProperty("name").GetString() == "Internal-only warehouse outage");
+        var mixedRow = Assert.Single(listed, i => i.GetProperty("name").GetString() == "Mixed public and internal incident");
+        var mixedIds = mixedRow.GetProperty("components").EnumerateArray().Select(c => c.GetProperty("id").GetString()).ToList();
+        Assert.Contains("azure-status", mixedIds);
+        Assert.DoesNotContain("local-health", mixedIds);
+        Assert.Contains(listed, i => i.GetProperty("name").GetString() == "Public-only azure advisory");
+
+        using var summary = await anonymous.GetAsync("/api/v2/summary.json");
+        using var summaryDoc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var summaryNames = summaryDoc.RootElement.GetProperty("incidents").EnumerateArray()
+            .Select(i => i.GetProperty("name").GetString()).ToList();
+        Assert.DoesNotContain("Internal-only warehouse outage", summaryNames);
+        Assert.Contains("Mixed public and internal incident", summaryNames);
+        Assert.Contains("Public-only azure advisory", summaryNames);
     }
 
     [Fact]
@@ -244,33 +388,53 @@ public class SummaryJsonTests : IClassFixture<StatusPageFactory>
 
         using var statusComponents = await client.GetAsync("/api/status/components");
         using var statusDoc = JsonDocument.Parse(await statusComponents.Content.ReadAsStringAsync());
-        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
-            row => row.GetProperty("componentId").GetString() == "billing-warehouse"
-                   && row.GetProperty("status").GetString() == "operational");
-        Assert.Contains(statusDoc.RootElement.EnumerateArray(),
+        Assert.DoesNotContain(statusDoc.RootElement.EnumerateArray(),
+            row => row.GetProperty("componentId").GetString() == "billing-warehouse");
+        Assert.DoesNotContain(statusDoc.RootElement.EnumerateArray(),
             row => row.GetProperty("componentId").GetString() == "cca-warehouse-feed");
 
-        using var summary = await client.GetAsync("/api/v2/summary.json");
-        using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
-        var billing = doc.RootElement.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "billing-warehouse");
+        using var operatorComponents = await client.GetAsync("/api/operator/components");
+        using var opDoc = JsonDocument.Parse(await operatorComponents.Content.ReadAsStringAsync());
+        var billing = opDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "billing-warehouse");
         Assert.Equal("Billing warehouse", billing.GetProperty("name").GetString());
         Assert.NotEqual("probe-label-only", billing.GetProperty("name").GetString());
-        Assert.Equal(JsonValueKind.Null, billing.GetProperty("group_id").ValueKind);
-        Assert.False(billing.GetProperty("group").GetBoolean());
-        Assert.Equal("operational", billing.GetProperty("status").GetString());
-
-        var feed = doc.RootElement.GetProperty("components").EnumerateArray()
-            .Single(c => c.GetProperty("id").GetString() == "cca-warehouse-feed");
+        Assert.True(billing.GetProperty("internal").GetBoolean());
+        var feed = opDoc.RootElement.EnumerateArray().Single(c => c.GetProperty("id").GetString() == "cca-warehouse-feed");
         Assert.Equal("Warehouse feed", feed.GetProperty("name").GetString());
         Assert.NotEqual("ingest-probe-label", feed.GetProperty("name").GetString());
         Assert.Equal("cloud-cost-agent", feed.GetProperty("group_id").GetString());
+        Assert.True(feed.GetProperty("internal").GetBoolean());
+
+        using var publicLeaf = await client.PostAsync("/api/checks", JsonContent.Create(new
+        {
+            name = "docs-probe-label",
+            componentId = "learn-docs",
+            componentName = "Learn docs",
+            type = "https",
+            intervalSeconds = 60,
+            timeoutSeconds = 10,
+            target = new { url = "https://learn.microsoft.com" },
+            http = new { expectedStatus = new[] { 200 } }
+        }));
+        Assert.Equal(HttpStatusCode.Created, publicLeaf.StatusCode);
+
+        using var summary = await client.GetAsync("/api/v2/summary.json");
+        using var doc = JsonDocument.Parse(await summary.Content.ReadAsStringAsync());
+        var ids = doc.RootElement.GetProperty("components").EnumerateArray().Select(c => c.GetProperty("id").GetString()).ToList();
+        Assert.DoesNotContain("billing-warehouse", ids);
+        Assert.DoesNotContain("cca-warehouse-feed", ids);
+        var docs = doc.RootElement.GetProperty("components").EnumerateArray()
+            .Single(c => c.GetProperty("id").GetString() == "learn-docs");
+        Assert.Equal("Learn docs", docs.GetProperty("name").GetString());
+        Assert.NotEqual("docs-probe-label", docs.GetProperty("name").GetString());
+        Assert.Equal("operational", docs.GetProperty("status").GetString());
 
         using var home = await client.GetAsync("/");
         var html = await home.Content.ReadAsStringAsync();
-        Assert.Contains("Billing warehouse", html);
-        Assert.Contains("Warehouse feed", html);
+        Assert.DoesNotContain("Billing warehouse", html);
+        Assert.DoesNotContain("Warehouse feed", html);
         Assert.DoesNotContain("probe-label-only", html);
+        Assert.Contains("Learn docs", html);
     }
 
     private static void AssertStatuspageIncidentPayload(JsonElement incident)
@@ -351,17 +515,36 @@ public class StatusPageFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         var checksPath = Path.Combine(Path.GetTempPath(), $"status-page-checks-{Guid.NewGuid():N}.json");
+        var pagePath = Path.Combine(Path.GetTempPath(), $"status-page-page-{Guid.NewGuid():N}.json");
+        var brandingPath = Path.Combine(Path.GetTempPath(), $"status-page-brand-{Guid.NewGuid():N}");
+        var resultsPath = Path.Combine(Path.GetTempPath(), $"status-page-results-{Guid.NewGuid():N}.json");
+        var auditPath = Path.Combine(Path.GetTempPath(), $"status-page-audit-{Guid.NewGuid():N}.jsonl");
+        var webhooksPath = Path.Combine(Path.GetTempPath(), $"status-page-webhooks-{Guid.NewGuid():N}.json");
         builder.UseSetting("StatusPage:EnableCheckWorker", "false");
+        builder.UseSetting("StatusPage:EnableConnectorWorker", "false");
         builder.UseSetting("StatusPage:ApiKey", "dev-key");
         builder.UseSetting("StatusPage:ChecksPath", checksPath);
+        builder.UseSetting("StatusPage:PagePath", pagePath);
+        builder.UseSetting("StatusPage:BrandingPath", brandingPath);
+        builder.UseSetting("StatusPage:ResultsPath", resultsPath);
+        builder.UseSetting("StatusPage:AuditPath", auditPath);
+        builder.UseSetting("StatusPage:WebhooksPath", webhooksPath);
         builder.UseEnvironment("Development");
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["StatusPage:EnableCheckWorker"] = "false",
+                ["StatusPage:EnableConnectorWorker"] = "false",
                 ["StatusPage:ApiKey"] = "dev-key",
-                ["StatusPage:ChecksPath"] = checksPath
+                ["StatusPage:ChecksPath"] = checksPath,
+                ["StatusPage:PagePath"] = pagePath,
+                ["StatusPage:BrandingPath"] = brandingPath,
+                ["StatusPage:ResultsPath"] = resultsPath,
+                ["StatusPage:AuditPath"] = auditPath,
+                ["StatusPage:WebhooksPath"] = webhooksPath,
+                ["AzureAd:TenantId"] = "",
+                ["AzureAd:ClientId"] = ""
             });
         });
     }

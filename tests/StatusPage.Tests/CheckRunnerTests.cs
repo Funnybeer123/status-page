@@ -23,6 +23,29 @@ public class CheckRunnerTests
         var keywordFail = CheckRunner.EvaluateHttp(200, "hello ok world", [200], "OK", 8, at);
         Assert.Equal(CheckResultStatus.Fail, keywordFail.Status);
         Assert.Contains("OK", keywordFail.Error);
+
+        var jsonOk = CheckRunner.EvaluateHttp(
+            200,
+            """{"status":{"indicator":"none"}}""",
+            [200],
+            null,
+            5,
+            at,
+            "$.status.indicator",
+            "none");
+        Assert.Equal(CheckResultStatus.Ok, jsonOk.Status);
+
+        var jsonFail = CheckRunner.EvaluateHttp(
+            200,
+            """{"status":{"indicator":"major"}}""",
+            [200],
+            null,
+            5,
+            at,
+            "$.status.indicator",
+            "none");
+        Assert.Equal(CheckResultStatus.Fail, jsonFail.Status);
+        Assert.Contains("jsonPath", jsonFail.Error);
     }
 
     [Fact]

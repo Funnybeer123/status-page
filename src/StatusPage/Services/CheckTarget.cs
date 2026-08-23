@@ -15,7 +15,7 @@ public static class CheckTarget
 
         if (string.IsNullOrWhiteSpace(rawTarget))
         {
-            error = "Target is required (URL or host:port).";
+            error = "Target is required (URL, hostname, or host:port).";
             return false;
         }
 
@@ -29,9 +29,17 @@ public static class CheckTarget
         CheckType? explicitType = null;
         if (!string.IsNullOrWhiteSpace(rawType))
         {
+            if (rawType.Trim().Equals("icmp", StringComparison.OrdinalIgnoreCase)
+                || rawType.Trim().Equals("ping", StringComparison.OrdinalIgnoreCase)
+                || rawType.Trim().Equals("connector", StringComparison.OrdinalIgnoreCase))
+            {
+                error = "Type must be http, https, tcp, tls_expiry, or dns. ICMP and connectors are not probes.";
+                return false;
+            }
+
             if (!DomainEnums.TryParseCheckType(rawType, out var parsedType))
             {
-                error = "Type must be http, https, or tcp.";
+                error = "Type must be http, https, tcp, tls_expiry, or dns.";
                 return false;
             }
 
@@ -48,10 +56,35 @@ public static class CheckTarget
                 return false;
             }
 
+            if (explicitType == CheckType.Dns)
+            {
+                target = new ResolvedCheckTarget(CheckType.Dns, uri.IdnHost, 0, uri);
+                return true;
+            }
+
+            if (explicitType == CheckType.TlsExpiry)
+            {
+                if (uri.Scheme != Uri.UriSchemeHttps)
+                {
+                    error = "tls_expiry checks require an https:// URL or host:443.";
+                    return false;
+                }
+
+                var tlsPort = uri.IsDefaultPort ? 443 : uri.Port;
+                target = new ResolvedCheckTarget(CheckType.TlsExpiry, uri.IdnHost, tlsPort, uri);
+                return true;
+            }
+
             var type = uri.Scheme == Uri.UriSchemeHttps ? CheckType.Https : CheckType.Http;
-            if (explicitType is { } requested && requested != type)
+            if (explicitType is { } requested && requested is not (CheckType.Http or CheckType.Https))
             {
                 error = $"Type '{requested.ApiValue()}' does not match target scheme '{uri.Scheme}'.";
+                return false;
+            }
+
+            if (explicitType is { } httpRequested && httpRequested != type)
+            {
+                error = $"Type '{httpRequested.ApiValue()}' does not match target scheme '{uri.Scheme}'.";
                 return false;
             }
 
@@ -62,8 +95,44 @@ public static class CheckTarget
 
         if (value.Contains("://", StringComparison.Ordinal))
         {
-            error = "Only http, https, or host:port TCP targets are allowed.";
+            error = "Only http, https, host, or host:port TCP targets are allowed.";
             return false;
+        }
+
+        if (explicitType == CheckType.Dns)
+        {
+            if (TryParseHostPort(value, out var dnsHost, out _))
+            {
+                target = new ResolvedCheckTarget(CheckType.Dns, dnsHost, 0, null);
+                return true;
+            }
+
+            if (!IsPlausibleHost(value))
+            {
+                error = "DNS target must be a hostname.";
+                return false;
+            }
+
+            target = new ResolvedCheckTarget(CheckType.Dns, value, 0, null);
+            return true;
+        }
+
+        if (explicitType == CheckType.TlsExpiry)
+        {
+            if (TryParseHostPort(value, out var tlsHost, out var tlsPort))
+            {
+                target = new ResolvedCheckTarget(CheckType.TlsExpiry, tlsHost, tlsPort, null);
+                return true;
+            }
+
+            if (!IsPlausibleHost(value))
+            {
+                error = "tls_expiry target must be an https URL or host[:port].";
+                return false;
+            }
+
+            target = new ResolvedCheckTarget(CheckType.TlsExpiry, value, 443, null);
+            return true;
         }
 
         if (explicitType is CheckType.Http or CheckType.Https)
@@ -117,7 +186,70 @@ public static class CheckTarget
                && IsPlausibleHost(host);
     }
 
-    private static bool IsPlausibleHost(string host)
+    public static bool HasTargetFields(CheckTargetSpec? target) =>
+        target is not null
+        && (!string.IsNullOrWhiteSpace(target.Url)
+            || !string.IsNullOrWhiteSpace(target.Host)
+            || target.Port is > 0
+            || !string.IsNullOrWhiteSpace(target.Path));
+
+    /// <summary>
+    /// True when <paramref name="requested"/> does not name a different host
+    /// (or port) than the stored probe. Empty requested fields are ignored.
+    /// </summary>
+    public static bool SameProbeHost(CheckTargetSpec stored, CheckTargetSpec requested)
+    {
+        var storedHost = HostOf(stored);
+        var requestedHost = HostOf(requested);
+        if (!string.IsNullOrWhiteSpace(requestedHost)
+            && !string.Equals(storedHost, requestedHost, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (requested.Port is int requestedPort)
+        {
+            var storedPort = stored.Port ?? PortOf(stored.Url);
+            if (storedPort is int port && port != requestedPort)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static string? HostOf(CheckTargetSpec target)
+    {
+        if (!string.IsNullOrWhiteSpace(target.Host))
+        {
+            return target.Host.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(target.Url) && Uri.TryCreate(target.Url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return uri.IdnHost;
+        }
+
+        return null;
+    }
+
+    private static int? PortOf(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri))
+        {
+            return null;
+        }
+
+        if (uri.IsDefaultPort)
+        {
+            return uri.Scheme == Uri.UriSchemeHttps ? 443 : uri.Scheme == Uri.UriSchemeHttp ? 80 : null;
+        }
+
+        return uri.Port;
+    }
+
+    public static bool IsPlausibleHost(string host)
     {
         if (IPAddress.TryParse(host, out var address))
         {

@@ -9,3 +9,14 @@ services:
       STATUSPAGE_API_KEY: dev-key
       StatusPage__PublicUrl: http://localhost:5080
       StatusPage__SelfHealthUrl: http://127.0.0.1:5080/health
+      # Optional Entra (leave empty for API-key login):
+      # AzureAd__Instance: https://login.microsoftonline.com/
+      # AzureAd__TenantId: <your-tenant-id>
+      # AzureAd__ClientId: <your-client-id>
+      # AzureAd__ClientSecret: <set from env, never commit>
+      # AzureAd__OperatorRole: StatusOperator
+      # AzureAd__AllowedObjectIds: <object-id>,<object-id>
+      # Optional connector extras (never commit):
+      # Azure__SubscriptionId:
+      # AZURE_DEVOPS_PAT:
+      # GITHUB_TOKEN:

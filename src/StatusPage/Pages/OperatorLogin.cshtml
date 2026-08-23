@@ -1,0 +1,35 @@
+@page "/operator/login"
+@model OperatorLoginModel
+@{
+    ViewData["Title"] = "Operator login";
+}
+
+<div class="wrap operator">
+    <section class="operator-card login-card">
+        <h1>Operator sign-in</h1>
+        <p class="muted">Public status stays anonymous. This page is for operators and internal host status only.</p>
+
+        @if (Model.EntraConfigured)
+        {
+            <p><a class="btn-primary" href="/operator/login?handler=Entra">Sign in with Microsoft Entra ID</a></p>
+        }
+
+        @if (Model.ApiKeyAvailable)
+        {
+            <form method="post" class="operator-form">
+                <label>API key
+                    <input name="ApiKey" type="password" autocomplete="current-password" required />
+                </label>
+                @if (!string.IsNullOrWhiteSpace(Model.Error))
+                {
+                    <p class="operator-error">@Model.Error</p>
+                }
+                <button type="submit" class="btn-primary">Continue with API key</button>
+            </form>
+        }
+        else if (!Model.EntraConfigured)
+        {
+            <p class="operator-error">Operator access is disabled. Set STATUSPAGE_API_KEY or configure AzureAd.</p>
+        }
+    </section>
+</div>

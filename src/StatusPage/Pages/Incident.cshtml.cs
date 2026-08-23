@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using StatusPage.Api;
 using StatusPage.Domain;
 using StatusPage.Services;
 
@@ -16,6 +17,20 @@ public class IncidentModel(IStatusStore store) : PageModel
         if (incident is null)
         {
             return NotFound();
+        }
+
+        if (!OperatorAuth.IsOperator(HttpContext) && incident.ComponentIds.Count > 0)
+        {
+            var checks = store.ListChecks();
+            var publicIds = incident.ComponentIds.Where(componentId =>
+            {
+                var component = state.Components.FirstOrDefault(c => c.Id == componentId);
+                return component is null || !ComponentVisibility.IsInternalLeaf(component, checks);
+            }).ToList();
+            if (publicIds.Count == 0)
+            {
+                return NotFound();
+            }
         }
 
         Incident = incident;

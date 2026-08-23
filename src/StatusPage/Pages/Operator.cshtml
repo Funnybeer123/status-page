@@ -1,0 +1,419 @@
+@page "/operator"
+@model OperatorModel
+@{
+    ViewData["Title"] = "Operator admin";
+}
+
+<div class="wrap operator">
+    <header class="operator-head">
+        <div>
+            <p class="eyebrow-ink">OPERATOR ADMIN</p>
+            <h1>Status page admin</h1>
+            <p class="muted">Signed in as @Model.AuthLabel. Public page stays anonymous. @(Model.CanWrite ? "Internal host:port leaves stay on this page." : "StatusViewer is read-only. Internal host:port probes are hidden.")</p>
+        </div>
+        <form method="post" asp-page-handler="Logout">
+            <button type="submit" class="btn-secondary">Sign out</button>
+        </form>
+    </header>
+
+    <nav class="operator-nav">
+        <a href="#branding">Branding</a>
+        <a href="#components">Components</a>
+        <a href="#checks">Checks</a>
+        <a href="#incidents">Incidents</a>
+        <a href="#audit">Audit</a>
+        <a href="#webhooks">Webhooks</a>
+        <a href="#connectors">Connectors</a>
+        <a href="/">Public page</a>
+    </nav>
+
+    @if (!string.IsNullOrWhiteSpace(Model.Error))
+    {
+        <p class="operator-error">@Model.Error</p>
+    }
+
+    <section class="operator-card" id="branding">
+        <h2>Local branding</h2>
+        <p class="muted">Title and logo are stored locally. Logo files go under data/branding (gitignored). Not a paid CDN.</p>
+        @if (Model.CanWrite)
+        {
+        <form method="post" asp-page-handler="SavePage" class="operator-form operator-form-grid">
+            <label>Page title
+                <input name="name" value="@Model.PageInfo.Name" required />
+            </label>
+            <label>Logo URL (local /branding/… or http(s))
+                <input name="logoUrl" value="@Model.PageInfo.LogoUrl" />
+            </label>
+            <div><button type="submit" class="btn-primary">Save branding</button></div>
+        </form>
+        <form method="post" asp-page-handler="UploadLogo" enctype="multipart/form-data" class="operator-form">
+            <label>Upload logo file
+                <input name="logo" type="file" accept="image/png,image/jpeg,image/gif,image/webp" />
+            </label>
+            <button type="submit" class="btn-secondary">Upload logo</button>
+        </form>
+        }
+    </section>
+
+    <section class="operator-card" id="components">
+        <h2>Components and groups</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Kind</th>
+                    <th>Status</th>
+                    <th>Visibility</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var row in Model.Components)
+            {
+                <tr>
+                    <td>
+                        <strong>@row.Component.Name</strong>
+                        <div class="muted">@row.Component.Id @(row.Component.GroupId is null ? "" : " · " + row.Component.GroupId)</div>
+                    </td>
+                    <td>@(row.Component.Group ? "group" : "leaf")</td>
+                    <td>@row.Component.Status.ApiValue()</td>
+                    <td>@(row.Component.Group ? "—" : row.Internal ? "internal" : "public")</td>
+                    <td class="inline-actions">
+                        @if (Model.CanWrite)
+                        {
+                        <form method="post" asp-page-handler="SetStatus">
+                            <input type="hidden" name="id" value="@row.Component.Id" />
+                            <input type="hidden" name="status" value="under_maintenance" />
+                            <button class="btn-secondary" type="submit">Maintenance</button>
+                        </form>
+                        <form method="post" asp-page-handler="DeleteComponent">
+                            <input type="hidden" name="id" value="@row.Component.Id" />
+                            <button class="btn-secondary btn-danger" type="submit">Delete</button>
+                        </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        @if (Model.CanWrite)
+        {
+        <h3>Create or edit</h3>
+        <form method="post" asp-page-handler="SaveComponent" class="operator-form operator-form-grid">
+            <label>Id (slug)
+                <input name="id" placeholder="billing-warehouse" required />
+            </label>
+            <label>Name
+                <input name="name" required />
+            </label>
+            <label>Description
+                <input name="description" />
+            </label>
+            <label>Group id (leaves only)
+                <input name="groupId" placeholder="cloud-cost-agent" />
+            </label>
+            <label>Kind
+                <select name="isGroup">
+                    <option value="false">leaf</option>
+                    <option value="true">group</option>
+                </select>
+            </label>
+            <div><button type="submit" class="btn-primary">Save component</button></div>
+        </form>
+        }
+    </section>
+
+    <section class="operator-card" id="checks">
+        <h2>Checks</h2>
+        <p class="muted">@(Model.CanWrite ? "All probes including internal. Disable (PATCH /api/checks/{id}) drops a check out of rollup immediately. Run now hits the stored target only. Header values are never shown." : "Public probes only. Internal host:port checks are hidden. Header values are never shown.")</p>
+        <p><a href="/api/checks/export">Export checks</a> (authenticated). StatusViewer export is public checks only and includes no headers.</p>
+        <p id="check-admin-error" class="operator-error" hidden></p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Probe</th>
+                    <th>Type</th>
+                    <th>Target</th>
+                    <th>Last result</th>
+                    <th>Counts</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var check in Model.Checks)
+            {
+                var latest = check.LastResult;
+                <tr>
+                    <td>
+                        <strong>@check.Name</strong>
+                        <div class="muted">@check.ComponentId @(check.Enabled ? "" : " · disabled")</div>
+                    </td>
+                    <td><code>@check.Type.ApiValue()</code></td>
+                    <td>@check.DisplayTarget</td>
+                    <td>
+                        @if (latest is null)
+                        {
+                            <span class="muted">no result yet</span>
+                        }
+                        else
+                        {
+                            <span>@latest.Status.ApiValue() @(latest.Error)</span>
+                        }
+                    </td>
+                    <td>fail @check.ConsecutiveFailures · ok @check.ConsecutiveSuccesses</td>
+                    <td class="inline-actions">
+                        @if (Model.CanWrite)
+                        {
+                        <a class="btn-secondary" href="/operator?editCheck=@check.Id#check-form">Edit</a>
+                        <button type="button" class="btn-secondary" data-check-action="toggle" data-check-id="@check.Id" data-enabled="@(check.Enabled ? "false" : "true")">@(check.Enabled ? "Disable" : "Enable")</button>
+                        <button type="button" class="btn-secondary" data-check-action="run" data-check-id="@check.Id">Run now</button>
+                        <button type="button" class="btn-secondary btn-danger" data-check-action="delete" data-check-id="@check.Id">Delete</button>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+
+        @if (Model.CanWrite)
+        {
+        <h3 id="check-form">@(Model.EditingCheck is null ? "Add a check" : "Edit check")</h3>
+        <p class="muted">Any public URL or host:port. Probe name is not the leaf title. Create-if-missing uses component id + component name. Full edit is PUT; enable/disable is PATCH.</p>
+        var edit = Model.EditingCheck;
+        <form id="check-admin-form" class="operator-form operator-form-grid" data-check-id="@edit?.Id" data-enabled="@(edit is null || edit.Enabled ? "true" : "false")">
+            <label>Probe name
+                <input name="name" value="@edit?.Name" placeholder="probe label only" required />
+            </label>
+            <label>Component id
+                <input name="componentId" value="@edit?.ComponentId" placeholder="billing-warehouse" required />
+            </label>
+            <label>Component name (new leaf)
+                <input name="componentName" value="@edit?.ComponentName" placeholder="Billing warehouse" />
+            </label>
+            <label>Group id (optional)
+                <input name="groupId" value="@edit?.ComponentGroupId" placeholder="cloud-cost-agent" />
+            </label>
+            <label>Type
+                <select name="type">
+                    @foreach (var type in new[] { "https", "http", "tcp", "tls_expiry", "dns" })
+                    {
+                        <option value="@type" selected="@(edit?.Type.ApiValue() == type)">@type</option>
+                    }
+                </select>
+            </label>
+            <label>URL or host:port
+                <input name="target" value="@edit?.DisplayTarget" placeholder="https://example.com/health or db.internal:5432" required />
+            </label>
+            <label>Interval seconds
+                <input name="intervalSeconds" type="number" min="15" value="@(edit?.IntervalSeconds ?? 60)" />
+            </label>
+            <label>Timeout seconds
+                <input name="timeoutSeconds" type="number" min="1" value="@(edit?.TimeoutSeconds ?? 10)" />
+            </label>
+            <label>Expected status list
+                <input name="expectedStatus" value="@(edit is null ? "" : string.Join(",", edit.Http.ExpectedStatus))" placeholder="200,201,204" />
+            </label>
+            <label>Body contains
+                <input name="bodyContains" value="@edit?.Http.BodyContains" />
+            </label>
+            <label>JSON path
+                <input name="jsonPath" value="@edit?.Http.JsonPath" placeholder="$.status.indicator" />
+            </label>
+            <label>Expected JSON value
+                <input name="expectedJsonValue" value="@edit?.Http.ExpectedJsonValue" />
+            </label>
+            <label>TLS expiry days
+                <input name="tlsDays" type="number" min="1" value="@edit?.Tls.Days" placeholder="14" />
+            </label>
+            <label>DNS expected addresses
+                <input name="dnsExpected" value="@(edit is null ? "" : string.Join(",", edit.Dns.ExpectedAddresses))" placeholder="127.0.0.1" />
+            </label>
+            <label>Header name
+                <input name="headerName" placeholder="Authorization" autocomplete="off" />
+            </label>
+            <label>Header value
+                <input name="headerValue" type="password" autocomplete="off" />
+            </label>
+            <div><button type="submit" class="btn-primary">@(edit is null ? "Create check" : "Save check")</button></div>
+        </form>
+        }
+    </section>
+
+    <section class="operator-card" id="incidents">
+        <h2>Incidents and maintenance</h2>
+        <p class="muted">Operator incidents do not override check rollup. under_maintenance is PATCH-only.</p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Incident</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var incident in Model.Incidents)
+            {
+                <tr>
+                    <td>
+                        <strong>@incident.Name</strong>
+                        <div class="muted">@string.Join(", ", incident.ComponentIds)</div>
+                    </td>
+                    <td>@incident.Status.ApiValue()</td>
+                    <td>
+                        @if (Model.CanWrite && (incident.Status.IsUnresolvedIncident() || incident.Status.IsActiveMaintenance()))
+                        {
+                            <form method="post" asp-page-handler="UpdateIncident" class="inline-actions">
+                                <input type="hidden" name="id" value="@incident.Id" />
+                                <input type="hidden" name="status" value="@(incident.ScheduledFor is null ? "resolved" : "completed")" />
+                                <input type="hidden" name="body" value="Resolved from operator admin." />
+                                <button class="btn-secondary" type="submit">Resolve</button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        @if (Model.CanWrite)
+        {
+        <h3>Open incident or maintenance</h3>
+        <form method="post" asp-page-handler="CreateIncident" class="operator-form operator-form-grid">
+            <label>Name
+                <input name="name" required />
+            </label>
+            <label>Body
+                <input name="body" required />
+            </label>
+            <label>Status
+                <input name="status" placeholder="investigating" />
+            </label>
+            <label>Impact
+                <input name="impact" placeholder="minor" />
+            </label>
+            <label>Component ids (comma)
+                <input name="componentIds" placeholder="azure-status" />
+            </label>
+            <label>Scheduled for (maintenance)
+                <input name="scheduledFor" type="datetime-local" />
+            </label>
+            <label>Scheduled until
+                <input name="scheduledUntil" type="datetime-local" />
+            </label>
+            <label>Kind
+                <select name="maintenance">
+                    <option value="false">incident</option>
+                    <option value="true">scheduled maintenance</option>
+                </select>
+            </label>
+            <div><button type="submit" class="btn-primary">Open</button></div>
+        </form>
+        }
+    </section>
+
+    <section class="operator-card" id="audit">
+        <h2>Audit log</h2>
+        <p class="muted">Last @Model.AuditEntries.Count operator writes from the local gitignored store. Actor is api-key or Entra object ID.</p>
+        @if (Model.AuditEntries.Count == 0)
+        {
+            <p class="muted">No operator writes yet.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>When (UTC)</th>
+                        <th>Actor</th>
+                        <th>Action</th>
+                        <th>Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var entry in Model.AuditEntries)
+                {
+                    <tr>
+                        <td>@entry.At.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><code>@entry.Actor</code></td>
+                        <td>@entry.Action</td>
+                        <td><code>@entry.TargetId</code></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section class="operator-card" id="webhooks">
+        <h2>Outbound webhooks</h2>
+        <p class="muted">Stored in gitignored data/webhooks.json. POSTs public incident + public component status only. Loopback, RFC1918, and cloud metadata URLs are rejected.</p>
+        @if (Model.Webhooks.Count == 0)
+        {
+            <p class="muted">No webhook URLs.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>URL</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var hook in Model.Webhooks)
+                {
+                    <tr>
+                        <td><code>@hook.Url</code></td>
+                        <td>
+                            @if (Model.CanWrite)
+                            {
+                            <form method="post" asp-page-handler="DeleteWebhook">
+                                <input type="hidden" name="id" value="@hook.Id" />
+                                <button class="btn-secondary btn-danger" type="submit">Delete</button>
+                            </form>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+        @if (Model.CanWrite)
+        {
+        <form method="post" asp-page-handler="AddWebhook" class="operator-form">
+            <label>Webhook URL
+                <input name="url" placeholder="https://example.com/hooks/status" required />
+            </label>
+            <button type="submit" class="btn-primary">Add webhook</button>
+        </form>
+        }
+    </section>
+
+    <section class="operator-card" id="connectors">
+        <h2>Connector imports</h2>
+        <p class="muted">Read-only vendor events. Not probes. Tokens stay in env, never in git or the SWA snapshot.</p>
+        @if (Model.Connectors.Count == 0)
+        {
+            <p class="muted">No import has run yet.</p>
+        }
+        else
+        {
+            <ul>
+                @foreach (var connector in Model.Connectors)
+                {
+                    <li>
+                        <strong>@connector.DisplayName</strong>
+                        → @connector.ComponentId · @connector.Status.ApiValue()
+                        <span class="muted">@connector.Detail</span>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <p class="muted">@(Model.EntraConfigured ? "Entra write requires StatusOperator or AllowedObjectIds. StatusViewer is read-only." : "Entra is not configured; API key login is active.")</p>
+</div>
+@if (Model.CanWrite)
+{
+<script src="~/js/operator-checks.js" asp-append-version="true"></script>
+}

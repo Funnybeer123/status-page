@@ -10,13 +10,22 @@ public interface IStatusStore
     StatusCheck? FindCheck(string id);
     IReadOnlyList<StatusCheck> ListChecks();
     StatusCheck CreateCheck(CreateCheckRequest request);
+    StatusCheck ImportCheck(string? id, CreateCheckRequest request);
     StatusCheck UpdateCheck(string id, CreateCheckRequest request);
+    StatusCheck PatchCheck(string id, PatchCheckRequest request);
+    StatusCheck SetCheckEnabled(string id, bool enabled);
     void DeleteCheck(string id);
     Incident CreateIncident(CreateIncidentRequest request, bool maintenance);
     Incident UpdateIncident(string id, UpdateIncidentRequest request);
     Component UpdateComponentStatus(string id, ComponentStatus status);
+    Component CreateComponent(WriteComponentRequest request);
+    Component UpdateComponentMeta(string id, WriteComponentRequest request);
+    void DeleteComponent(string id);
+    StatusPageInfo UpdatePage(string? name, string? logoUrl);
     void RecordCheckResult(string checkId, CheckResult result);
     IReadOnlyList<ComponentCheckStatus> ComponentCheckStatuses();
+    void ApplyConnectorImport(ConnectorSnapshot snapshot);
+    IReadOnlyList<ConnectorSnapshot> ListConnectorSnapshots();
 }
 
 public sealed record ComponentCheckStatus(
@@ -26,16 +35,47 @@ public sealed record ComponentCheckStatus(
     int DownCount,
     DateTimeOffset UpdatedAtUtc);
 
+/// <summary>Last read-only connector import. Connectors are not probes.</summary>
+public sealed record ConnectorSnapshot(
+    string ConnectorId,
+    string DisplayName,
+    string ComponentId,
+    ComponentStatus Status,
+    string Detail,
+    DateTimeOffset ImportedAtUtc,
+    IReadOnlyList<ConnectorMappedEvent> Events);
+
+public sealed record ConnectorMappedEvent(
+    string ExternalId,
+    string Title,
+    string Detail,
+    ComponentStatus Status,
+    DateTimeOffset OccurredAt);
+
 public sealed class InMemoryStatusStore : IStatusStore
 {
     private readonly object _gate = new();
     private readonly StatusPageState _state;
     private readonly Action<IReadOnlyList<StatusCheck>>? _persistChecks;
+    private readonly Action<StatusPageState>? _persistPage;
+    private readonly ICheckResultStore? _results;
+    private readonly IWebhookSender? _webhooks;
+    private readonly List<(string Id, string Event)> _pendingWebhooks = [];
+    private readonly Dictionary<string, ConnectorSnapshot> _connectorSnapshots = new(StringComparer.Ordinal);
 
-    public InMemoryStatusStore(StatusPageState state, Action<IReadOnlyList<StatusCheck>>? persistChecks = null)
+    public InMemoryStatusStore(
+        StatusPageState state,
+        Action<IReadOnlyList<StatusCheck>>? persistChecks = null,
+        Action<StatusPageState>? persistPage = null,
+        ICheckResultStore? results = null,
+        IWebhookSender? webhooks = null)
     {
         _state = state;
         _persistChecks = persistChecks;
+        _persistPage = persistPage;
+        _results = results;
+        _webhooks = webhooks;
+        _results?.Hydrate(_state.Checks);
         EnsureLeavesForChecks();
         RefreshGroupStatuses(DateTimeOffset.UtcNow);
     }
@@ -72,17 +112,60 @@ public sealed class InMemoryStatusStore : IStatusStore
         }
     }
 
-    public StatusCheck CreateCheck(CreateCheckRequest request)
+    public StatusCheck CreateCheck(CreateCheckRequest request) => CreateCheck(request, NewId());
+
+    /// <summary>
+    /// Create-if-missing by id, same leaf rules as POST /api/checks.
+    /// Existing ids keep their stored host unless the imported host is the same.
+    /// </summary>
+    public StatusCheck ImportCheck(string? id, CreateCheckRequest request)
     {
-        var check = BuildCheck(request, NewId());
+        if (!string.IsNullOrWhiteSpace(id))
+        {
+            var existing = FindCheck(id.Trim());
+            if (existing is not null)
+            {
+                var target = request.Target;
+                if (!CheckTarget.HasTargetFields(target) || !CheckTarget.SameProbeHost(existing.Target, target))
+                {
+                    request = request with
+                    {
+                        Target = new CheckTargetSpec
+                        {
+                            Url = existing.Target.Url,
+                            Host = existing.Target.Host,
+                            Port = existing.Target.Port,
+                            Path = existing.Target.Path
+                        }
+                    };
+                }
+
+                return UpdateCheck(existing.Id, request);
+            }
+
+            return CreateCheck(request, id.Trim());
+        }
+
+        return CreateCheck(request, NewId());
+    }
+
+    private StatusCheck CreateCheck(CreateCheckRequest request, string id)
+    {
+        var check = BuildCheck(request, id);
         lock (_gate)
         {
+            if (_state.Checks.Any(c => c.Id == check.Id))
+            {
+                throw new ArgumentException($"Check '{check.Id}' already exists.");
+            }
+
             var leaf = EnsureLeaf(check.ComponentId, request.ComponentName, request.GroupId);
             check.ComponentName = leaf.Name;
             check.ComponentGroupId = leaf.GroupId;
             _state.Checks.Add(check);
             ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
             PersistChecks();
+            PersistPage();
             return Clone(check);
         }
     }
@@ -112,8 +195,121 @@ public sealed class InMemoryStatusStore : IStatusStore
             }
 
             PersistChecks();
+            PersistPage();
             return Clone(next);
         }
+    }
+
+    public StatusCheck PatchCheck(string id, PatchCheckRequest request)
+    {
+        lock (_gate)
+        {
+            var check = _state.Checks.FirstOrDefault(c => c.Id == id)
+                        ?? throw new KeyNotFoundException($"Unknown check '{id}'.");
+            if (CheckTarget.HasTargetFields(request.Target)
+                && !CheckTarget.SameProbeHost(check.Target, request.Target!))
+            {
+                throw new ArgumentException("PATCH cannot change the probe host. Use PUT for a full edit.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Name))
+            {
+                check.Name = request.Name.Trim();
+            }
+
+            if (request.Enabled is { } enabled)
+            {
+                check.Enabled = enabled;
+            }
+
+            if (request.IntervalSeconds is { } interval)
+            {
+                check.IntervalSeconds = interval;
+            }
+
+            if (request.TimeoutSeconds is { } timeout)
+            {
+                check.TimeoutSeconds = timeout;
+            }
+
+            if (request.FailureThreshold is { } failure)
+            {
+                check.FailureThreshold = failure;
+            }
+
+            if (request.SuccessThreshold is { } success)
+            {
+                check.SuccessThreshold = success;
+            }
+
+            if (request.Http is { } http)
+            {
+                if (!string.IsNullOrWhiteSpace(http.Method))
+                {
+                    check.Http.Method = http.Method.Trim();
+                }
+
+                if (http.ExpectedStatus is { Count: > 0 } statuses)
+                {
+                    check.Http.ExpectedStatus = [.. statuses];
+                }
+
+                if (http.BodyContainsSpecified)
+                {
+                    check.Http.BodyContains = string.IsNullOrWhiteSpace(http.BodyContains) ? null : http.BodyContains;
+                }
+
+                if (http.JsonPathSpecified)
+                {
+                    check.Http.JsonPath = string.IsNullOrWhiteSpace(http.JsonPath) ? null : http.JsonPath.Trim();
+                }
+
+                if (http.ExpectedJsonValueSpecified)
+                {
+                    check.Http.ExpectedJsonValue = string.IsNullOrWhiteSpace(http.ExpectedJsonValue)
+                        ? null
+                        : http.ExpectedJsonValue;
+                }
+            }
+
+            if (request.Tls is { } tls)
+            {
+                check.Tls.Days = TlsExpiryEvaluator.NormalizeDays(tls.Days);
+            }
+
+            if (request.DnsExpectedAddresses is { } addresses)
+            {
+                check.Dns.ExpectedAddresses =
+                [
+                    .. addresses.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim())
+                ];
+            }
+
+            if (check.IntervalSeconds < CheckContract.MinIntervalSeconds || check.IntervalSeconds > 86_400)
+            {
+                throw new ArgumentException($"Interval must be between {CheckContract.MinIntervalSeconds} and 86400 seconds.");
+            }
+
+            if (check.TimeoutSeconds < 1 || check.TimeoutSeconds >= check.IntervalSeconds)
+            {
+                throw new ArgumentException("Timeout must be at least 1 second and less than the interval.");
+            }
+
+            if (!CheckRunner.TryResolve(check, out _, out var error))
+            {
+                throw new ArgumentException(error);
+            }
+
+            ApplyCheckRollup(check.ComponentId, DateTimeOffset.UtcNow);
+            PersistChecks();
+            return Clone(check);
+        }
+    }
+
+    public StatusCheck SetCheckEnabled(string id, bool enabled)
+    {
+        return PatchCheck(id, new PatchCheckRequest(
+            enabled, null, null, null, null, null, null, null, null, null));
     }
 
     public void DeleteCheck(string id)
@@ -145,6 +341,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             throw new ArgumentException("Invalid incident impact.");
         }
 
+        Incident created;
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
@@ -176,8 +373,12 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
-            return Clone(incident);
+            QueueWebhook(incident.Id, "incident.created");
+            created = Clone(incident);
         }
+
+        FlushWebhooks();
+        return created;
     }
 
     public Incident UpdateIncident(string id, UpdateIncidentRequest request)
@@ -187,6 +388,7 @@ public sealed class InMemoryStatusStore : IStatusStore
             throw new ArgumentException("Update body is required.");
         }
 
+        Incident updated;
         lock (_gate)
         {
             var incident = _state.Incidents.Concat(_state.ScheduledMaintenances)
@@ -270,8 +472,12 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
-            return Clone(incident);
+            QueueWebhook(incident.Id, "incident.updated");
+            updated = Clone(incident);
         }
+
+        FlushWebhooks();
+        return updated;
     }
 
     public Component UpdateComponentStatus(string id, ComponentStatus status)
@@ -295,7 +501,142 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             RefreshGroupStatuses(now);
             _state.Page.UpdatedAt = now;
+            PersistPage();
             return Clone(component);
+        }
+    }
+
+    public Component CreateComponent(WriteComponentRequest request)
+    {
+        var id = RequireSlug(request.Id, "id");
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Name is required.");
+        }
+
+        lock (_gate)
+        {
+            if (_state.Components.Any(c => c.Id == id))
+            {
+                throw new ArgumentException($"Component '{id}' already exists.");
+            }
+
+            string? groupId = null;
+            if (request.Group)
+            {
+                if (!string.IsNullOrWhiteSpace(request.GroupId))
+                {
+                    throw new ArgumentException("A group cannot belong to another group.");
+                }
+            }
+            else
+            {
+                groupId = ResolveGroupId(request.GroupId);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            var position = request.Position
+                           ?? _state.Components.Select(c => c.Position).DefaultIfEmpty(0).Max() + 1;
+            var component = new Component
+            {
+                Id = id,
+                Name = request.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                Group = request.Group,
+                GroupId = groupId,
+                Position = position,
+                Status = ComponentStatus.Operational,
+                ManualStatus = ComponentStatus.Operational,
+                Showcase = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _state.Components.Add(component);
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+            return Clone(component);
+        }
+    }
+
+    public Component UpdateComponentMeta(string id, WriteComponentRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            throw new ArgumentException("Name is required.");
+        }
+
+        lock (_gate)
+        {
+            var component = _state.Components.FirstOrDefault(c => c.Id == id)
+                            ?? throw new KeyNotFoundException($"Unknown component '{id}'.");
+            if (component.Group && !string.IsNullOrWhiteSpace(request.GroupId))
+            {
+                throw new ArgumentException("A group cannot belong to another group.");
+            }
+
+            if (!component.Group)
+            {
+                component.GroupId = ResolveGroupId(request.GroupId);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            component.Name = request.Name.Trim();
+            component.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+            if (request.Position is { } position)
+            {
+                component.Position = position;
+            }
+
+            component.UpdatedAt = now;
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+            return Clone(component);
+        }
+    }
+
+    public void DeleteComponent(string id)
+    {
+        lock (_gate)
+        {
+            var component = _state.Components.FirstOrDefault(c => c.Id == id)
+                            ?? throw new KeyNotFoundException($"Unknown component '{id}'.");
+            if (component.Group && _state.Components.Any(c => c.GroupId == component.Id))
+            {
+                throw new ArgumentException("Delete or move child components before deleting a group.");
+            }
+
+            if (!component.Group && _state.Checks.Any(c => c.ComponentId == component.Id))
+            {
+                throw new ArgumentException("Delete or reassign checks before deleting a component.");
+            }
+
+            _state.Components.Remove(component);
+            var now = DateTimeOffset.UtcNow;
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+            PersistPage();
+        }
+    }
+
+    public StatusPageInfo UpdatePage(string? name, string? logoUrl)
+    {
+        lock (_gate)
+        {
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                _state.Page.Name = name.Trim();
+            }
+
+            if (logoUrl is not null)
+            {
+                _state.Page.LogoUrl = string.IsNullOrWhiteSpace(logoUrl) ? null : NormalizeLogoUrl(logoUrl);
+            }
+
+            _state.Page.UpdatedAt = DateTimeOffset.UtcNow;
+            PersistPage();
+            return Clone(_state).Page;
         }
     }
 
@@ -336,6 +677,120 @@ public sealed class InMemoryStatusStore : IStatusStore
 
             check.NextRunAt = result.CheckedAtUtc.AddSeconds(Math.Max(CheckContract.MinIntervalSeconds, check.IntervalSeconds));
             ApplyCheckRollup(check.ComponentId, result.CheckedAtUtc);
+            try
+            {
+                _results?.Append(check.Id, result);
+            }
+            catch (Exception)
+            {
+                // History persist must not fail the probe write.
+            }
+        }
+
+        FlushWebhooks();
+    }
+
+    public void ApplyConnectorImport(ConnectorSnapshot snapshot)
+    {
+        lock (_gate)
+        {
+            _connectorSnapshots[snapshot.ConnectorId] = snapshot;
+            var component = _state.Components.FirstOrDefault(c => c.Id == snapshot.ComponentId);
+            if (component is null || component.Group)
+            {
+                return;
+            }
+
+            var now = snapshot.ImportedAtUtc == default ? DateTimeOffset.UtcNow : snapshot.ImportedAtUtc;
+            var existing = _state.Incidents.FirstOrDefault(i =>
+                i.ConnectorId == snapshot.ConnectorId
+                && i.ComponentIds.Contains(component.Id)
+                && i.Status.IsUnresolvedIncident());
+
+            if (snapshot.Status is ComponentStatus.PartialOutage or ComponentStatus.MajorOutage)
+            {
+                if (existing is null)
+                {
+                    var incident = new Incident
+                    {
+                        Id = NewId(),
+                        Name = $"{component.Name}: {snapshot.DisplayName}",
+                        Status = IncidentStatus.Investigating,
+                        Impact = snapshot.Status == ComponentStatus.MajorOutage
+                            ? IncidentImpact.Critical
+                            : IncidentImpact.Major,
+                        ComponentIds = [component.Id],
+                        AutoFromChecks = false,
+                        ConnectorId = snapshot.ConnectorId,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    };
+                    incident.Updates.Add(NewUpdate(
+                        incident.Id,
+                        IncidentStatus.Investigating,
+                        string.IsNullOrWhiteSpace(snapshot.Detail)
+                            ? $"{snapshot.DisplayName} reported {snapshot.Status.ApiValue()}."
+                            : snapshot.Detail,
+                        now));
+                    _state.Incidents.Add(incident);
+                    QueueWebhook(incident.Id, "incident.created");
+                }
+                else
+                {
+                    existing.UpdatedAt = now;
+                    existing.Impact = snapshot.Status == ComponentStatus.MajorOutage
+                        ? IncidentImpact.Critical
+                        : IncidentImpact.Major;
+                    existing.Updates.Insert(0, NewUpdate(
+                        existing.Id,
+                        IncidentStatus.Investigating,
+                        string.IsNullOrWhiteSpace(snapshot.Detail)
+                            ? $"{snapshot.DisplayName} still reports {snapshot.Status.ApiValue()}."
+                            : snapshot.Detail,
+                        now));
+                    QueueWebhook(existing.Id, "incident.updated");
+                }
+            }
+            else if (existing is not null && snapshot.Status == ComponentStatus.Operational)
+            {
+                existing.Status = IncidentStatus.Resolved;
+                existing.ResolvedAt = now;
+                existing.UpdatedAt = now;
+                existing.Updates.Insert(0, NewUpdate(
+                    existing.Id,
+                    IncidentStatus.Resolved,
+                    $"{snapshot.DisplayName} reports recovered.",
+                    now));
+                QueueWebhook(existing.Id, "incident.updated");
+            }
+
+            if (component.ManualStatus == ComponentStatus.UnderMaintenance
+                || component.Status == ComponentStatus.UnderMaintenance)
+            {
+                RefreshGroupStatuses(now);
+                _state.Page.UpdatedAt = now;
+                return;
+            }
+
+            if (!HasEnabledChecks(component.Id))
+            {
+                component.ManualStatus = snapshot.Status;
+                component.Status = snapshot.Status;
+                component.UpdatedAt = now;
+            }
+
+            RefreshGroupStatuses(now);
+            _state.Page.UpdatedAt = now;
+        }
+
+        FlushWebhooks();
+    }
+
+    public IReadOnlyList<ConnectorSnapshot> ListConnectorSnapshots()
+    {
+        lock (_gate)
+        {
+            return _connectorSnapshots.Values.ToList();
         }
     }
 
@@ -456,7 +911,15 @@ public sealed class InMemoryStatusStore : IStatusStore
             }
             else if (!string.IsNullOrWhiteSpace(request.Type))
             {
-                throw new ArgumentException("Type must be http, https, or tcp.");
+                var raw = request.Type.Trim();
+                if (raw.Equals("icmp", StringComparison.OrdinalIgnoreCase)
+                    || raw.Equals("ping", StringComparison.OrdinalIgnoreCase)
+                    || raw.Equals("connector", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns. ICMP and connectors are not probes.");
+                }
+
+                throw new ArgumentException("Type must be http, https, tcp, tls_expiry, or dns.");
             }
             else
             {
@@ -490,7 +953,22 @@ public sealed class InMemoryStatusStore : IStatusStore
                 ExpectedStatus = request.Http?.ExpectedStatus is { Count: > 0 } statuses
                     ? [.. statuses]
                     : [.. CheckContract.DefaultExpectedStatus],
-                BodyContains = request.Http?.BodyContains
+                BodyContains = request.Http?.BodyContains,
+                JsonPath = request.Http?.JsonPath,
+                ExpectedJsonValue = request.Http?.ExpectedJsonValue,
+                Headers = request.Http?.Headers is { Count: > 0 } headers
+                    ? new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            },
+            Tls = new TlsCheckSpec
+            {
+                Days = TlsExpiryEvaluator.NormalizeDays(request.Tls?.Days)
+            },
+            Dns = new DnsCheckSpec
+            {
+                ExpectedAddresses = request.Dns?.ExpectedAddresses is { Count: > 0 } addresses
+                    ? [.. addresses.Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim())]
+                    : []
             },
             NextRunAt = DateTimeOffset.UtcNow
         };
@@ -579,6 +1057,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                     at));
                 _state.Incidents.Add(incident);
                 component.AutoIncidentId = incident.Id;
+                QueueWebhook(incident.Id, "incident.created");
             }
             else
             {
@@ -590,6 +1069,7 @@ public sealed class InMemoryStatusStore : IStatusStore
                     $"Update: automated checks now report {component.Name} is {next.ApiValue()}.",
                     at));
                 component.AutoIncidentId = existing.Id;
+                QueueWebhook(existing.Id, "incident.updated");
             }
         }
 
@@ -606,15 +1086,104 @@ public sealed class InMemoryStatusStore : IStatusStore
                     IncidentStatus.Resolved,
                     $"Resolved: all enabled checks for {component.Name} are Up.",
                     at));
+                QueueWebhook(incident.Id, "incident.updated");
             }
 
             component.AutoIncidentId = null;
         }
     }
 
+    private void QueueWebhook(string incidentId, string eventType)
+    {
+        if (_webhooks is null)
+        {
+            return;
+        }
+
+        _pendingWebhooks.Add((incidentId, eventType));
+    }
+
+    private void FlushWebhooks()
+    {
+        if (_webhooks is null || _pendingWebhooks.Count == 0)
+        {
+            return;
+        }
+
+        var batch = _pendingWebhooks.ToList();
+        _pendingWebhooks.Clear();
+        foreach (var (id, eventType) in batch)
+        {
+            try
+            {
+                _webhooks.Enqueue(id, eventType);
+            }
+            catch
+            {
+                // Outbound webhooks are best-effort and must not fail the write.
+            }
+        }
+    }
+
     private void PersistChecks()
     {
         _persistChecks?.Invoke(_state.Checks.Select(Clone).ToList());
+    }
+
+    private void PersistPage()
+    {
+        _persistPage?.Invoke(Clone(_state));
+    }
+
+    private string? ResolveGroupId(string? groupId)
+    {
+        if (string.IsNullOrWhiteSpace(groupId))
+        {
+            return null;
+        }
+
+        var group = _state.Components.FirstOrDefault(c => c.Id == groupId.Trim());
+        if (group is null || !group.Group)
+        {
+            throw new ArgumentException($"Unknown group '{groupId}'.");
+        }
+
+        return group.Id;
+    }
+
+    private static string RequireSlug(string? value, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"{field} is required.");
+        }
+
+        var slug = value.Trim();
+        if (slug.Any(c => !(char.IsAsciiLetterOrDigit(c) || c is '-' or '_')))
+        {
+            throw new ArgumentException($"{field} must be a slug (letters, digits, hyphen, or underscore).");
+        }
+
+        return slug;
+    }
+
+    internal static string NormalizeLogoUrl(string raw)
+    {
+        var value = raw.Trim();
+        if (value.StartsWith("/branding/", StringComparison.OrdinalIgnoreCase)
+            && !value.Contains("..", StringComparison.Ordinal))
+        {
+            return value;
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+            && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return uri.ToString();
+        }
+
+        throw new ArgumentException("Logo must be a local /branding/ path or an http(s) URL.");
     }
 
     private void RefreshGroupStatuses(DateTimeOffset at)
@@ -653,7 +1222,8 @@ public sealed class InMemoryStatusStore : IStatusStore
             Name = state.Page.Name,
             Url = state.Page.Url,
             TimeZone = state.Page.TimeZone,
-            UpdatedAt = state.Page.UpdatedAt
+            UpdatedAt = state.Page.UpdatedAt,
+            LogoUrl = state.Page.LogoUrl
         },
         Components = state.Components.Select(Clone).ToList(),
         Incidents = state.Incidents.Select(Clone).ToList(),
@@ -701,7 +1271,8 @@ public sealed class InMemoryStatusStore : IStatusStore
         ResolvedAt = incident.ResolvedAt,
         ScheduledFor = incident.ScheduledFor,
         ScheduledUntil = incident.ScheduledUntil,
-        AutoFromChecks = incident.AutoFromChecks
+        AutoFromChecks = incident.AutoFromChecks,
+        ConnectorId = incident.ConnectorId
     };
 
     private static StatusCheck Clone(StatusCheck check) => new()
@@ -728,8 +1299,13 @@ public sealed class InMemoryStatusStore : IStatusStore
         {
             Method = check.Http.Method,
             ExpectedStatus = [.. check.Http.ExpectedStatus],
-            BodyContains = check.Http.BodyContains
+            BodyContains = check.Http.BodyContains,
+            JsonPath = check.Http.JsonPath,
+            ExpectedJsonValue = check.Http.ExpectedJsonValue,
+            Headers = new Dictionary<string, string>(check.Http.Headers, StringComparer.OrdinalIgnoreCase)
         },
+        Tls = new TlsCheckSpec { Days = check.Tls.Days },
+        Dns = new DnsCheckSpec { ExpectedAddresses = [.. check.Dns.ExpectedAddresses] },
         State = check.State,
         ConsecutiveFailures = check.ConsecutiveFailures,
         ConsecutiveSuccesses = check.ConsecutiveSuccesses,

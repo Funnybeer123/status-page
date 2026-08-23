@@ -7,8 +7,15 @@ obj/
 data/store.json
 data/checks.json
 **/data/checks.json
+**/data/page.json
+**/data/check-results.json
+**/data/audit.jsonl
+**/data/webhooks.json
+**/data/branding/
 **/store.json
 .dotnet/
 .nuget/
 *.log
 static/
+appsettings.*.local.json
+*.pfx
