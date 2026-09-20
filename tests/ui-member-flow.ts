@@ -80,7 +80,7 @@ async function main() {
   const member = await prepareMember();
   const browser = await puppeteer.launch({
     executablePath: "/usr/bin/google-chrome-stable",
-    headless: "new",
+    headless: true,
     args: ["--no-sandbox", "--disable-gpu", "--window-size=1440,900"],
     defaultViewport: { width: 1440, height: 900 },
   });
