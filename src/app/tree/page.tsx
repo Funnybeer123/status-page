@@ -4,6 +4,7 @@ import { TreeView } from "@/components/TreeView";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
+import { redactPeople } from "@/lib/privacy";
 
 export default async function TreePage() {
   const ctx = await requireFamily();
@@ -15,7 +16,7 @@ export default async function TreePage() {
     where: { id: { in: people.map((person) => person.profileAssetId).filter(Boolean) as string[] } },
   });
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
-  const treePeople = people.map((person) => ({
+  const treePeople = redactPeople(people, ctx.role).map((person) => ({
     ...person,
     profileUrl: person.profileAssetId
       ? `/api/media/${assetById.get(person.profileAssetId)?.storagePath ?? ""}`
@@ -28,7 +29,7 @@ export default async function TreePage() {
         <div>
           <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
           <h1 className="mt-2 font-display text-4xl" data-testid="tree-heading">The tree</h1>
-          <p className="mt-3 max-w-xl text-bark">Open anyone to see letters and photographs. Add people and parent or partner links as you learn them.</p>
+          <p className="mt-3 max-w-xl text-bark">Open anyone for names, places, a timeline, and letters. Add people and parent or partner links as you learn them.</p>
         </div>
         {canWrite(ctx.role) ? (
           <Link href="/people/new" className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream">

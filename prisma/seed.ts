@@ -1,4 +1,4 @@
-import { PrismaClient, Role, RelType, AssetKind, DocKind } from "@prisma/client";
+import { PrismaClient, Role, RelType, AssetKind, DocKind, EventKind, NameKind } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -31,6 +31,10 @@ We were married this morning at St. John's with only family in the pews. Sam put
 const MEG_NOTE = `I keep Ellie's cedar chest in the upstairs hall. The harvest-dance letter is still folded in the tray, next to the picnic reel from 1961. When the grandchildren ask how Grandma met Grandpa, that is the letter I hand them.
 
 — Margaret Chen, 12 March 2016`;
+
+const BEE_STORY = `Sam kept bees after he stopped farming. He swore the cottonwoods hummed in June, and he would not take a comb until the first Saturday after the harvest-dance anniversary. Ellie called it superstition. He called it courtesy to the trees where he asked her to walk home.
+
+— told by Margaret Chen at the kitchen table, Easter 2014`;
 
 function mediaRoot() {
   return process.env.MEDIA_ROOT || join(process.cwd(), "data", "media");
@@ -148,6 +152,312 @@ function chunkText(text: string) {
   return parts.length ? parts : [text];
 }
 
+async function ensureHartArchive() {
+  const family = await prisma.family.findUnique({ where: { id: "family-hart" } });
+  const eleanor = await prisma.person.findUnique({ where: { id: "person-eleanor" } });
+  const samuel = await prisma.person.findUnique({ where: { id: "person-samuel" } });
+  if (!family || !eleanor || !samuel) return;
+
+  const people = await prisma.person.findMany({ where: { familyId: family.id } });
+
+  const cedar = await prisma.place.upsert({
+    where: { id: "place-cedar-falls" },
+    create: { id: "place-cedar-falls", familyId: family.id, name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States" },
+    update: { name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States" },
+  });
+  const northFarm = await prisma.place.upsert({
+    where: { id: "place-north-farm" },
+    create: { id: "place-north-farm", familyId: family.id, name: "North farm", locality: "Cedar Falls", region: "Iowa", country: "United States" },
+    update: { name: "North farm" },
+  });
+  const iowaCity = await prisma.place.upsert({
+    where: { id: "place-iowa-city" },
+    create: { id: "place-iowa-city", familyId: family.id, name: "Iowa City", locality: "Iowa City", region: "Iowa", country: "United States" },
+    update: { name: "Iowa City" },
+  });
+  const grange = await prisma.place.upsert({
+    where: { id: "place-grange" },
+    create: { id: "place-grange", familyId: family.id, name: "Grange hall", locality: "Cedar Falls", region: "Iowa", country: "United States" },
+    update: { name: "Grange hall" },
+  });
+
+  await prisma.personName.upsert({
+    where: { id: "name-eleanor-maiden" },
+    create: {
+      id: "name-eleanor-maiden",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: NameKind.maiden,
+      name: "Eleanor Whitaker",
+      startedAt: new Date("1928-03-12"),
+      endedAt: new Date("1948-06-14"),
+    },
+    update: { name: "Eleanor Whitaker", kind: NameKind.maiden },
+  });
+  await prisma.personName.upsert({
+    where: { id: "name-eleanor-ellie" },
+    create: {
+      id: "name-eleanor-ellie",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: NameKind.nickname,
+      name: "Ellie",
+    },
+    update: { name: "Ellie" },
+  });
+  await prisma.personName.upsert({
+    where: { id: "name-samuel-sam" },
+    create: {
+      id: "name-samuel-sam",
+      familyId: family.id,
+      personId: samuel.id,
+      kind: NameKind.nickname,
+      name: "Sam",
+    },
+    update: { name: "Sam" },
+  });
+  const margaret = people.find((person) => person.id === "person-margaret");
+  if (margaret) {
+    await prisma.personName.upsert({
+      where: { id: "name-margaret-meg" },
+      create: {
+        id: "name-margaret-meg",
+        familyId: family.id,
+        personId: margaret.id,
+        kind: NameKind.nickname,
+        name: "Meg",
+      },
+      update: { name: "Meg" },
+    });
+  }
+
+  await prisma.residence.upsert({
+    where: { id: "res-eleanor-cedar" },
+    create: {
+      id: "res-eleanor-cedar",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      startedAt: new Date("1928-03-12"),
+      endedAt: new Date("2015-06-03"),
+      notes: "Whitaker house, then the north farm after she married Sam.",
+    },
+    update: { notes: "Whitaker house, then the north farm after she married Sam." },
+  });
+  await prisma.residence.upsert({
+    where: { id: "res-samuel-farm" },
+    create: {
+      id: "res-samuel-farm",
+      familyId: family.id,
+      personId: samuel.id,
+      placeId: northFarm.id,
+      startedAt: new Date("1926-09-08"),
+      endedAt: new Date("2018-01-19"),
+      notes: "North of Cedar Falls. Bees after the last harvest.",
+    },
+    update: { notes: "North of Cedar Falls. Bees after the last harvest." },
+  });
+  if (margaret) {
+    await prisma.residence.upsert({
+      where: { id: "res-margaret-iowa-city" },
+      create: {
+        id: "res-margaret-iowa-city",
+        familyId: family.id,
+        personId: margaret.id,
+        placeId: iowaCity.id,
+        startedAt: new Date("1970-08-01"),
+        endedAt: new Date("1984-06-01"),
+        notes: "University years, then the first house with Wei.",
+      },
+      update: {},
+    });
+  }
+
+  for (const person of people) {
+    if (person.birthDate) {
+      await prisma.lifeEvent.upsert({
+        where: { id: `event-${person.id}-birth` },
+        create: {
+          id: `event-${person.id}-birth`,
+          familyId: family.id,
+          personId: person.id,
+          kind: EventKind.birth,
+          title: `${person.displayName} born`,
+          happenedOn: person.birthDate,
+          placeId: person.id === eleanor.id || person.id === samuel.id ? cedar.id : null,
+        },
+        update: { happenedOn: person.birthDate, title: `${person.displayName} born` },
+      });
+    }
+    if (person.deathDate) {
+      await prisma.lifeEvent.upsert({
+        where: { id: `event-${person.id}-death` },
+        create: {
+          id: `event-${person.id}-death`,
+          familyId: family.id,
+          personId: person.id,
+          kind: EventKind.death,
+          title: `${person.displayName} died`,
+          happenedOn: person.deathDate,
+          placeId: cedar.id,
+        },
+        update: { happenedOn: person.deathDate },
+      });
+    }
+  }
+
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-harvest-dance" },
+    create: {
+      id: "event-harvest-dance",
+      familyId: family.id,
+      personId: eleanor.id,
+      otherPersonId: samuel.id,
+      placeId: grange.id,
+      kind: EventKind.other,
+      title: "Harvest dance at the Grange hall",
+      summary: "They danced three times. He asked to walk her home past the cottonwoods.",
+      happenedOn: new Date("1947-10-12"),
+    },
+    update: { summary: "They danced three times. He asked to walk her home past the cottonwoods." },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-ellie-sam-marriage" },
+    create: {
+      id: "event-ellie-sam-marriage",
+      familyId: family.id,
+      personId: eleanor.id,
+      otherPersonId: samuel.id,
+      placeId: cedar.id,
+      kind: EventKind.marriage,
+      title: "Eleanor Hart and Samuel Hart married",
+      summary: "St. John's, then cold chicken under the cottonwoods.",
+      happenedOn: new Date("1948-06-14"),
+    },
+    update: {},
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-sam-bees" },
+    create: {
+      id: "event-sam-bees",
+      familyId: family.id,
+      personId: samuel.id,
+      placeId: northFarm.id,
+      kind: EventKind.occupation,
+      title: "Samuel kept bees on the north farm",
+      summary: "After he stopped farming he would not take a comb until after the harvest-dance anniversary.",
+      happenedOn: new Date("1988-06-01"),
+    },
+    update: {},
+  });
+  const wei = people.find((person) => person.id === "person-wei");
+  if (margaret && wei) {
+    await prisma.lifeEvent.upsert({
+      where: { id: "event-meg-wei-marriage" },
+      create: {
+        id: "event-meg-wei-marriage",
+        familyId: family.id,
+        personId: margaret.id,
+        otherPersonId: wei.id,
+        placeId: iowaCity.id,
+        kind: EventKind.marriage,
+        title: "Margaret Chen and Wei Chen married",
+        happenedOn: new Date("1981-09-05"),
+      },
+      update: {},
+    });
+  }
+
+  const beeDoc = await prisma.document.upsert({
+    where: { id: "doc-bee-story" },
+    create: {
+      id: "doc-bee-story",
+      familyId: family.id,
+      title: "Sam and the cottonwood bees",
+      kind: DocKind.story,
+      transcript: BEE_STORY,
+      writtenAt: new Date("2014-04-20"),
+      people: { create: [{ personId: samuel.id }, { personId: eleanor.id }, { personId: "person-margaret" }] },
+    },
+    update: { transcript: BEE_STORY, title: "Sam and the cottonwood bees" },
+  });
+  await prisma.chunk.deleteMany({ where: { documentId: beeDoc.id } });
+  await prisma.chunk.create({
+    data: { familyId: family.id, documentId: beeDoc.id, personId: samuel.id, content: BEE_STORY },
+  });
+  await prisma.story.upsert({
+    where: { id: "story-cottonwood-bees" },
+    create: {
+      id: "story-cottonwood-bees",
+      familyId: family.id,
+      title: "Sam and the cottonwood bees",
+      body: BEE_STORY,
+      recordedAt: new Date("2014-04-20"),
+      tellerPersonId: "person-margaret",
+      documentId: beeDoc.id,
+      people: { create: [{ personId: samuel.id }, { personId: eleanor.id }, { personId: "person-margaret" }] },
+    },
+    update: { body: BEE_STORY, documentId: beeDoc.id },
+  });
+
+  const chest = await prisma.document.findUnique({ where: { id: "doc-chest" } });
+  if (chest) {
+    await prisma.story.upsert({
+      where: { id: "story-cedar-chest" },
+      create: {
+        id: "story-cedar-chest",
+        familyId: family.id,
+        title: "The cedar chest in the upstairs hall",
+        body: MEG_NOTE,
+        recordedAt: new Date("2016-03-12"),
+        tellerPersonId: "person-margaret",
+        documentId: chest.id,
+        people: { create: [{ personId: "person-margaret" }, { personId: eleanor.id }, { personId: samuel.id }] },
+      },
+      update: { body: MEG_NOTE },
+    });
+  }
+
+  await prisma.citation.upsert({
+    where: { id: "cite-eleanor-maiden" },
+    create: {
+      id: "cite-eleanor-maiden",
+      familyId: family.id,
+      claim: "Born Eleanor Whitaker; Sam still called her Whitaker after they married.",
+      personId: eleanor.id,
+      nameId: "name-eleanor-maiden",
+      documentId: "doc-harvest",
+      pageNote: "He calls me Whitaker as if it were a compliment.",
+    },
+    update: {},
+  });
+  await prisma.citation.upsert({
+    where: { id: "cite-harvest-dance" },
+    create: {
+      id: "cite-harvest-dance",
+      familyId: family.id,
+      claim: "They met at the Grange hall harvest dance in October 1947.",
+      personId: eleanor.id,
+      eventId: "event-harvest-dance",
+      documentId: "doc-harvest",
+      pageNote: "18 October 1947 letter to Ruth",
+    },
+    update: {},
+  });
+  await prisma.citation.upsert({
+    where: { id: "cite-marriage" },
+    create: {
+      id: "cite-marriage",
+      familyId: family.id,
+      claim: "Married 14 June 1948 at St. John's, then the cottonwoods.",
+      personId: eleanor.id,
+      eventId: "event-ellie-sam-marriage",
+      documentId: "doc-wedding",
+    },
+    update: {},
+  });
+}
+
 async function writeHartMedia() {
   const familyId = "family-hart";
   writeMedia(familyId, "eleanor.svg", svgPortrait("Eleanor Hart", "EH", "#8f3d2c", "1928 – 2015"));
@@ -169,7 +479,8 @@ async function main() {
   const existing = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
   if (existing) {
     await writeHartMedia();
-    console.log("Demo family already seeded. Refreshed media files.");
+    await ensureHartArchive();
+    console.log("Demo family already seeded. Refreshed media files and archive layer.");
     return;
   }
 
@@ -529,6 +840,7 @@ async function main() {
   }
 
   void dance;
+  await ensureHartArchive();
   console.log("Seeded Hart family. Demo login: demo@familylineage.app / harvest-dance");
 }
 

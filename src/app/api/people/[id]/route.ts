@@ -3,6 +3,8 @@ import { z } from "zod";
 import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
+import { syncVitalEvents } from "@/lib/events";
+import { hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
 
 const schema = z.object({
   displayName: z.string().min(1).max(120).optional(),
@@ -12,6 +14,39 @@ const schema = z.object({
   deathDate: z.string().optional().nullable(),
   notes: z.string().max(4000).optional().nullable(),
 });
+
+const personInclude = {
+  names: true,
+  residences: { include: { place: true, citations: true } },
+  events: { include: { place: true, otherPerson: true, citations: true } },
+  otherEvents: { include: { place: true, person: true, citations: true } },
+  storiesTold: true,
+  storyLinks: { include: { story: true } },
+  citations: { include: { document: true, asset: true, event: true, name: true } },
+  documents: { include: { document: true } },
+  tags: { include: { asset: true } },
+} as const;
+
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const ctx = await apiFamily();
+  if ("error" in ctx) return ctx.error;
+  const { id } = await params;
+  const person = await prisma.person.findFirst({
+    where: { id, familyId: ctx.family.id },
+    include: personInclude,
+  });
+  if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+  const redacted = redactPerson(person, ctx.role);
+  return NextResponse.json({
+    person: {
+      ...redacted,
+      residences: hideResidenceForViewer(ctx.role, person) ? [] : person.residences,
+      citations: shouldHideLivingFacts(ctx.role, person) ? [] : person.citations,
+      living: !person.deathDate,
+      factsHidden: shouldHideLivingFacts(ctx.role, person),
+    },
+  });
+}
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await apiFamily(Role.contributor);
@@ -41,6 +76,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             : null,
       notes: body.data.notes === undefined ? existing.notes : body.data.notes,
     },
+  });
+  await syncVitalEvents({
+    familyId: ctx.family.id,
+    personId: person.id,
+    displayName: person.displayName,
+    birthDate: person.birthDate,
+    deathDate: person.deathDate,
   });
   return NextResponse.json({ person });
 }

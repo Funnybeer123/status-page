@@ -10,7 +10,7 @@ export default async function LettersNewPage() {
   const [people, letters] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
     prisma.document.findMany({
-      where: { familyId: ctx.family.id },
+      where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] } },
       orderBy: { writtenAt: "desc" },
     }),
   ]);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { RelType, Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
+import { isPartnerRel, recordMarriageEvent } from "@/lib/events";
 
 const schema = z.object({
   fromPersonId: z.string(),
@@ -32,5 +33,17 @@ export async function POST(req: Request) {
       startedAt: body.data.startedAt ? new Date(body.data.startedAt) : null,
     },
   });
+  if (isPartnerRel(body.data.type)) {
+    const from = people.find((person) => person.id === body.data.fromPersonId)!;
+    const to = people.find((person) => person.id === body.data.toPersonId)!;
+    await recordMarriageEvent({
+      familyId: ctx.family.id,
+      fromPersonId: from.id,
+      toPersonId: to.id,
+      startedAt: relationship.startedAt,
+      fromName: from.displayName,
+      toName: to.displayName,
+    });
+  }
   return NextResponse.json({ relationship });
 }

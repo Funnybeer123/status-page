@@ -3,6 +3,8 @@ import { z } from "zod";
 import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
+import { syncVitalEvents } from "@/lib/events";
+import { redactPeople } from "@/lib/privacy";
 
 const schema = z.object({
   displayName: z.string().min(1).max(120),
@@ -18,9 +20,10 @@ export async function GET() {
   if ("error" in ctx) return ctx.error;
   const people = await prisma.person.findMany({
     where: { familyId: ctx.family.id },
+    include: { names: true },
     orderBy: { displayName: "asc" },
   });
-  return NextResponse.json({ people });
+  return NextResponse.json({ people: redactPeople(people, ctx.role) });
 }
 
 export async function POST(req: Request) {
@@ -38,6 +41,13 @@ export async function POST(req: Request) {
       deathDate: body.data.deathDate ? new Date(body.data.deathDate) : null,
       notes: body.data.notes || null,
     },
+  });
+  await syncVitalEvents({
+    familyId: ctx.family.id,
+    personId: person.id,
+    displayName: person.displayName,
+    birthDate: person.birthDate,
+    deathDate: person.deathDate,
   });
   return NextResponse.json({ person });
 }

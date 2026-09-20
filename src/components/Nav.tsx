@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { Role } from "@prisma/client";
 import { FamilySwitcher } from "@/components/FamilySwitcher";
+import { SearchBox } from "@/components/SearchBox";
 import { SignOut } from "@/components/SignOut";
 
 const links = [
   { href: "/tree", label: "Tree" },
+  { href: "/timeline", label: "Timeline" },
   { href: "/archive", label: "Archive" },
+  { href: "/stories", label: "Stories" },
+  { href: "/dates", label: "Dates" },
+  { href: "/related", label: "Related" },
   { href: "/letters/new", label: "Letters" },
   { href: "/ask", label: "Ask" },
   { href: "/families", label: "Families" },
@@ -28,14 +33,15 @@ export function Nav({
         <Link href="/tree" className="font-display text-xl tracking-tight">
           Family Lineage
         </Link>
-        <nav className="flex flex-wrap items-center gap-5 text-sm font-sans text-bark">
+        <nav className="flex flex-wrap items-center gap-4 text-sm font-sans text-bark">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="hover:text-seal">
               {link.label}
             </Link>
           ))}
         </nav>
-        <div className="flex items-center gap-3 font-sans text-sm">
+        <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
+          <SearchBox />
           <FamilySwitcher families={families} activeFamilyId={activeFamilyId} />
           <span className="hidden text-bark/70 sm:inline">{userName}</span>
           <SignOut />

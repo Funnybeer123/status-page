@@ -8,7 +8,7 @@ export default async function HomePage() {
       <p className="font-sans text-xs uppercase tracking-[0.28em] text-gold">A private family archive</p>
       <h1 className="mt-4 font-display text-5xl leading-tight md:text-7xl">Family Lineage</h1>
       <p className="mt-6 max-w-2xl text-xl leading-relaxed text-bark">
-        Each family keeps its own tree, photographs, and letters. Ask how the grandparents met, and the
+        Each family keeps its own tree, places, stories, and letters. Ask how the grandparents met, and the
         answer comes from their correspondence — not from the public web.
       </p>
       <div className="mt-10 flex flex-wrap gap-4">
@@ -29,9 +29,9 @@ export default async function HomePage() {
       </div>
       <div className="mt-16 grid gap-6 md:grid-cols-3">
         {[
-          ["People and tree", "Three or more generations, partners, and the dates you still know."],
-          ["Archive and letters", "Photos and scans, stamped with a date, tagged with the people in them."],
-          ["Ask the archive", "A grandchild-style question, answered with the letter that said so."],
+          ["People and tree", "Generations, maiden names, the places they lived, and how two people are related."],
+          ["Timeline and dates", "Life events, letters, and photographs in order — plus birthdays the family still keeps."],
+          ["Stories and Ask", "Oral notes sit beside letters. A grandchild-style question is answered from this archive."],
         ].map(([title, copy]) => (
           <article key={title} className="paper-card p-6">
             <h2 className="font-display text-2xl">{title}</h2>

@@ -27,6 +27,26 @@ enum AssetKind {
 enum DocKind {
   letter
   note
+  story
+}
+
+enum NameKind {
+  maiden
+  nickname
+  aka
+  birth
+}
+
+enum EventKind {
+  birth
+  death
+  marriage
+  residence
+  immigration
+  occupation
+  education
+  military
+  other
 }
 
 model User {
@@ -50,6 +70,12 @@ model Family {
   assets        Asset[]
   documents     Document[]
   invites       Invite[]
+  places        Place[]
+  names         PersonName[]
+  residences    Residence[]
+  events        LifeEvent[]
+  stories       Story[]
+  citations     Citation[]
 }
 
 model Membership {
@@ -89,6 +115,13 @@ model Person {
   toRels         Relationship[]   @relation("ToPerson")
   tags           PersonTag[]
   documents      DocumentPerson[]
+  names          PersonName[]
+  residences     Residence[]
+  events         LifeEvent[]      @relation("EventSubject")
+  otherEvents    LifeEvent[]      @relation("EventOther")
+  storiesTold    Story[]          @relation("StoryTeller")
+  storyLinks     StoryPerson[]
+  citations      Citation[]
 }
 
 model Relationship {
@@ -120,6 +153,7 @@ model Asset {
   uploadedBy   User        @relation("UploadedBy", fields: [uploadedById], references: [id])
   tags         PersonTag[]
   document     Document?
+  citations    Citation[]
 }
 
 model PersonTag {
@@ -145,6 +179,8 @@ model Document {
   asset      Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
   people     DocumentPerson[]
   chunks     Chunk[]
+  story      Story?
+  citations  Citation[]
 }
 
 model DocumentPerson {
@@ -164,6 +200,120 @@ model Chunk {
   content    String
   embedding  Unsupported("vector(1536)")?
   document   Document                     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model Place {
+  id         String      @id @default(cuid())
+  familyId   String
+  name       String
+  locality   String?
+  region     String?
+  country    String?
+  family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  residences Residence[]
+  events     LifeEvent[]
+
+  @@index([familyId])
+}
+
+model PersonName {
+  id         String     @id @default(cuid())
+  familyId   String
+  personId   String
+  kind       NameKind
+  name       String
+  startedAt  DateTime?  @db.Date
+  endedAt    DateTime?  @db.Date
+  family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  citations  Citation[]
+
+  @@index([familyId, personId])
+}
+
+model Residence {
+  id         String     @id @default(cuid())
+  familyId   String
+  personId   String
+  placeId    String
+  startedAt  DateTime?  @db.Date
+  endedAt    DateTime?  @db.Date
+  notes      String?
+  family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  place      Place      @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  citations  Citation[]
+
+  @@index([familyId, personId])
+}
+
+model LifeEvent {
+  id            String     @id @default(cuid())
+  familyId      String
+  personId      String
+  otherPersonId String?
+  placeId       String?
+  kind          EventKind
+  title         String
+  summary       String?
+  happenedOn    DateTime?  @db.Date
+  family        Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person        Person     @relation("EventSubject", fields: [personId], references: [id], onDelete: Cascade)
+  otherPerson   Person?    @relation("EventOther", fields: [otherPersonId], references: [id], onDelete: SetNull)
+  place         Place?     @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  citations     Citation[]
+
+  @@index([familyId, happenedOn])
+}
+
+model Story {
+  id             String        @id @default(cuid())
+  familyId       String
+  title          String
+  body           String
+  recordedAt     DateTime?     @db.Date
+  tellerPersonId String?
+  documentId     String?       @unique
+  family         Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  teller         Person?       @relation("StoryTeller", fields: [tellerPersonId], references: [id], onDelete: SetNull)
+  document       Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  people         StoryPerson[]
+  citations      Citation[]
+
+  @@index([familyId])
+}
+
+model StoryPerson {
+  storyId  String
+  personId String
+  story    Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([storyId, personId])
+}
+
+model Citation {
+  id          String      @id @default(cuid())
+  familyId    String
+  claim       String
+  personId    String?
+  eventId     String?
+  nameId      String?
+  residenceId String?
+  storyId     String?
+  documentId  String?
+  assetId     String?
+  pageNote    String?
+  family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person      Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  event       LifeEvent?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        PersonName? @relation(fields: [nameId], references: [id], onDelete: Cascade)
+  residence   Residence?  @relation(fields: [residenceId], references: [id], onDelete: Cascade)
+  story       Story?      @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  document    Document?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  asset       Asset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
 }

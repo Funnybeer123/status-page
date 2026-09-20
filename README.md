@@ -29,9 +29,13 @@ The answer cites Eleanor’s 18 October 1947 letter to Ruth.
 
 - Sign up, create a family, invite relatives (owner / contributor / viewer), and switch families.
 - Add people and parent/partner links; browse a three-generation tree.
+- Record maiden names, nicknames, the places people lived, and a life-event timeline.
+- Write stories and oral notes; cite letters and photographs on facts.
+- Ask how two people are related; search the whole archive; see upcoming family dates.
+- Living relatives are redacted for viewers (birth dates, notes, current places).
 - Upload photos and videos, stamp a date (EXIF when present), and tag people.
 - Upload a letter scan, run Tesseract OCR, and keep an editable dated transcript.
-- Ask questions answered from letters and notes, with source cards.
+- Ask questions answered from letters, notes, and stories, with source cards.
 
 ## Optional live model
 
@@ -46,7 +50,7 @@ npm test
 npm run test:ui
 ```
 
-`npm test` signs up a new member, creates a family, adds people and relationships, uploads a dated photo and video, OCRs a letter scan, and asks how grandma met grandpa. It does not treat the Prisma Hart seed as proof. `npm run test:ui` walks the same family in the browser and writes screenshots to `/opt/cursor/artifacts/family-liniage/media/`.
+`npm test` signs up a new member, creates a family, adds people and relationships, uploads a dated photo and video, OCRs a letter scan, and asks how grandma met grandpa. A second suite records maiden names, places, events, stories, citations, relatedness, search, dates, and living-person privacy the same way. It does not treat the Prisma Hart seed as proof. `npm run test:ui` walks those families in the browser and writes screenshots to `/opt/cursor/artifacts/family-liniage/media/`.
 
 ## Local development (without rebuilding the image)
 

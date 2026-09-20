@@ -10,7 +10,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test": "tsx --test tests/*.test.ts",
-    "test:ui": "tsx tests/ui-member-flow.ts"
+    "test:ui": "tsx tests/ui-member-flow.ts && tsx tests/ui-archive-layer.ts",
+    "test:ui:archive": "tsx tests/ui-archive-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
