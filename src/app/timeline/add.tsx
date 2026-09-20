@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -55,6 +56,11 @@ export function TimelineAddEvent({
     <form id="add-event" onSubmit={onSubmit} className="paper-card mt-8 grid gap-3 p-5" data-testid="timeline-add-event">
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Add a missing event</p>
       <p className="text-bark">Write the vital, move, or other day the history still skips.</p>
+      <p className="font-sans text-sm text-bark">
+        Or add a <Link href="/letters/new" className="text-seal">letter or oral note</Link>, a{" "}
+        <Link href="/archive" className="text-seal">photograph or film</Link>, or a{" "}
+        <Link href="/stories" className="text-seal">story</Link> from here.
+      </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="font-sans text-sm">
           Who

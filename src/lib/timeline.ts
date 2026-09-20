@@ -94,6 +94,26 @@ export function countBySource(entries: TimelineEntry[]): TimelineCounts {
   };
 }
 
+export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
+  const labels: Record<string, string> = {
+    birth: "Birth",
+    death: "Death",
+    marriage: "Marriage",
+    residence: "Move",
+    immigration: "Immigration",
+    occupation: "Occupation",
+    education: "Education",
+    military: "Military",
+    letter: "Letter",
+    note: "Oral note",
+    photo: "Photograph",
+    video: "Film",
+    story: "Story",
+    other: "Event",
+  };
+  return labels[kind] ?? (source ? labels[source] : undefined) ?? kind;
+}
+
 export function filterHistory(
   entries: TimelineEntry[],
   opts: { personId?: string | null; generation?: number | null },
@@ -102,6 +122,24 @@ export function filterHistory(
     if (opts.personId && !entry.people.some((person) => person.id === opts.personId)) return false;
     if (opts.generation != null && !Number.isNaN(opts.generation) && !entry.generations.includes(opts.generation)) {
       return false;
+    }
+    return true;
+  });
+}
+
+export function filterMissing(
+  missing: TimelineMissing[],
+  people: TimelinePerson[],
+  opts: { personId?: string | null; generation?: number | null },
+) {
+  const generation = new Map(people.map((person) => [person.id, person.generation]));
+  return missing.filter((item) => {
+    if (opts.personId) {
+      if (!item.personId || item.personId !== opts.personId) return false;
+    }
+    if (opts.generation != null && !Number.isNaN(opts.generation)) {
+      if (!item.personId) return false;
+      if ((generation.get(item.personId) ?? 0) !== opts.generation) return false;
     }
     return true;
   });
@@ -254,7 +292,7 @@ export async function familyHistory(
       include: { people: { include: { person: true } }, asset: true },
     }),
     prisma.asset.findMany({
-      where: { familyId, kind: { in: ["photo", "video"] } },
+      where: { familyId, kind: { in: ["photo", "video"] }, document: { is: null } },
       include: { tags: { include: { person: true } } },
     }),
     prisma.story.findMany({
@@ -289,7 +327,7 @@ export async function familyHistory(
     entries.push({
       id: event.id,
       source: "event",
-      kind: event.kind,
+      kind: kindLabel(event.kind, "event"),
       title: event.title,
       summary: shouldHideLivingFacts(role, event.person) && event.kind === "birth" ? null : event.summary,
       happenedOn: iso(event.happenedOn),
@@ -315,7 +353,7 @@ export async function familyHistory(
     entries.push({
       id: residence.id,
       source: "event",
-      kind: "residence",
+      kind: kindLabel("residence", "event"),
       title: `Lived in ${residence.place.name}`,
       summary: residence.notes,
       happenedOn: iso(residence.startedAt),
@@ -336,7 +374,7 @@ export async function familyHistory(
     entries.push({
       id: document.id,
       source: document.kind === "note" ? "note" : "letter",
-      kind: document.kind,
+      kind: kindLabel(document.kind, document.kind === "note" ? "note" : "letter"),
       title: document.title,
       summary: document.transcript.slice(0, 220),
       happenedOn: iso(document.writtenAt),
@@ -357,7 +395,7 @@ export async function familyHistory(
     entries.push({
       id: asset.id,
       source: asset.kind === "video" ? "video" : "photo",
-      kind: asset.kind,
+      kind: kindLabel(asset.kind, asset.kind === "video" ? "video" : "photo"),
       title: asset.title || (asset.kind === "video" ? "Home movie" : "Photograph"),
       summary: null,
       happenedOn: iso(asset.capturedAt),
@@ -381,7 +419,7 @@ export async function familyHistory(
     entries.push({
       id: story.id,
       source: "story",
-      kind: "story",
+      kind: kindLabel("story", "story"),
       title: story.title,
       summary: story.body.slice(0, 220),
       happenedOn: iso(story.recordedAt),
@@ -403,17 +441,20 @@ export async function familyHistory(
 
   const filtered = filterHistory(entries, opts);
   const gaps = computeGaps(filtered);
-  const missing = findMissingFacts({
-    people,
-    relationships,
-    events,
-    entries: filtered,
-    role,
-  });
-
   const peopleOut = people
     .map((person) => personRef(person.id, person.displayName))
     .sort((a, b) => a.generation - b.generation || a.displayName.localeCompare(b.displayName));
+  const missing = filterMissing(
+    findMissingFacts({
+      people,
+      relationships,
+      events,
+      entries: filtered,
+      role,
+    }),
+    peopleOut,
+    opts,
+  );
   const genCounts = new Map<number, number>();
   for (const person of peopleOut) {
     genCounts.set(person.generation, (genCounts.get(person.generation) ?? 0) + 1);

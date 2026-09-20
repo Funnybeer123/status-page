@@ -163,6 +163,10 @@ test("the family history lists every kind of fact a relative entered, with filte
     assert.ok(gen0.body.entries.length);
     assert.ok(gen0.body.entries.every((entry) => entry.generations.includes(0)));
     assert.ok(gen0.body.entries.some((entry) => /Rose Whitaker born|Louis Whitaker born/.test(entry.title)));
+    assert.ok(!gen0.body.entries.some((entry) => /Family reunion reel/.test(entry.title)));
+
+    const rose = await maya.json<{ missing: { title: string }[] }>(`/api/timeline?personId=${ids.rose}`);
+    assert.ok(!rose.body.missing.some((item) => /Ada Cousin/.test(item.title)));
   });
 
   await t.test("a missing event added from the timeline appears in order", async () => {
@@ -201,8 +205,10 @@ test("the family history lists every kind of fact a relative entered, with filte
     assert.match(page.text, /unrecorded years/);
     assert.match(page.text, /Add a missing event/);
     assert.match(page.text, /War-time millinery night shift/);
+    assert.match(page.text, /Oral note|Helen on the navy brim/);
     assert.match(page.text, /Still missing/);
     assert.match(page.text, /Ada Cousin/);
+    assert.match(page.text, /letter or oral note/);
     const filtered = await maya.html(`/timeline?personId=${ids.rose}`);
     assert.match(filtered.text, /Rose Whitaker/);
     assert.match(filtered.text, /night shift/);

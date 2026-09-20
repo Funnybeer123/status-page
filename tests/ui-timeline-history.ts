@@ -7,15 +7,29 @@ const MEDIA = "/cursor/stores/bc-96119aab-60f3-43ba-ac99-2f6808b8773e/artifacts/
 const BASE = process.env.TEST_BASE_URL || "http://localhost:3000";
 const PASSWORD = "millinery-1952";
 
+function hasText(body: string, needle: string) {
+  return body.toLowerCase().includes(needle.toLowerCase());
+}
+
+async function expectOk<T extends { status: number; body: { error?: string } }>(result: T, label: string) {
+  if (result.status !== 200) {
+    throw new Error(`${label} failed (${result.status}): ${result.body.error || JSON.stringify(result.body)}`);
+  }
+  return result;
+}
+
 async function prepareHistoryFamily() {
   const client = new ApiClient();
   const email = uniqueEmail("ui-history");
-  await client.signup({
-    name: "Maya Park",
-    email,
-    password: PASSWORD,
-    familyName: "Whitaker history",
-  });
+  await expectOk(
+    await client.signup({
+      name: "Maya Park",
+      email,
+      password: PASSWORD,
+      familyName: "Whitaker history",
+    }),
+    "signup",
+  );
   await client.signIn(email, PASSWORD);
 
   const peopleSpec = [
@@ -27,11 +41,14 @@ async function prepareHistoryFamily() {
   ];
   const ids: Record<string, string> = {};
   for (const person of peopleSpec) {
-    const created = await client.json<{ person: { id: string } }>("/api/people", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(person),
-    });
+    const created = await expectOk(
+      await client.json<{ person: { id: string } }>("/api/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(person),
+      }),
+      `person ${person.displayName}`,
+    );
     ids[person.key] = created.body.person.id;
   }
   for (const link of [
@@ -41,30 +58,37 @@ async function prepareHistoryFamily() {
     { fromPersonId: ids.helen, toPersonId: ids.nora, type: "parent" },
     { fromPersonId: ids.ada, toPersonId: ids.helen, type: "partner" },
   ]) {
-    await client.json("/api/relationships", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(link),
-    });
+    await expectOk(
+      await client.json("/api/relationships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(link),
+      }),
+      "relationship",
+    );
   }
 
-  await client.json("/api/residences", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      personId: ids.rose,
-      name: "Market Street rooms",
-      startedAt: "1948-01-01",
-      endedAt: "1954-09-01",
+  await expectOk(
+    await client.json("/api/residences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personId: ids.rose,
+        name: "Market Street rooms",
+        locality: "Millinery block",
+        startedAt: "1948-01-01",
+        endedAt: "1954-09-01",
+      }),
     }),
-  });
+    "residence",
+  );
 
   const photo = new FormData();
   photo.set("file", new Blob([makePhotoSvg()], { type: "image/svg+xml" }), "market.svg");
   photo.set("title", "Market Street shop window");
   photo.set("capturedAt", "1952-06-14");
   photo.set("personIds", `${ids.rose},${ids.louis}`);
-  await client.json("/api/assets", { method: "POST", body: photo });
+  await expectOk(await client.json("/api/assets", { method: "POST", body: photo }), "photo");
 
   const video = makeVideo();
   const reel = new FormData();
@@ -73,7 +97,7 @@ async function prepareHistoryFamily() {
   reel.set("capturedAt", "1964-07-04");
   reel.set("kind", "video");
   reel.set("personIds", ids.helen);
-  await client.json("/api/assets", { method: "POST", body: reel });
+  await expectOk(await client.json("/api/assets", { method: "POST", body: reel }), "video");
 
   const scan = makeLetterPng();
   const letter = new FormData();
@@ -82,32 +106,46 @@ async function prepareHistoryFamily() {
   letter.set("writtenAt", "1952-06-14");
   letter.set("transcript", ROSE_LETTER);
   letter.set("personIds", `${ids.rose},${ids.louis}`);
-  await client.json("/api/letters", { method: "POST", body: letter });
+  await expectOk(await client.json("/api/letters", { method: "POST", body: letter }), "letter");
 
-  await client.json("/api/stories", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title: "The felted navy brim",
-      body: "Rose always kept the felted navy brim on a wooden block above the counter.",
-      recordedAt: "2014-04-20",
-      tellerPersonId: ids.helen,
-      personIds: [ids.rose, ids.helen],
+  const note = new FormData();
+  note.set("title", "Helen on the navy brim");
+  note.set("kind", "note");
+  note.set("writtenAt", "2014-04-20");
+  note.set("transcript", "Helen said the felted navy brim stayed on the wooden block.");
+  note.set("personIds", `${ids.helen},${ids.rose}`);
+  await expectOk(await client.json("/api/letters", { method: "POST", body: note }), "oral note");
+
+  await expectOk(
+    await client.json("/api/stories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "The felted navy brim",
+        body: "Rose always kept the felted navy brim on a wooden block above the counter.",
+        recordedAt: "2014-04-20",
+        tellerPersonId: ids.helen,
+        personIds: [ids.rose, ids.helen],
+      }),
     }),
-  });
+    "story",
+  );
 
-  await client.json("/api/events", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      personId: ids.rose,
-      kind: "other",
-      title: "War-time millinery night shift",
-      happenedOn: "1943-11-11",
+  await expectOk(
+    await client.json("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        personId: ids.rose,
+        kind: "other",
+        title: "War-time millinery night shift",
+        happenedOn: "1943-11-11",
+      }),
     }),
-  });
+    "event",
+  );
 
-  return { email, ids };
+  return { email, ids, client };
 }
 
 async function main() {
@@ -132,6 +170,10 @@ async function main() {
     console.log("wrote", path, size);
   }
 
+  async function visibleText() {
+    return page.evaluate(() => document.body.innerText);
+  }
+
   await page.goto(`${BASE}/login`, { waitUntil: "networkidle0" });
   await page.type("input[type=email]", member.email);
   await page.type("input[type=password]", PASSWORD);
@@ -142,33 +184,44 @@ async function main() {
 
   await page.goto(`${BASE}/timeline`, { waitUntil: "networkidle0" });
   await page.waitForSelector("[data-testid=timeline-heading]");
-  const body = await page.evaluate(() => document.body.innerText);
-  if (!body.includes("Family history") || !body.includes("unrecorded years") || !body.includes("War-time millinery night shift")) {
-    throw new Error("history page is missing the full timeline, a gap, or the added event");
+  await page.waitForSelector("[data-testid=timeline-gap-title]");
+  const body = await visibleText();
+  if (!hasText(body, "Family history") || !hasText(body, "unrecorded years") || !hasText(body, "War-time millinery night shift")) {
+    throw new Error(`history page is missing the full timeline, a gap, or the added event\n${body.slice(0, 2000)}`);
   }
-  if (!body.includes("Market Street shop window") || !body.includes("Family reunion reel") || !body.includes("felted navy brim")) {
-    throw new Error("history page is missing photo, film, or story");
+  if (!hasText(body, "Market Street shop window") || !hasText(body, "Family reunion reel") || !hasText(body, "felted navy brim")) {
+    throw new Error(`history page is missing photo, film, or story\n${body.slice(0, 2000)}`);
+  }
+  if (!hasText(body, "Helen on the navy brim") || !hasText(body, "oral note")) {
+    throw new Error(`history page is missing the oral note\n${body.slice(0, 2000)}`);
   }
   await shot("history_timeline.png");
 
   await page.goto(`${BASE}/timeline?generation=0`, { waitUntil: "networkidle0" });
   await page.waitForSelector("[data-testid=timeline-gen-0]");
-  const genText = await page.evaluate(() => document.body.innerText);
-  if (!genText.includes("Rose Whitaker") || genText.includes("Family reunion reel")) {
-    throw new Error("generation filter should keep the first generation and drop Helen's reel");
+  const genText = await visibleText();
+  if (!hasText(genText, "Rose Whitaker") || hasText(genText, "Family reunion reel")) {
+    throw new Error(`generation filter should keep the first generation and drop Helen's reel\n${genText.slice(0, 2000)}`);
   }
   await shot("history_timeline_generation.png");
 
   await page.goto(`${BASE}/timeline?personId=${member.ids.rose}`, { waitUntil: "networkidle0" });
   await page.waitForSelector("text/Rose Whitaker");
-  const roseText = await page.evaluate(() => document.body.innerText);
-  if (!roseText.includes("night shift") || roseText.includes("Family reunion reel")) {
-    throw new Error("person filter should keep Rose and drop Helen's reel");
+  const roseText = await visibleText();
+  if (!hasText(roseText, "night shift") || hasText(roseText, "Family reunion reel")) {
+    throw new Error(`person filter should keep Rose and drop Helen's reel\n${roseText.slice(0, 2000)}`);
   }
   await shot("history_timeline_person.png");
 
-  await page.goto(`${BASE}/timeline#add-event`, { waitUntil: "networkidle0" });
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "networkidle0" }).catch(() => undefined),
+    page.click("[data-testid=timeline-gap-add]"),
+  ]);
   await page.waitForSelector("[data-testid=timeline-add-event]");
+  await page.waitForFunction(() => {
+    const input = document.querySelector("[data-testid=timeline-add-date]") as HTMLInputElement | null;
+    return Boolean(input?.value);
+  });
   await page.evaluate(() => document.getElementById("add-event")?.scrollIntoView());
   await shot("history_timeline_add.png");
 

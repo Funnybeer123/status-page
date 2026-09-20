@@ -6,7 +6,9 @@ import {
   computeGaps,
   countBySource,
   filterHistory,
+  filterMissing,
   findMissingFacts,
+  kindLabel,
   type TimelineEntry,
 } from "../src/lib/timeline";
 
@@ -79,6 +81,26 @@ test("findMissingFacts flags a blank birth, a dateless marriage, and an undated 
   assert.ok(missing.some((item) => item.kind === "birth" && /Ada Cousin/.test(item.title)));
   assert.ok(missing.some((item) => item.kind === "marriage" && /Rose/.test(item.title)));
   assert.ok(missing.some((item) => item.kind === "undated" && /Aunt June/.test(item.title)));
+});
+
+test("kindLabel names every source the way a relative would read it", () => {
+  assert.equal(kindLabel("note", "note"), "Oral note");
+  assert.equal(kindLabel("photo", "photo"), "Photograph");
+  assert.equal(kindLabel("video", "video"), "Film");
+  assert.equal(kindLabel("residence", "event"), "Move");
+});
+
+test("filterMissing keeps only the person or generation in view", () => {
+  const people = [
+    { id: "ada", displayName: "Ada Cousin", generation: 1 },
+    { id: "rose", displayName: "Rose", generation: 0 },
+  ];
+  const missing = [
+    { id: "1", kind: "birth" as const, title: "No birth date for Ada Cousin", summary: "", personId: "ada", href: "/" },
+    { id: "2", kind: "marriage" as const, title: "No marriage date for Rose", summary: "", personId: "rose", href: "/" },
+  ];
+  assert.deepEqual(filterMissing(missing, people, { personId: "rose" }).map((item) => item.id), ["2"]);
+  assert.deepEqual(filterMissing(missing, people, { generation: 1 }).map((item) => item.id), ["1"]);
 });
 
 test("countBySource tallies the whole history", () => {

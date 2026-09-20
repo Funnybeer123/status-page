@@ -136,10 +136,13 @@ export default async function TimelinePage({
               <li key={row.gap.id} className="grid gap-3 sm:grid-cols-[8rem_1fr]" data-testid="timeline-gap">
                 <p className="font-sans text-sm text-gold">Gap</p>
                 <article className="border border-dashed border-gold/50 bg-cream/60 p-5">
-                  <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{row.gap.title}</p>
+                  <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Silent stretch</p>
+                  <h3 className="mt-2 font-display text-2xl" data-testid="timeline-gap-title">
+                    {row.gap.title}
+                  </h3>
                   <p className="mt-2 text-bark">{row.gap.summary}</p>
                   {canWrite(ctx.role) ? (
-                    <Link href={addHref} className="mt-3 inline-block font-sans text-sm text-seal">
+                    <Link href={addHref} className="mt-3 inline-block font-sans text-sm text-seal" data-testid="timeline-gap-add">
                       Add what happened
                     </Link>
                   ) : null}

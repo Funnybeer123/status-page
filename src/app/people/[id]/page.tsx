@@ -93,6 +93,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/related?to=${person.id}`} className="mt-4 inline-block font-sans text-sm text-seal">
               How are we related?
             </Link>
+            <Link href={`/timeline?personId=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Full history on the timeline
+            </Link>
           </div>
         </aside>
         <section className="space-y-8">
