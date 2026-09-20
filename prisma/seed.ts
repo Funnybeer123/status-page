@@ -59,15 +59,35 @@ function svgScene(title: string, caption: string, year: string, fill: string) {
 </svg>`;
 }
 
+function wrapLines(text: string, width = 56) {
+  return text.split("\n").flatMap((line) => {
+    if (line.length <= width) return [line];
+    const words = line.split(" ");
+    const out: string[] = [];
+    let current = "";
+    for (const word of words) {
+      const next = current ? `${current} ${word}` : word;
+      if (next.length > width) {
+        if (current) out.push(current);
+        current = word;
+      } else {
+        current = next;
+      }
+    }
+    if (current) out.push(current);
+    return out;
+  });
+}
+
 function svgLetter(text: string) {
-  const lines = text.split("\n");
+  const lines = wrapLines(text);
   const tspans = lines
     .map((line, i) => `<tspan x="72" dy="${i === 0 ? 0 : 28}">${escapeXml(line) || " "}</tspan>`)
     .join("");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
-  <rect width="900" height="1200" fill="#f7f1e3"/>
-  <rect x="40" y="40" width="820" height="1120" fill="#fffaf0" stroke="#c4a574"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1280" viewBox="0 0 900 1280">
+  <rect width="900" height="1280" fill="#f7f1e3"/>
+  <rect x="40" y="40" width="820" height="1200" fill="#fffaf0" stroke="#c4a574"/>
   <text x="72" y="100" font-family="Georgia, serif" font-size="20" fill="#2b2118">${tspans}</text>
 </svg>`;
 }

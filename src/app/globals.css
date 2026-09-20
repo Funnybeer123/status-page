@@ -13,6 +13,7 @@ body {
 }
 
 body {
+  word-spacing: 0.06em;
   background:
     radial-gradient(circle at 10% 0%, rgba(196, 165, 116, 0.18), transparent 32%),
     radial-gradient(circle at 90% 8%, rgba(143, 61, 44, 0.08), transparent 28%),
