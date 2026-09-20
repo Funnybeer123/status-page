@@ -160,6 +160,13 @@ h1 {
     display: grid;
     align-content: start;
     gap: 1rem;
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.main {
+    grid-column: 2;
+    grid-row: 1;
 }
 
 .panel {
@@ -335,6 +342,12 @@ h1 {
     .role {
         grid-template-columns: 1fr;
         gap: 0.7rem;
+    }
+
+    .rail,
+    .main {
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .role:not(:last-child) {
