@@ -128,10 +128,28 @@ function chunkText(text: string) {
   return parts.length ? parts : [text];
 }
 
+async function writeHartMedia() {
+  const familyId = "family-hart";
+  writeMedia(familyId, "eleanor.svg", svgPortrait("Eleanor Hart", "EH", "#8f3d2c", "1928 – 2015"));
+  writeMedia(familyId, "samuel.svg", svgPortrait("Samuel Hart", "SH", "#3d2b1f", "1926 – 2018"));
+  writeMedia(familyId, "margaret.svg", svgPortrait("Margaret Chen", "MC", "#4d5b3c", "b. 1952"));
+  writeMedia(familyId, "wei.svg", svgPortrait("Wei Chen", "WC", "#5c4634", "b. 1950"));
+  writeMedia(familyId, "robert.svg", svgPortrait("Robert Hart", "RH", "#6b4b2a", "b. 1955"));
+  writeMedia(familyId, "lily.svg", svgPortrait("Lily Chen", "LC", "#7a4a3a", "b. 1984"));
+  writeMedia(familyId, "james.svg", svgPortrait("James Chen", "JC", "#3f4d36", "b. 1987"));
+  writeMedia(familyId, "daniel.svg", svgPortrait("Daniel Hart", "DH", "#4a3b2c", "b. 1990"));
+  writeMedia(familyId, "harvest-dance.svg", svgScene("The harvest dance", "Grange hall, Cedar Falls", "October 1947", "#5c3a2a"));
+  writeMedia(familyId, "wedding.svg", svgScene("Wedding day", "St. John's, then the cottonwoods", "14 June 1948", "#3d2b1f"));
+  writeMedia(familyId, "picnic.svg", svgScene("Family picnic", "North farm meadow", "Summer 1961", "#4d5b3c"));
+  writeMedia(familyId, "harvest-letter.svg", svgLetter(HARVEST_LETTER));
+  tryWriteVideo(familyId, "picnic-1961.mp4");
+}
+
 async function main() {
   const existing = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
   if (existing) {
-    console.log("Demo family already seeded.");
+    await writeHartMedia();
+    console.log("Demo family already seeded. Refreshed media files.");
     return;
   }
 
