@@ -1,0 +1,43 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { Role } from "@prisma/client";
+import { apiFamily } from "@/lib/family";
+import { prisma } from "@/lib/prisma";
+
+const schema = z.object({
+  displayName: z.string().min(1).max(120),
+  givenName: z.string().max(80).optional(),
+  familyName: z.string().max(80).optional(),
+  birthDate: z.string().optional(),
+  deathDate: z.string().optional(),
+  notes: z.string().max(4000).optional(),
+});
+
+export async function GET() {
+  const ctx = await apiFamily();
+  if ("error" in ctx) return ctx.error;
+  const people = await prisma.person.findMany({
+    where: { familyId: ctx.family.id },
+    orderBy: { displayName: "asc" },
+  });
+  return NextResponse.json({ people });
+}
+
+export async function POST(req: Request) {
+  const ctx = await apiFamily(Role.contributor);
+  if ("error" in ctx) return ctx.error;
+  const body = schema.safeParse(await req.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "A display name is required." }, { status: 400 });
+  const person = await prisma.person.create({
+    data: {
+      familyId: ctx.family.id,
+      displayName: body.data.displayName.trim(),
+      givenName: body.data.givenName || null,
+      familyName: body.data.familyName || null,
+      birthDate: body.data.birthDate ? new Date(body.data.birthDate) : null,
+      deathDate: body.data.deathDate ? new Date(body.data.deathDate) : null,
+      notes: body.data.notes || null,
+    },
+  });
+  return NextResponse.json({ person });
+}

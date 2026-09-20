@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #2b2118;
+  background: #f3ead8;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(196, 165, 116, 0.18), transparent 32%),
+    radial-gradient(circle at 90% 8%, rgba(143, 61, 44, 0.08), transparent 28%),
+    #f3ead8;
+}
+
+a {
+  color: inherit;
+}
+
+.paper-card {
+  background: #faf6ee;
+  border: 1px solid rgba(92, 70, 52, 0.12);
+  box-shadow: 0 16px 40px -24px rgba(43, 33, 24, 0.45);
+}
+
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c4a574, transparent);
+}
