@@ -38,6 +38,8 @@ export async function familyTimeline(familyId: string, role: Role, personId?: st
       where: {
         familyId,
         capturedAt: { not: null },
+        kind: { not: "letter" },
+        document: { is: null },
         ...(personId ? { tags: { some: { personId } } } : {}),
       },
       include: { tags: { include: { person: true } } },
