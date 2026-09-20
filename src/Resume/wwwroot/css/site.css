@@ -1,0 +1,534 @@
+:root {
+    --bg: #07080c;
+    --surface: rgba(16, 18, 24, 0.78);
+    --surface-solid: #101218;
+    --ink: #f4f6fb;
+    --muted: #9aa3b5;
+    --faint: #6d7688;
+    --line: rgba(244, 246, 251, 0.1);
+    --accent: #5eead4;
+    --accent-dim: rgba(94, 234, 212, 0.14);
+    --violet: #818cf8;
+    --warn: #f5d48a;
+    --warn-dim: rgba(245, 212, 138, 0.1);
+    --display: "Syne", "Avenir Next", "Segoe UI", sans-serif;
+    --sans: "Plus Jakarta Sans", "Avenir Next", "Segoe UI", sans-serif;
+    --radius: 1.15rem;
+    --shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background: var(--bg);
+    font-family: var(--sans);
+    font-weight: 400;
+    line-height: 1.55;
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+body::before {
+    background:
+        radial-gradient(900px 420px at 12% -8%, rgba(94, 234, 212, 0.16), transparent 55%),
+        radial-gradient(760px 380px at 92% 0%, rgba(129, 140, 248, 0.14), transparent 50%);
+}
+
+body::after {
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 50% 0%, #000 10%, transparent 72%);
+}
+
+a {
+    color: var(--accent);
+}
+
+a:hover {
+    color: var(--ink);
+}
+
+.skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 20;
+    padding: 0.5rem 0.8rem;
+    background: var(--ink);
+    color: var(--bg);
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 1rem;
+}
+
+.app {
+    position: relative;
+    z-index: 1;
+    width: min(1120px, calc(100% - 2rem));
+    margin: 1.5rem auto 3.5rem;
+}
+
+.topbar,
+.hero,
+.source-banner,
+.layout,
+.colophon {
+    position: relative;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 0.2rem 1.2rem;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.mark {
+    display: grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-family: var(--display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.kicker {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+}
+
+.print-btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink);
+    padding: 0.45rem 0.95rem;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.print-btn:hover,
+.print-btn:focus-visible {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.hero {
+    padding: 1.6rem 0 0.4rem;
+}
+
+h1 {
+    margin: 0;
+    max-width: 14ch;
+    font-family: var(--display);
+    font-size: clamp(3.4rem, 9vw, 6.4rem);
+    font-weight: 800;
+    letter-spacing: -0.055em;
+    line-height: 0.88;
+}
+
+.headline {
+    margin: 1.15rem 0 0;
+    max-width: 28rem;
+    font-size: clamp(1.05rem, 2vw, 1.28rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+}
+
+.subhead {
+    margin: 0.4rem 0 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+}
+
+.role-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin: 1.35rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role-chips li {
+    padding: 0.38rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--ink);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.source-banner {
+    display: grid;
+    gap: 0.4rem;
+    margin: 1.6rem 0 0;
+    padding: 1rem 1.1rem;
+    border: 1px solid rgba(245, 212, 138, 0.18);
+    border-radius: var(--radius);
+    background: var(--warn-dim);
+    color: var(--ink);
+    font-size: 0.94rem;
+}
+
+.banner-label {
+    width: fit-content;
+    padding: 0.16rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(245, 212, 138, 0.14);
+    color: var(--warn);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+    align-items: start;
+}
+
+.main {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.rail {
+    display: grid;
+    align-content: start;
+    gap: 0.75rem;
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.4rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.panel h2,
+.section-head h2,
+.earlier h2 {
+    margin: 0;
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.panel p,
+.section-head p,
+.earlier p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.panel {
+    padding: 0.95rem 1rem 1rem;
+    border: 1px dashed var(--line);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.incomplete {
+    color: var(--muted);
+}
+
+.empty-fields {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--faint);
+    font-size: 0.84rem;
+}
+
+.empty-fields li + li {
+    margin-top: 0.28rem;
+}
+
+.timeline {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role {
+    position: relative;
+    padding-left: 1.15rem;
+}
+
+.role + .role {
+    margin-top: 0.85rem;
+}
+
+.role::before {
+    content: "";
+    position: absolute;
+    left: 0.18rem;
+    top: 1.35rem;
+    bottom: -0.85rem;
+    width: 1px;
+    background: var(--line);
+}
+
+.role:last-child::before {
+    display: none;
+}
+
+.role::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1.3rem;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 50%;
+    background: var(--bg);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+    border: 1px solid var(--accent);
+}
+
+.role-card {
+    padding: 1.15rem 1.2rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(16px);
+}
+
+.role-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.employer {
+    margin: 0;
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.role-dates {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.role-card h3 {
+    margin: 0.55rem 0 0;
+    font-family: var(--display);
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+}
+
+.role-duration {
+    margin: 0.4rem 0 0;
+    color: var(--violet);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.date-note {
+    margin: 0.35rem 0 0;
+    color: var(--faint);
+    font-size: 0.78rem;
+}
+
+.role-card ul {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role-card li + li {
+    margin-top: 0.7rem;
+}
+
+.role-card li {
+    padding-left: 0.9rem;
+    border-left: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.placeholder {
+    color: var(--muted);
+}
+
+.needs-input {
+    display: inline-block;
+    margin: 0 0.4rem 0.15rem 0;
+    padding: 0.12rem 0.42rem;
+    border-radius: 999px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.earlier {
+    margin-top: 0.85rem;
+}
+
+.colophon {
+    margin-top: 1.75rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: 0.8rem;
+}
+
+.colophon p {
+    margin: 0;
+}
+
+.colophon p + p {
+    margin-top: 0.45rem;
+}
+
+@media (max-width: 800px) {
+    .app {
+        width: min(100% - 1.25rem, 40rem);
+        margin: 0.85rem auto 2rem;
+    }
+
+    .layout,
+    .role-meta {
+        grid-template-columns: 1fr;
+        display: grid;
+    }
+
+    .layout {
+        gap: 0.75rem;
+    }
+
+    .rail,
+    .main {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    h1 {
+        max-width: none;
+    }
+
+    .role {
+        padding-left: 0;
+    }
+
+    .role::before,
+    .role::after {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+@media print {
+    :root {
+        --bg: #fff;
+        --ink: #111;
+        --muted: #444;
+        --faint: #666;
+        --accent: #0f766e;
+        --violet: #3730a3;
+        --line: #ddd;
+        --surface: #fff;
+    }
+
+    body,
+    body::before,
+    body::after {
+        background: #fff;
+    }
+
+    .app {
+        width: 100%;
+        margin: 0;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .role,
+    .panel,
+    .role-card {
+        break-inside: avoid;
+        box-shadow: none;
+        backdrop-filter: none;
+    }
+
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+}
