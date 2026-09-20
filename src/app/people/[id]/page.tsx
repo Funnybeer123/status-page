@@ -43,6 +43,13 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     : null;
   const living = isLiving(person);
   const hidden = shouldHideLivingFacts(ctx.role, person);
+  if (hidden) {
+    person.notes = null;
+    person.birthDate = null;
+    person.residences = [];
+    person.citations = [];
+    person.events = person.events.filter((event) => !hideEventFromViewer(ctx.role, { ...event, person }));
+  }
   const letters = person.documents.filter((item) => item.document.kind !== "story");
   const stories = [
     ...person.storiesTold.map((story) => ({ id: story.id, title: story.title, recordedAt: story.recordedAt })),

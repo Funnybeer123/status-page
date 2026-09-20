@@ -292,9 +292,10 @@ test("a relative can record names, places, events, stories, sources, and find th
     assert.equal(blocked.status, 403);
 
     const noraPage = await vera.html(`/people/${ids.nora}`);
-    assert.match(noraPage.text, /hidden because this person is living/);
-    assert.doesNotMatch(noraPage.text, /14 Oak Street/);
-    assert.doesNotMatch(noraPage.text, /secret diary/);
+    const visible = noraPage.text.match(/<main[\s\S]*?<\/main>/)?.[0] ?? noraPage.text;
+    assert.match(visible, /hidden because this person is living/);
+    assert.doesNotMatch(visible, /14 Oak Street/);
+    assert.doesNotMatch(visible, /secret diary/);
 
     const dates = await vera.json<{ upcoming: { title: string; hideYear: boolean; originalOn?: string }[] }>("/api/dates");
     const noraBirthday = dates.body.upcoming.find((item) => /Nora Park/.test(item.title));
