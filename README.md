@@ -344,6 +344,17 @@ GitHub Actions workflow `.github/workflows/status-snapshot.yml` runs that script
 
 Scheduled Actions only run on the repository default branch.
 
+## Resume site (separate app)
+
+Evan Beer’s resume is a second ASP.NET Core app in this repo. It does not change the status page.
+
+```bash
+dotnet test tests/Resume.Tests
+dotnet run --project src/Resume
+```
+
+Open [http://localhost:5090](http://localhost:5090). Details: [`src/Resume/README.md`](src/Resume/README.md).
+
 ## Out of scope
 
 - Email / SMS subscribe

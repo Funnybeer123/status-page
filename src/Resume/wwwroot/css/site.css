@@ -1,0 +1,380 @@
+:root {
+    --paper: #f3eee4;
+    --sheet: #fffaf2;
+    --ink: #1c1612;
+    --muted: #5c534b;
+    --faint: #8a8176;
+    --line: #ddd4c6;
+    --copper: #9a4b24;
+    --copper-soft: #f3e2d4;
+    --incomplete: #efe8dc;
+    --focus: #1c1612;
+    --shadow: 0 24px 60px rgba(48, 32, 16, 0.08);
+    --serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
+    --sans: "Outfit", "Avenir Next", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        radial-gradient(1200px 500px at 10% -10%, #efe4d2, transparent 55%),
+        radial-gradient(900px 400px at 110% 0%, #e8d7c4, transparent 50%),
+        var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-weight: 400;
+    line-height: 1.55;
+}
+
+a {
+    color: var(--copper);
+}
+
+a:hover {
+    color: var(--ink);
+}
+
+.skip-link {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 10;
+    padding: 0.5rem 0.8rem;
+    background: var(--ink);
+    color: var(--sheet);
+    text-decoration: none;
+}
+
+.skip-link:focus {
+    top: 1rem;
+}
+
+.sheet {
+    width: min(1080px, calc(100% - 2rem));
+    margin: 2.5rem auto 4rem;
+    padding: 2.75rem 2.75rem 2rem;
+    background: var(--sheet);
+    border: 1px solid rgba(28, 22, 18, 0.06);
+    box-shadow: var(--shadow);
+}
+
+.masthead {
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.masthead-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.kicker {
+    margin: 0;
+    color: var(--copper);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.print-btn {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    padding: 0.35rem 0.75rem;
+    font: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.print-btn:hover,
+.print-btn:focus-visible {
+    border-color: var(--ink);
+    color: var(--ink);
+}
+
+h1 {
+    margin: 0.85rem 0 0.35rem;
+    font-family: var(--serif);
+    font-size: clamp(2.6rem, 6vw, 4.4rem);
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+}
+
+.headline {
+    margin: 0;
+    font-size: clamp(1.05rem, 2vw, 1.25rem);
+    font-weight: 500;
+}
+
+.subhead {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+}
+
+.source-banner {
+    display: grid;
+    gap: 0.45rem;
+    margin: 1.4rem 0 0;
+    padding: 0.95rem 1.05rem;
+    background: var(--copper-soft);
+    border-left: 3px solid var(--copper);
+    color: var(--ink);
+    font-size: 0.95rem;
+}
+
+.banner-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--copper);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 2.5rem;
+    margin-top: 2.1rem;
+}
+
+.rail {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+}
+
+.panel {
+    padding: 1rem 1.05rem 1.05rem;
+    border: 1px solid var(--line);
+}
+
+.panel h2,
+.section-head h2,
+.earlier h2 {
+    margin: 0 0 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.panel p,
+.section-head p,
+.earlier p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.incomplete {
+    background: var(--incomplete);
+    border-style: dashed;
+}
+
+.empty-fields {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--faint);
+    font-size: 0.86rem;
+}
+
+.empty-fields li + li {
+    margin-top: 0.28rem;
+}
+
+.section-head {
+    margin-bottom: 1.35rem;
+}
+
+.timeline {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role {
+    display: grid;
+    grid-template-columns: 9.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 0 0 1.7rem 0.2rem;
+    position: relative;
+}
+
+.role:not(:last-child) {
+    border-left: 1px solid var(--line);
+    margin-left: 0.35rem;
+    padding-left: calc(1.25rem - 0.35rem);
+}
+
+.role-dates {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.role-duration {
+    margin: 0.2rem 0 0;
+    color: var(--copper);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+}
+
+.date-note {
+    margin: 0.4rem 0 0;
+    color: var(--faint);
+    font-size: 0.78rem;
+}
+
+.role-body h3 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.employer {
+    margin: 0.2rem 0 0.8rem;
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.role-body ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role-body li + li {
+    margin-top: 0.65rem;
+}
+
+.role-body li {
+    position: relative;
+    padding-left: 0.95rem;
+    color: var(--ink);
+}
+
+.role-body li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.55rem;
+    width: 0.38rem;
+    height: 0.38rem;
+    border: 1px solid var(--copper);
+    border-radius: 50%;
+}
+
+.placeholder {
+    color: var(--muted);
+}
+
+.needs-input {
+    display: inline-block;
+    margin: 0 0.4rem 0.15rem 0;
+    padding: 0.08rem 0.4rem;
+    border: 1px solid #e0c4ae;
+    background: var(--copper-soft);
+    color: var(--copper);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.earlier {
+    margin-top: 0.4rem;
+}
+
+.colophon {
+    margin-top: 2rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+    color: var(--faint);
+    font-size: 0.82rem;
+}
+
+.colophon p {
+    margin: 0;
+}
+
+.colophon p + p {
+    margin-top: 0.45rem;
+}
+
+@media (max-width: 800px) {
+    .sheet {
+        margin: 1rem auto 2rem;
+        padding: 1.5rem 1.15rem 1.25rem;
+    }
+
+    .layout,
+    .role {
+        grid-template-columns: 1fr;
+        gap: 0.7rem;
+    }
+
+    .role:not(:last-child) {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: 0;
+        border-bottom: 1px solid var(--line);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
+}
+
+@media print {
+    body {
+        background: #fff;
+    }
+
+    .sheet {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .role,
+    .panel {
+        break-inside: avoid;
+    }
+
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+}

@@ -1,0 +1,100 @@
+@page
+@model IndexModel
+@{
+    var resume = Model.Resume;
+}
+
+<div class="sheet">
+    <header class="masthead">
+        <div class="masthead-top">
+            <p class="kicker">Resume</p>
+            <button type="button" class="print-btn no-print" onclick="window.print()">Print</button>
+        </div>
+        <h1>@resume.Name</h1>
+        <p class="headline">@resume.Headline</p>
+        <p class="subhead">Cloud Architect at KBR, 2023–2025</p>
+    </header>
+
+    <p class="source-banner" role="status">
+        <span class="banner-label">Incomplete draft</span>
+        @resume.SourceNote
+    </p>
+
+    <div class="layout">
+        <aside class="rail" aria-label="Sections still waiting on a source resume">
+            <section class="panel incomplete">
+                <h2>@resume.Contact.Title</h2>
+                <p>@resume.Contact.Message</p>
+                <ul class="empty-fields">
+                    <li>Email — not provided</li>
+                    <li>Phone — not provided</li>
+                    <li>Location — not provided</li>
+                    <li>LinkedIn / GitHub — not provided</li>
+                </ul>
+            </section>
+            <section class="panel incomplete">
+                <h2>@resume.Summary.Title</h2>
+                <p>@resume.Summary.Message</p>
+            </section>
+            <section class="panel incomplete">
+                <h2>@resume.Skills.Title</h2>
+                <p>@resume.Skills.Message</p>
+            </section>
+            <section class="panel incomplete">
+                <h2>@resume.Education.Title</h2>
+                <p>@resume.Education.Message</p>
+            </section>
+        </aside>
+
+        <main id="main" class="main">
+            <section class="experience">
+                <div class="section-head">
+                    <h2>Experience</h2>
+                    <p>Two confirmed roles. Bullets are placeholders until Evan supplies accomplishments.</p>
+                </div>
+
+                <ol class="timeline">
+                    @foreach (var role in resume.Experience)
+                    {
+                        <li class="role">
+                            <div class="role-when">
+                                <p class="role-dates">@role.Dates</p>
+                                <p class="role-duration">@role.Duration</p>
+                                @if (role.DatesNeedConfirmation)
+                                {
+                                    <p class="date-note">@role.DateNote</p>
+                                }
+                            </div>
+                            <div class="role-body">
+                                <h3>@role.Title</h3>
+                                <p class="employer">@role.Employer</p>
+                                <ul>
+                                    @foreach (var bullet in role.Bullets)
+                                    {
+                                        <li class="@(bullet.NeedsInput ? "placeholder" : null)">
+                                            @if (bullet.NeedsInput)
+                                            {
+                                                <span class="needs-input">@ResumeContent.NeedsInputLabel</span>
+                                            }
+                                            @bullet.Text
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </li>
+                    }
+                </ol>
+            </section>
+
+            <section class="panel incomplete earlier">
+                <h2>@resume.EarlierHistory.Title</h2>
+                <p>@resume.EarlierHistory.Message</p>
+            </section>
+        </main>
+    </div>
+
+    <footer class="colophon">
+        <p>Confirmed for this site: name <strong>Evan Beer</strong>; <strong>UBT</strong> — DevOps Manager / Senior Cloud Infrastructure Engineer, last 2 years; <strong>KBR</strong> — Cloud Architect, 1½ years, 2023–2025. Spelling used: Architect (not Archetect).</p>
+        <p class="no-print">This site is separate from the status-page app in the same repository.</p>
+    </footer>
+</div>
