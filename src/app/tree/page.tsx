@@ -27,8 +27,8 @@ export default async function TreePage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
-          <h1 className="mt-2 font-display text-4xl">The tree</h1>
-          <p className="mt-3 max-w-xl text-bark">Three generations of the Hart family are seeded. Open anyone to see letters and photographs.</p>
+          <h1 className="mt-2 font-display text-4xl" data-testid="tree-heading">The tree</h1>
+          <p className="mt-3 max-w-xl text-bark">Open anyone to see letters and photographs. Add people and parent or partner links as you learn them.</p>
         </div>
         {canWrite(ctx.role) ? (
           <Link href="/people/new" className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream">

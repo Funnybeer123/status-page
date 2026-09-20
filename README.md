@@ -37,6 +37,17 @@ The answer cites Eleanor’s 18 October 1947 letter to Ruth.
 
 Set `OPENAI_API_KEY` in the environment (and optionally `OPENAI_BASE_URL` / `OPENAI_MODEL`). Without a key, Ask uses the seeded archive and keyword retrieval.
 
+## Tests
+
+With the site up (`docker compose up --build`):
+
+```bash
+npm test
+npm run test:ui
+```
+
+`npm test` signs up a new member, creates a family, adds people and relationships, uploads a dated photo and video, OCRs a letter scan, and asks how grandma met grandpa. It does not treat the Prisma Hart seed as proof. `npm run test:ui` walks the same family in the browser and writes screenshots to `/opt/cursor/artifacts/family-liniage/media/`.
+
 ## Local development (without rebuilding the image)
 
 ```bash

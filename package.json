@@ -8,7 +8,9 @@
     "start": "next start --hostname 0.0.0.0 --port 3000",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "tsx --test tests/*.test.ts",
+    "test:ui": "tsx tests/ui-member-flow.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -31,6 +33,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
     "prisma": "^6.16.2",
+    "puppeteer-core": "^24.43.1",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"

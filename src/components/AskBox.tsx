@@ -89,12 +89,14 @@ export function AskBox({ suggested }: { suggested: string }) {
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           placeholder="How did grandma meet grandpa?"
+          data-testid="ask-question"
         />
         <div className="mt-3 flex items-center justify-between gap-3">
           <p className="font-sans text-xs text-bark/70">Answers come from letters and notes in this family only.</p>
           <button
             type="submit"
             disabled={busy}
+            data-testid="ask-submit"
             className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream disabled:opacity-60"
           >
             {busy ? "Looking…" : "Ask"}

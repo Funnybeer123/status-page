@@ -16,19 +16,32 @@ export type AskResult = {
   mode: "seeded" | "retrieval" | "live";
 };
 
-function tokenize(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((word) => word.length > 2 && !STOP.has(word));
-}
+const ALIASES: Record<string, string> = {
+  met: "meet",
+  meeting: "meet",
+  meets: "meet",
+  grandma: "grandmother",
+  granny: "grandmother",
+  nana: "grandmother",
+  grandpa: "grandfather",
+  grandad: "grandfather",
+  granddad: "grandfather",
+};
 
 const STOP = new Set([
   "the", "and", "for", "was", "with", "that", "this", "from", "did", "how",
   "who", "what", "when", "where", "her", "his", "she", "him", "they", "our",
   "you", "are", "about",
 ]);
+
+export function tokenize(text: string) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !STOP.has(word))
+    .map((word) => ALIASES[word] ?? word);
+}
 
 function scoreOverlap(query: string, content: string) {
   const q = new Set(tokenize(query));
@@ -41,7 +54,7 @@ function scoreOverlap(query: string, content: string) {
   return hits / Math.sqrt(words.length);
 }
 
-function isMeetingQuestion(question: string) {
+export function isMeetingQuestion(question: string) {
   const q = question.toLowerCase();
   const mentionsMeet = /meet|met|dance|cottonwood|grange|how did/.test(q);
   const mentionsPair =
@@ -51,6 +64,9 @@ function isMeetingQuestion(question: string) {
   return mentionsMeet && mentionsPair;
 }
 
+const HART_MEETING_ANSWER =
+  "Eleanor Whitaker met Samuel Hart at the Grange hall harvest dance in Cedar Falls, Iowa, on a Saturday in October 1947. She wrote to her sister Ruth six days later: they danced three times, the cider was too sweet, the fiddle ran a little sharp, and he asked to walk her home past the cottonwoods. She said yes. They married the following June under those same trees.";
+
 export async function answerQuestion(familyId: string, question: string): Promise<AskResult> {
   const trimmed = question.trim();
   if (!trimmed) {
@@ -58,18 +74,16 @@ export async function answerQuestion(familyId: string, question: string): Promis
   }
 
   const retrieved = await retrieve(familyId, trimmed);
+  const harvestInThisFamily = await loadDocumentSource(familyId, "doc-harvest");
 
-  if (isMeetingQuestion(trimmed)) {
+  if (isMeetingQuestion(trimmed) && harvestInThisFamily) {
     const harvest =
-      retrieved.find((item) => item.documentId === "doc-harvest") ??
-      (await loadDocumentSource(familyId, "doc-harvest"));
+      retrieved.find((item) => item.documentId === "doc-harvest") ?? harvestInThisFamily;
     const extras = retrieved.filter((item) => item.documentId !== "doc-harvest").slice(0, 2);
-    const sources = [harvest, ...extras].filter(Boolean) as AskSource[];
     return {
       mode: "seeded",
-      sources,
-      answer:
-        "Eleanor Whitaker met Samuel Hart at the Grange hall harvest dance in Cedar Falls, Iowa, on a Saturday in October 1947. She wrote to her sister Ruth six days later: they danced three times, the cider was too sweet, the fiddle ran a little sharp, and he asked to walk her home past the cottonwoods. She said yes. They married the following June under those same trees.",
+      sources: [harvest, ...extras],
+      answer: HART_MEETING_ANSWER,
     };
   }
 
@@ -105,7 +119,7 @@ async function loadDocumentSource(familyId: string, documentId: string): Promise
     title: doc.title,
     writtenAt: doc.writtenAt ? formatDate(doc.writtenAt) : null,
     kind: doc.kind,
-    excerpt: doc.transcript.slice(0, 320),
+    excerpt: doc.transcript.slice(0, 420),
   };
 }
 

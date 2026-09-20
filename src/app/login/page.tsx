@@ -64,7 +64,7 @@ function LoginForm() {
           />
         </label>
         {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
-        <button type="submit" disabled={busy} className="w-full rounded-full bg-seal py-2.5 font-sans text-cream">
+        <button type="submit" disabled={busy} data-testid="login-submit" className="w-full rounded-full bg-seal py-2.5 font-sans text-cream">
           {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
