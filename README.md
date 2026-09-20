@@ -29,7 +29,7 @@ The answer cites Eleanor’s 18 October 1947 letter to Ruth.
 
 - Sign up, create a family, invite relatives (owner / contributor / viewer), and switch families.
 - Add people and parent/partner links; browse a three-generation tree.
-- Record maiden names, nicknames, the places people lived, and a life-event timeline.
+- Record maiden names, nicknames, the places people lived, and a full family history (vitals, moves, letters, photographs, films, stories) with generation filters and gap callouts.
 - Write stories and oral notes; cite letters and photographs on facts.
 - Ask how two people are related; search the whole archive; see upcoming family dates.
 - Living relatives are redacted for viewers (birth dates, notes, current places).

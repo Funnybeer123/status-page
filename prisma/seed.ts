@@ -826,6 +826,7 @@ async function main() {
         title: `Notes on ${person.displayName}`,
         kind: DocKind.note,
         transcript: person.notes,
+        writtenAt: person.birthDate,
         people: { create: { personId: person.id } },
       },
     });
