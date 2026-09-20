@@ -4,15 +4,23 @@
     var resume = Model.Resume;
 }
 
-<div class="sheet">
-    <header class="masthead">
-        <div class="masthead-top">
+<div class="app">
+    <header class="topbar">
+        <div class="brand">
+            <span class="mark" aria-hidden="true">EB</span>
             <p class="kicker">Resume</p>
-            <button type="button" class="print-btn no-print" onclick="window.print()">Print</button>
         </div>
+        <button type="button" class="print-btn no-print" onclick="window.print()">Print</button>
+    </header>
+
+    <header class="hero">
         <h1>@resume.Name</h1>
         <p class="headline">@resume.Headline</p>
         <p class="subhead">Cloud Architect at KBR, 2023–2025</p>
+        <ul class="role-chips">
+            <li>UBT · Last 2 years</li>
+            <li>KBR · 2023–2025</li>
+        </ul>
     </header>
 
     <p class="source-banner" role="status">
@@ -32,17 +40,17 @@
                     @foreach (var role in resume.Experience)
                     {
                         <li class="role">
-                            <div class="role-when">
-                                <p class="role-dates">@role.Dates</p>
+                            <div class="role-card">
+                                <div class="role-meta">
+                                    <p class="employer">@role.Employer</p>
+                                    <p class="role-dates">@role.Dates</p>
+                                </div>
+                                <h3>@role.Title</h3>
                                 <p class="role-duration">@role.Duration</p>
                                 @if (role.DatesNeedConfirmation)
                                 {
                                     <p class="date-note">@role.DateNote</p>
                                 }
-                            </div>
-                            <div class="role-body">
-                                <h3>@role.Title</h3>
-                                <p class="employer">@role.Employer</p>
                                 <ul>
                                     @foreach (var bullet in role.Bullets)
                                     {
