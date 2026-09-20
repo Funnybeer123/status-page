@@ -72,8 +72,8 @@ export class ApiClient {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: form.toString(),
     });
-    const session = await this.json<{ user?: { id: string; email: string; name?: string } }>("/api/auth/session");
-    return { status: response.status, session: session.body };
+    const session = await this.json<{ user?: { id: string; email: string; name?: string } } | null>("/api/auth/session");
+    return { status: response.status, session: session.body ?? {} };
   }
 
   async session() {

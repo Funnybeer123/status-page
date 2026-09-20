@@ -21,7 +21,7 @@ test("auth gates and multi-family invites stay tenant-scoped", async (t) => {
     const signup = await client.signup({ name: "Pat", email, password: PASSWORD, familyName: "Pat family" });
     assert.equal(signup.status, 200, signup.body.error);
     const login = await client.signIn(email, "not-the-password");
-    assert.equal(login.session.user, undefined);
+    assert.ok(!login.session?.user, "wrong password must not create a session");
   });
 
   await t.test("duplicate signup is rejected", async () => {
