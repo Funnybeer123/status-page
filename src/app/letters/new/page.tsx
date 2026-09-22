@@ -21,7 +21,10 @@ export default async function LettersNewPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Upload a scan, run OCR, then keep the image beside an editable transcript. Handwriting will need a human pass.
       </p>
-      <LetterForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
+      <LetterForm
+        people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+        letters={letters.map((letter) => ({ id: letter.id, title: letter.title }))}
+      />
       <ul className="mt-10 space-y-3">
         {letters.map((letter) => (
           <li key={letter.id} className="paper-card p-4">

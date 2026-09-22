@@ -23,10 +23,14 @@ export async function saveFamilyDocument(input: {
   writtenAt?: string;
   personIds: string[];
   file?: File | null;
+  replyToId?: string | null;
+  translation?: string | null;
+  needsReview?: boolean;
 }) {
   let assetId: string | undefined;
   let transcript = input.transcript || "";
   let pages = 0;
+  const suppliedTranscript = Boolean(input.transcript?.trim());
   const file = input.file;
   if (file && file.size > 0) {
     const bytes = Buffer.from(await file.arrayBuffer());
@@ -75,6 +79,9 @@ export async function saveFamilyDocument(input: {
       title: input.title,
       kind: input.kind,
       transcript,
+      translation: input.translation?.trim() || null,
+      replyToId: input.replyToId || null,
+      needsReview: input.needsReview ?? (Boolean(file && file.size > 0) && !suppliedTranscript),
       writtenAt: input.writtenAt ? new Date(input.writtenAt) : null,
       people: input.personIds.length ? { create: input.personIds.map((personId) => ({ personId })) } : undefined,
     },
@@ -84,7 +91,7 @@ export async function saveFamilyDocument(input: {
     familyId: input.familyId,
     documentId: document.id,
     personId: input.personIds[0],
-    transcript,
+    transcript: [transcript, input.translation?.trim()].filter(Boolean).join("\n\n"),
   });
   await recordActivity({
     familyId: input.familyId,

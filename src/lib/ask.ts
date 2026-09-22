@@ -67,16 +67,44 @@ export function isMeetingQuestion(question: string) {
 const HART_MEETING_ANSWER =
   "Eleanor Whitaker met Samuel Hart at the Grange hall harvest dance in Cedar Falls, Iowa, on a Saturday in October 1947. She wrote to her sister Ruth six days later: they danced three times, the cider was too sweet, the fiddle ran a little sharp, and he asked to walk her home past the cottonwoods. She said yes. They married the following June under those same trees.";
 
-export async function answerQuestion(familyId: string, question: string): Promise<AskResult> {
+export type AskTurnInput = { role: "user" | "assistant"; text: string };
+
+export function isFollowUp(question: string) {
+  const q = question.trim();
+  if (!q) return false;
+  if (/(grandma|grandfather|grandpa|grandmother)/i.test(q) && /meet|met/.test(q)) return false;
+  const short = tokenize(q).length <= 4;
+  const starts = /^(what|where|when|who|why|and|did|was|were|how|which)\b/i.test(q);
+  const pronoun = /\b(she|he|they|that|those|this|her|his|him|them|the letter|the dance|the cider|the hatband)\b/i.test(q);
+  return (starts && (pronoun || short)) || (pronoun && short);
+}
+
+export function expandAskQuery(question: string, prior: AskTurnInput[] = []) {
+  const trimmed = question.trim();
+  if (!prior.length || !isFollowUp(trimmed)) return trimmed;
+  const earlier = prior
+    .filter((turn) => turn.role === "user")
+    .slice(-2)
+    .map((turn) => turn.text)
+    .join(" ");
+  return earlier ? `${earlier} ${trimmed}` : trimmed;
+}
+
+export async function answerQuestion(
+  familyId: string,
+  question: string,
+  prior: AskTurnInput[] = [],
+): Promise<AskResult> {
   const trimmed = question.trim();
   if (!trimmed) {
     return { answer: "Ask a question about this family’s letters and notes.", sources: [], mode: "seeded" };
   }
 
-  const retrieved = await retrieve(familyId, trimmed);
+  const lookup = expandAskQuery(trimmed, prior);
+  const retrieved = await retrieve(familyId, lookup);
   const harvestInThisFamily = await loadDocumentSource(familyId, "doc-harvest");
 
-  if (isMeetingQuestion(trimmed) && harvestInThisFamily) {
+  if (isMeetingQuestion(lookup) && harvestInThisFamily) {
     const harvest =
       retrieved.find((item) => item.documentId === "doc-harvest") ?? harvestInThisFamily;
     const extras = retrieved.filter((item) => item.documentId !== "doc-harvest").slice(0, 2);
@@ -88,7 +116,7 @@ export async function answerQuestion(familyId: string, question: string): Promis
   }
 
   if (process.env.OPENAI_API_KEY && retrieved.length) {
-    const live = await liveAnswer(trimmed, retrieved);
+    const live = await liveAnswer(lookup, retrieved);
     if (live) return live;
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Source = {
@@ -18,9 +19,22 @@ type Message = {
   mode?: string;
 };
 
-export function AskBox({ suggested }: { suggested: string }) {
-  const [question, setQuestion] = useState(suggested);
-  const [messages, setMessages] = useState<Message[]>([]);
+export function AskBox({
+  suggested,
+  conversationId: initialId,
+  initialMessages = [],
+  saved = false,
+}: {
+  suggested: string;
+  conversationId?: string;
+  initialMessages?: Message[];
+  saved?: boolean;
+}) {
+  const router = useRouter();
+  const [question, setQuestion] = useState(initialMessages.length ? "" : suggested);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [conversationId, setConversationId] = useState(initialId || "");
+  const [kept, setKept] = useState(saved);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,14 +45,19 @@ export function AskBox({ suggested }: { suggested: string }) {
     setBusy(true);
     setError("");
     setMessages((current) => [...current, { role: "user", text }]);
+    setQuestion("");
     try {
       const response = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text }),
+        body: JSON.stringify({ question: text, conversationId: conversationId || undefined }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Ask failed.");
+      if (payload.conversationId) {
+        setConversationId(payload.conversationId);
+        router.replace(`/ask?conversationId=${payload.conversationId}`);
+      }
       setMessages((current) => [
         ...current,
         { role: "assistant", text: payload.answer, sources: payload.sources, mode: payload.mode },
@@ -50,12 +69,35 @@ export function AskBox({ suggested }: { suggested: string }) {
     }
   }
 
+  async function saveConversation() {
+    if (!conversationId) return;
+    const response = await fetch("/api/ask/saved", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversationId, saved: true }),
+    });
+    if (response.ok) {
+      setKept(true);
+      router.refresh();
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
+      <div className="flex flex-wrap gap-3 font-sans text-sm">
+        <Link href="/ask" className="text-seal">New question</Link>
+        <Link href="/ask/saved" className="text-seal">Saved questions</Link>
+        {conversationId ? (
+          <button type="button" onClick={saveConversation} className="text-seal" data-testid="ask-save">
+            {kept ? "Saved" : "Save this question"}
+          </button>
+        ) : null}
+      </div>
+      <div className="space-y-4" data-testid="ask-thread">
         {messages.map((message, index) => (
           <article
             key={`${message.role}-${index}`}
+            data-testid={`ask-${message.role}`}
             className={message.role === "user" ? "ml-auto max-w-2xl text-right" : "max-w-3xl"}
           >
             <p className="font-sans text-xs uppercase tracking-[0.18em] text-gold">
@@ -63,7 +105,7 @@ export function AskBox({ suggested }: { suggested: string }) {
             </p>
             <p className="mt-2 whitespace-pre-wrap text-lg leading-relaxed">{message.text}</p>
             {message.sources?.length ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2" data-testid="ask-sources">
                 {message.sources.map((source) => (
                   <Link
                     key={source.documentId}
@@ -92,14 +134,14 @@ export function AskBox({ suggested }: { suggested: string }) {
           data-testid="ask-question"
         />
         <div className="mt-3 flex items-center justify-between gap-3">
-          <p className="font-sans text-xs text-bark/70">Answers come from letters and notes in this family only.</p>
+          <p className="font-sans text-xs text-bark/70">A follow-up stays in this conversation and still cites the letters.</p>
           <button
             type="submit"
             disabled={busy}
             data-testid="ask-submit"
             className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream disabled:opacity-60"
           >
-            {busy ? "Looking…" : "Ask"}
+            {busy ? "Looking…" : messages.length ? "Ask a follow-up" : "Ask"}
           </button>
         </div>
         {error ? <p className="mt-2 font-sans text-sm text-seal">{error}</p> : null}

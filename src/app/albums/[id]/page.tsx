@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { AlbumAddForm } from "@/app/albums/ui";
+import { AlbumAddForm, AlbumSlideshow } from "@/app/albums/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
@@ -19,11 +19,18 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
     prisma.document.findMany({ where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!album) notFound();
+  const slides = album.items
+    .filter((item) => item.asset && item.asset.mimeType.startsWith("image/"))
+    .map((item) => ({
+      src: `/api/media/${item.asset!.storagePath}`,
+      title: item.asset!.title || "Untitled",
+    }));
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Album</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="album-title">{album.title}</h1>
       {album.summary ? <p className="mt-3 max-w-2xl text-bark">{album.summary}</p> : null}
+      <AlbumSlideshow slides={slides} />
       {canWrite(ctx.role) ? <ShareLinkButton kind="album" entityId={album.id} /> : null}
       {canWrite(ctx.role) ? (
         <AlbumAddForm

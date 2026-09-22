@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { compileLifeStory } from "@/lib/book";
+import { compileLifeStory, compileNameIndex } from "@/lib/book";
 import { hideEventFromViewer, shouldHideLivingFacts } from "@/lib/privacy";
 
 export default async function BookPage({
@@ -25,8 +25,9 @@ export default async function BookPage({
     orderBy: { displayName: "asc" },
   });
   const selected = params.personId ? people.filter((person) => person.id === params.personId) : people;
-  const chapters = selected
-    .filter((person) => !shouldHideLivingFacts(ctx.role, person) || params.personId)
+  const visible = selected.filter((person) => !shouldHideLivingFacts(ctx.role, person) || params.personId);
+  const nameIndex = compileNameIndex(visible);
+  const chapters = visible
     .map((person) =>
       compileLifeStory({
         person,
@@ -60,9 +61,20 @@ export default async function BookPage({
           ))}
         </div>
       </div>
+      <nav className="mt-10 paper-card p-5" data-testid="book-name-index">
+        <h2 className="font-display text-2xl">Name index</h2>
+        <ul className="mt-4 columns-2 gap-6 font-sans text-sm sm:columns-3">
+          {nameIndex.map((entry) => (
+            <li key={`${entry.href}-${entry.name}`} className="break-inside-avoid py-0.5">
+              <a href={entry.href} className="text-seal">{entry.name}</a>
+              {entry.name !== entry.chapter ? <span className="text-bark"> · {entry.chapter}</span> : null}
+            </li>
+          ))}
+        </ul>
+      </nav>
       <article className="mt-10 space-y-12" data-testid="book-chapters">
         {chapters.map((chapter) => (
-          <section key={chapter.id} className="break-inside-avoid">
+          <section key={chapter.id} id={`chapter-${chapter.id}`} className="break-inside-avoid">
             <h2 className="font-display text-4xl">{chapter.title}</h2>
             {chapter.subtitle ? <p className="mt-1 font-sans text-sm text-gold">{chapter.subtitle}</p> : null}
             {chapter.sections.map((section, index) => (

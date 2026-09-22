@@ -71,5 +71,17 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "event") return `/timeline#event-${entityId}`;
   if (entityType === "place") return "/map";
   if (entityType === "heirloom") return "/heirlooms";
+  if (entityType === "custody") return "/custody";
+  if (entityType === "business") return "/businesses";
+  if (entityType === "award") return "/awards";
+  if (entityType === "club") return "/clubs";
+  if (entityType === "probate") return "/probate";
+  if (entityType === "naturalization") return "/naturalizations";
+  if (entityType === "address") return "/addresses";
+  if (entityType === "apprenticeship") return "/apprentices";
+  if (entityType === "mention") return "/mentions";
+  if (entityType === "pet") return "/pets";
+  if (entityType === "textile") return "/quilts";
+  if (entityType === "dna") return "/dna";
   return "/activity";
 }

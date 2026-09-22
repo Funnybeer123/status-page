@@ -8,7 +8,10 @@ import { replaceChunks } from "@/lib/chunk";
 const schema = z.object({
   title: z.string().min(1).max(200).optional(),
   transcript: z.string().optional(),
+  translation: z.string().optional().nullable(),
   writtenAt: z.string().optional().nullable(),
+  needsReview: z.boolean().optional(),
+  replyToId: z.string().optional().nullable(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +36,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     data: {
       title: body.data.title ?? existing.title,
       transcript: body.data.transcript ?? existing.transcript,
+      translation: body.data.translation === undefined ? existing.translation : body.data.translation || null,
+      needsReview: body.data.needsReview ?? existing.needsReview,
+      replyToId: body.data.replyToId === undefined ? existing.replyToId : body.data.replyToId || null,
       writtenAt:
         body.data.writtenAt === undefined
           ? existing.writtenAt
@@ -41,11 +47,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             : null,
     },
   });
-  if (body.data.transcript !== undefined) {
+  if (body.data.transcript !== undefined || body.data.translation !== undefined) {
     await replaceChunks({
       familyId: ctx.family.id,
       documentId: document.id,
-      transcript: document.transcript,
+      transcript: [document.transcript, document.translation].filter(Boolean).join("\n\n"),
     });
   }
   return NextResponse.json({ document });

@@ -7,26 +7,38 @@ export function LetterEditor({
   id,
   title,
   transcript,
+  translation,
   writtenAt,
+  needsReview,
   canEdit,
 }: {
   id: string;
   title: string;
   transcript: string;
+  translation: string;
   writtenAt: string;
+  needsReview: boolean;
   canEdit: boolean;
 }) {
   const router = useRouter();
   const [text, setText] = useState(transcript);
   const [heading, setHeading] = useState(title);
   const [date, setDate] = useState(writtenAt);
+  const [rendered, setRendered] = useState(translation);
+  const [review, setReview] = useState(needsReview);
   const [saved, setSaved] = useState("");
 
   async function save() {
     const response = await fetch(`/api/letters/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: heading, transcript: text, writtenAt: date }),
+      body: JSON.stringify({
+        title: heading,
+        transcript: text,
+        translation: rendered,
+        writtenAt: date,
+        needsReview: review,
+      }),
     });
     if (response.ok) {
       setSaved("Saved.");
@@ -44,13 +56,31 @@ export function LetterEditor({
       ) : (
         <h2 className="font-display text-2xl">{heading}</h2>
       )}
+      <p className="mt-4 font-sans text-xs uppercase tracking-[0.2em] text-gold">Original</p>
       <textarea
         readOnly={!canEdit}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={18}
-        className="mt-4 w-full resize-y bg-transparent text-lg leading-relaxed outline-none"
+        rows={12}
+        className="mt-2 w-full resize-y bg-transparent text-lg leading-relaxed outline-none"
+        data-testid="letter-transcript"
       />
+      <p className="mt-4 font-sans text-xs uppercase tracking-[0.2em] text-gold">Translation</p>
+      <textarea
+        readOnly={!canEdit}
+        value={rendered}
+        onChange={(e) => setRendered(e.target.value)}
+        rows={8}
+        placeholder="Keep a translation beside the original"
+        className="mt-2 w-full resize-y bg-transparent text-lg leading-relaxed outline-none"
+        data-testid="letter-translation"
+      />
+      {canEdit ? (
+        <label className="mt-4 flex items-center gap-2 font-sans text-sm">
+          <input type="checkbox" checked={review} onChange={(e) => setReview(e.target.checked)} />
+          Needs a human to check the transcript
+        </label>
+      ) : null}
       {canEdit ? (
         <div className="mt-4 flex items-center gap-3">
           <button type="button" onClick={save} className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream">

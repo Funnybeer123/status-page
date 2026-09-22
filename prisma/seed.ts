@@ -48,6 +48,38 @@ Eleanor`;
 
 const INTERVIEW_MEET = `He asked to walk me home past the cottonwoods after the third dance. I still smell the cider when I say it. That is the whole of how I met Sam.`;
 
+const HARVEST_TRANSLATION = `Dear Ruth — Saturday night at the Grange hall we had a harvest dance. The cider was too sweet and the fiddle ran a little sharp. I danced three times with Samuel Hart from the north farm. After the third dance he asked to walk me home past the cottonwoods. I said yes. Mother will have opinions. I do not. He has kind hands, and he calls me Whitaker as if it were a compliment. Love, Eleanor.`;
+
+const RUTH_REPLY = `Cedar Falls
+22 October 1947
+
+Ellie,
+
+Mother does have opinions. I do not. If the cider was too sweet you still said yes. Bring Samuel to Sunday dinner so Father can look at his hands.
+
+Your sister,
+Ruth`;
+
+const WEI_MOTHER = `爱荷华城
+一九八一年九月四日
+
+伟，
+玛格丽特是老师，手很温柔。图书馆是你们遇见的地方。我高兴。
+母亲`;
+
+const WEI_MOTHER_EN = `Iowa City
+4 September 1981
+
+Wei,
+Margaret is a teacher, and her hands are kind. The library is where you found each other. I am glad.
+Mother`;
+
+const HART_ASK_ANSWER =
+  "Eleanor Whitaker met Samuel Hart at the Grange hall harvest dance in Cedar Falls, Iowa, on a Saturday in October 1947. She wrote to her sister Ruth six days later: they danced three times, the cider was too sweet, the fiddle ran a little sharp, and he asked to walk her home past the cottonwoods. She said yes. They married the following June under those same trees.";
+
+const HART_ASK_FOLLOW =
+  "She told Ruth the cider was too sweet. The rest of the letter is still the harvest dance: three dances, a sharp fiddle, and the walk home past the cottonwoods.";
+
 function mediaRoot() {
   return process.env.MEDIA_ROOT || join(process.cwd(), "data", "media");
 }
@@ -1126,6 +1158,321 @@ async function ensureHartArchive() {
     },
     update: { text: "Courtesy to the trees" },
   });
+
+  const harvest = await prisma.document.findUnique({ where: { id: "doc-harvest" } });
+  if (harvest) {
+    await prisma.document.update({
+      where: { id: harvest.id },
+      data: { translation: HARVEST_TRANSLATION },
+    });
+    await prisma.chunk.deleteMany({ where: { documentId: harvest.id } });
+    await prisma.chunk.createMany({
+      data: chunkText(`${harvest.transcript}\n\n${HARVEST_TRANSLATION}`).map((content) => ({
+        familyId: family.id,
+        documentId: harvest.id,
+        personId: eleanor.id,
+        content,
+      })),
+    });
+  }
+
+  const ruthReply = await prisma.document.upsert({
+    where: { id: "doc-ruth-reply" },
+    create: {
+      id: "doc-ruth-reply",
+      familyId: family.id,
+      title: "Ruth to Eleanor, 22 October 1947",
+      kind: DocKind.letter,
+      transcript: RUTH_REPLY,
+      writtenAt: new Date("1947-10-22"),
+      replyToId: "doc-harvest",
+      needsReview: true,
+      people: { create: [{ personId: eleanor.id }] },
+    },
+    update: { transcript: RUTH_REPLY, replyToId: "doc-harvest", needsReview: true },
+  });
+  await prisma.chunk.deleteMany({ where: { documentId: ruthReply.id } });
+  await prisma.chunk.createMany({
+    data: chunkText(RUTH_REPLY).map((content) => ({
+      familyId: family.id,
+      documentId: ruthReply.id,
+      personId: eleanor.id,
+      content,
+    })),
+  });
+
+  if (wei && margaret) {
+    const motherLetter = await prisma.document.upsert({
+      where: { id: "doc-wei-mother" },
+      create: {
+        id: "doc-wei-mother",
+        familyId: family.id,
+        title: "Wei’s mother to Wei, 4 September 1981",
+        kind: DocKind.letter,
+        transcript: WEI_MOTHER,
+        translation: WEI_MOTHER_EN,
+        writtenAt: new Date("1981-09-04"),
+        people: { create: [{ personId: wei.id }, { personId: margaret.id }] },
+      },
+      update: { transcript: WEI_MOTHER, translation: WEI_MOTHER_EN },
+    });
+    await prisma.chunk.deleteMany({ where: { documentId: motherLetter.id } });
+    await prisma.chunk.createMany({
+      data: chunkText(`${WEI_MOTHER}\n\n${WEI_MOTHER_EN}`).map((content) => ({
+        familyId: family.id,
+        documentId: motherLetter.id,
+        personId: wei.id,
+        content,
+      })),
+    });
+  }
+
+  await prisma.custodyRecord.upsert({
+    where: { id: "custody-harvest-letter" },
+    create: {
+      id: "custody-harvest-letter",
+      familyId: family.id,
+      holderId: margaret?.id ?? eleanor.id,
+      title: "Harvest-dance letter",
+      kind: "letter",
+      documentId: "doc-harvest",
+      sinceOn: new Date("2016-03-12"),
+      notes: "Folded in Ellie’s cedar chest in the upstairs hall.",
+    },
+    update: { title: "Harvest-dance letter", notes: "Folded in Ellie’s cedar chest in the upstairs hall." },
+  });
+  await prisma.custodyRecord.upsert({
+    where: { id: "custody-hart-bible" },
+    create: {
+      id: "custody-hart-bible",
+      familyId: family.id,
+      holderId: eleanor.id,
+      title: "Hart family Bible",
+      kind: "Bible",
+      notes: "The flyleaf still has the wedding morning.",
+      sinceOn: new Date("1948-06-14"),
+    },
+    update: { title: "Hart family Bible" },
+  });
+
+  const business = await prisma.familyBusiness.upsert({
+    where: { id: "biz-north-farm-honey" },
+    create: {
+      id: "biz-north-farm-honey",
+      familyId: family.id,
+      name: "North farm honey",
+      place: "Cedar Falls, Iowa",
+      startedOn: new Date("1988-06-01"),
+      notes: "Sam would not take a comb until after the harvest-dance anniversary.",
+    },
+    update: { name: "North farm honey", place: "Cedar Falls, Iowa" },
+  });
+  await prisma.familyBusinessPerson.upsert({
+    where: { businessId_personId: { businessId: business.id, personId: samuel.id } },
+    create: { businessId: business.id, personId: samuel.id },
+    update: {},
+  });
+  await prisma.familyBusinessPerson.upsert({
+    where: { businessId_personId: { businessId: business.id, personId: eleanor.id } },
+    create: { businessId: business.id, personId: eleanor.id },
+    update: {},
+  });
+
+  await prisma.awardRecord.upsert({
+    where: { id: "award-eleanor-pie" },
+    create: {
+      id: "award-eleanor-pie",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "County fair pie ribbon",
+      awardedOn: new Date("1953-08-14"),
+      place: "Cedar Falls",
+      notes: "Blue ribbon for the Sunday-roll crust used as a pie lid.",
+    },
+    update: { title: "County fair pie ribbon" },
+  });
+  await prisma.clubMembership.upsert({
+    where: { id: "club-samuel-grange" },
+    create: {
+      id: "club-samuel-grange",
+      familyId: family.id,
+      personId: samuel.id,
+      club: "Cedar Falls Grange",
+      place: "Cedar Falls",
+      startedOn: new Date("1946-01-12"),
+      notes: "He was at the harvest dance because he already belonged.",
+    },
+    update: { club: "Cedar Falls Grange" },
+  });
+  await prisma.probateRecord.upsert({
+    where: { id: "probate-samuel" },
+    create: {
+      id: "probate-samuel",
+      familyId: family.id,
+      personId: samuel.id,
+      title: "Samuel Hart’s estate",
+      happenedOn: new Date("2018-03-02"),
+      place: "Cedar Falls",
+      notes: "The north farm and the bee yard stay with the children.",
+    },
+    update: { title: "Samuel Hart’s estate" },
+  });
+  if (wei) {
+    await prisma.naturalizationRecord.upsert({
+      where: { id: "nat-wei" },
+      create: {
+        id: "nat-wei",
+        familyId: family.id,
+        personId: wei.id,
+        court: "Northern District of Iowa",
+        place: "Iowa City",
+        happenedOn: new Date("1979-05-12"),
+      },
+      update: { court: "Northern District of Iowa" },
+    });
+  }
+  await prisma.familyAddress.upsert({
+    where: { id: "addr-whitaker-house" },
+    create: {
+      id: "addr-whitaker-house",
+      familyId: family.id,
+      personId: eleanor.id,
+      label: "Whitaker house",
+      line: "14 Market Street",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      startedOn: new Date("1928-03-12"),
+      endedOn: new Date("1948-06-14"),
+    },
+    update: { line: "14 Market Street" },
+  });
+  await prisma.apprenticeship.upsert({
+    where: { id: "app-samuel-farm" },
+    create: {
+      id: "app-samuel-farm",
+      familyId: family.id,
+      personId: samuel.id,
+      trade: "Farming",
+      master: "Thomas Hart",
+      place: "North farm",
+      startedOn: new Date("1940-03-01"),
+      endedOn: new Date("1944-09-21"),
+    },
+    update: { trade: "Farming", master: "Thomas Hart" },
+  });
+  await prisma.newspaperMention.upsert({
+    where: { id: "mention-harvest" },
+    create: {
+      id: "mention-harvest",
+      familyId: family.id,
+      personId: eleanor.id,
+      headline: "Hart and Whitaker at the harvest dance",
+      paper: "Cedar Falls Record",
+      publishedOn: new Date("1947-10-14"),
+      notes: "A line under the Grange social notes.",
+    },
+    update: { headline: "Hart and Whitaker at the harvest dance" },
+  });
+  await prisma.familyPet.upsert({
+    where: { id: "pet-cider" },
+    create: {
+      id: "pet-cider",
+      familyId: family.id,
+      personId: eleanor.id,
+      name: "Cider",
+      kind: "Barn cat",
+      startedOn: new Date("1948-10-18"),
+      notes: "Named for the harvest-dance cider. Lived in the cottonwood loft.",
+    },
+    update: { name: "Cider", kind: "Barn cat" },
+  });
+  await prisma.textileRecord.upsert({
+    where: { id: "quilt-wedding-ring" },
+    create: {
+      id: "quilt-wedding-ring",
+      familyId: family.id,
+      makerId: eleanor.id,
+      title: "Wedding ring quilt",
+      kind: "quilt",
+      madeOn: new Date("1948-06-14"),
+      notes: "Ellie pieced it the winter after the walk home.",
+    },
+    update: { title: "Wedding ring quilt" },
+  });
+  if (wei) {
+    await prisma.dnaNote.upsert({
+      where: { id: "dna-wei" },
+      create: {
+        id: "dna-wei",
+        familyId: family.id,
+        personId: wei.id,
+        haplogroup: "O-M175",
+        company: "23andMe",
+        notes: "Lily wrote it on the back of the 1981 letter.",
+      },
+      update: { haplogroup: "O-M175" },
+    });
+  }
+
+  const demoUser = await prisma.user.findUnique({ where: { id: "user-demo" } });
+  if (demoUser) {
+    const conversation = await prisma.askConversation.upsert({
+      where: { id: "ask-harvest-cider" },
+      create: {
+        id: "ask-harvest-cider",
+        familyId: family.id,
+        userId: demoUser.id,
+        title: "How did grandma meet grandpa?",
+        saved: true,
+      },
+      update: { saved: true, title: "How did grandma meet grandpa?" },
+    });
+    await prisma.askTurn.deleteMany({ where: { conversationId: conversation.id } });
+    const harvestSources = JSON.stringify([
+      {
+        documentId: "doc-harvest",
+        title: "Letter: Eleanor to Ruth, 18 October 1947",
+        writtenAt: "1947-10-18",
+        kind: "letter",
+        excerpt: "The cider was too sweet, and the fiddle ran a little sharp.",
+      },
+    ]);
+    await prisma.askTurn.createMany({
+      data: [
+        { conversationId: conversation.id, role: "user", text: "How did grandma meet grandpa?" },
+        { conversationId: conversation.id, role: "assistant", text: HART_ASK_ANSWER, sourcesJson: harvestSources },
+        { conversationId: conversation.id, role: "user", text: "What did she say about the cider?" },
+        { conversationId: conversation.id, role: "assistant", text: HART_ASK_FOLLOW, sourcesJson: harvestSources },
+      ],
+    });
+  }
+
+  const photos = await prisma.asset.findMany({
+    where: {
+      familyId: family.id,
+      title: { in: ["Harvest dance, Grange hall", "Ellie and Sam married", "Hart picnic, 1961"] },
+    },
+  });
+  if (photos.length && demoUser) {
+    const album = await prisma.album.upsert({
+      where: { id: "album-harvest" },
+      create: {
+        id: "album-harvest",
+        familyId: family.id,
+        title: "Harvest years",
+        summary: "The dance, the wedding, and the picnic under the cottonwoods.",
+        createdById: demoUser.id,
+      },
+      update: { title: "Harvest years" },
+    });
+    for (const photo of photos) {
+      const existing = await prisma.albumItem.findFirst({ where: { albumId: album.id, assetId: photo.id } });
+      if (!existing) {
+        await prisma.albumItem.create({ data: { albumId: album.id, assetId: photo.id } });
+      }
+    }
+  }
 }
 
 async function writeHartMedia() {

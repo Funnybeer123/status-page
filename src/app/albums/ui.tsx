@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function AlbumCreateForm() {
   const router = useRouter();
@@ -31,6 +31,57 @@ export function AlbumCreateForm() {
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
       <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">Start an album</button>
     </form>
+  );
+}
+
+export function AlbumSlideshow({
+  slides,
+}: {
+  slides: { src: string; title: string }[];
+}) {
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    if (!playing || slides.length < 2) return;
+    const timer = window.setInterval(() => {
+      setIndex((value) => (value + 1) % slides.length);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [playing, slides.length]);
+  if (!slides.length) return null;
+  const current = slides[index] ?? slides[0];
+  return (
+    <div className="paper-card mt-8 overflow-hidden" data-testid="album-slideshow">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={current.src} alt={current.title} className="aspect-video w-full object-cover" />
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <p className="font-display text-xl">{current.title}</p>
+        <div className="flex gap-2 font-sans text-sm">
+          <button
+            type="button"
+            className="rounded-full border border-bark/15 px-3 py-1"
+            onClick={() => setIndex((value) => (value - 1 + slides.length) % slides.length)}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            className="rounded-full bg-seal px-3 py-1 text-cream"
+            data-testid="album-slideshow-play"
+            onClick={() => setPlaying((on) => !on)}
+          >
+            {playing ? "Pause" : "Play"}
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-bark/15 px-3 py-1"
+            onClick={() => setIndex((value) => (value + 1) % slides.length)}
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

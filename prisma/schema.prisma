@@ -101,6 +101,7 @@ model User {
   shareLinks     ShareLink[]
   promptAnswers  StoryPromptAnswer[]
   personChanges  PersonChange[]
+  askConversations AskConversation[]
 }
 
 model Family {
@@ -147,6 +148,19 @@ model Family {
   bibleRecords  BibleRecord[]
   mottos        FamilyMotto[]
   passports     PassportRecord[]
+  askConversations AskConversation[]
+  custodyRecords CustodyRecord[]
+  businesses    FamilyBusiness[]
+  awards        AwardRecord[]
+  clubs         ClubMembership[]
+  probateRecords ProbateRecord[]
+  naturalizations NaturalizationRecord[]
+  addresses     FamilyAddress[]
+  apprenticeships Apprenticeship[]
+  mentions      NewspaperMention[]
+  pets          FamilyPet[]
+  textiles      TextileRecord[]
+  dnaNotes      DnaNote[]
 }
 
 model Membership {
@@ -223,6 +237,18 @@ model Person {
   militaryServices MilitaryService[]
   bibleRecords   BibleRecord[]
   passports      PassportRecord[]
+  custodyRecords CustodyRecord[]
+  businessLinks  FamilyBusinessPerson[]
+  awards         AwardRecord[]
+  clubs          ClubMembership[]
+  probateRecords ProbateRecord[]
+  naturalizations NaturalizationRecord[]
+  addresses      FamilyAddress[]
+  apprenticeships Apprenticeship[]
+  mentions       NewspaperMention[]
+  pets           FamilyPet[]
+  textiles       TextileRecord[]
+  dnaNotes       DnaNote[]
 }
 
 model Relationship {
@@ -261,6 +287,7 @@ model Asset {
   albumItems   AlbumItem[]
   pairThen     PhotoPair[] @relation("PairThen")
   pairNow      PhotoPair[] @relation("PairNow")
+  custody      CustodyRecord[]
 }
 
 model PersonTag {
@@ -274,25 +301,31 @@ model PersonTag {
 }
 
 model Document {
-  id         String           @id @default(cuid())
-  familyId   String
-  assetId    String?          @unique
-  title      String
-  kind       DocKind
-  transcript String
-  writtenAt  DateTime?        @db.Date
-  createdAt  DateTime         @default(now())
-  deletedAt  DateTime?
-  family     Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  asset      Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
-  people     DocumentPerson[]
-  chunks     Chunk[]
-  story      Story?
-  citations  Citation[]
-  comments   Comment[]
-  albumItems AlbumItem[]
-  revisions  DocumentRevision[]
+  id          String           @id @default(cuid())
+  familyId    String
+  assetId     String?          @unique
+  title       String
+  kind        DocKind
+  transcript  String
+  translation String?
+  needsReview Boolean          @default(false)
+  replyToId   String?
+  writtenAt   DateTime?        @db.Date
+  createdAt   DateTime         @default(now())
+  deletedAt   DateTime?
+  family      Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  asset       Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  replyTo     Document?        @relation("LetterThread", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Document[]       @relation("LetterThread")
+  people      DocumentPerson[]
+  chunks      Chunk[]
+  story       Story?
+  citations   Citation[]
+  comments    Comment[]
+  albumItems  AlbumItem[]
+  revisions   DocumentRevision[]
   timeCapsule TimeCapsule?
+  custody     CustodyRecord[]
 }
 
 model DocumentPerson {
@@ -914,6 +947,219 @@ model PassportRecord {
   notes      String?
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model AskConversation {
+  id        String    @id @default(cuid())
+  familyId  String
+  userId    String
+  title     String
+  saved     Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  turns     AskTurn[]
+
+  @@index([familyId, userId, updatedAt])
+}
+
+model AskTurn {
+  id             String          @id @default(cuid())
+  conversationId String
+  role           String
+  text           String
+  sourcesJson    String?
+  createdAt      DateTime        @default(now())
+  conversation   AskConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+model CustodyRecord {
+  id         String    @id @default(cuid())
+  familyId   String
+  holderId   String
+  title      String
+  kind       String
+  documentId String?
+  assetId    String?
+  notes      String?
+  sinceOn    DateTime? @db.Date
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  holder     Person    @relation(fields: [holderId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model FamilyBusiness {
+  id        String                 @id @default(cuid())
+  familyId  String
+  name      String
+  place     String?
+  startedOn DateTime?              @db.Date
+  endedOn   DateTime?              @db.Date
+  notes     String?
+  family    Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  people    FamilyBusinessPerson[]
+
+  @@index([familyId])
+}
+
+model FamilyBusinessPerson {
+  businessId String
+  personId   String
+  business   FamilyBusiness @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  person     Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([businessId, personId])
+}
+
+model AwardRecord {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  title     String
+  awardedOn DateTime? @db.Date
+  place     String?
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model ClubMembership {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  club      String
+  place     String?
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model ProbateRecord {
+  id         String    @id @default(cuid())
+  familyId   String
+  personId   String
+  title      String
+  happenedOn DateTime? @db.Date
+  place      String?
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model NaturalizationRecord {
+  id         String    @id @default(cuid())
+  familyId   String
+  personId   String
+  court      String
+  place      String?
+  happenedOn DateTime? @db.Date
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model FamilyAddress {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String?
+  label     String
+  line      String
+  locality  String?
+  region    String?
+  country   String?
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model Apprenticeship {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  trade     String
+  master    String?
+  place     String?
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model NewspaperMention {
+  id          String    @id @default(cuid())
+  familyId    String
+  personId    String
+  headline    String
+  paper       String?
+  publishedOn DateTime? @db.Date
+  notes       String?
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person      Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model FamilyPet {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String?
+  name      String
+  kind      String
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model TextileRecord {
+  id      String    @id @default(cuid())
+  familyId String
+  makerId String?
+  title   String
+  kind    String
+  madeOn  DateTime? @db.Date
+  notes   String?
+  family  Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  maker   Person?   @relation(fields: [makerId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model DnaNote {
+  id         String  @id @default(cuid())
+  familyId   String
+  personId   String
+  haplogroup String?
+  company    String?
+  notes      String?
+  family     Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([familyId, personId])
 }

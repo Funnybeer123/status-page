@@ -26,6 +26,13 @@ export async function POST(req: Request) {
     .map((id) => id.trim())
     .filter(Boolean);
   const file = form.get("file");
+  const replyToId = String(form.get("replyToId") || "").trim() || null;
+  if (replyToId) {
+    const parent = await prisma.document.findFirst({
+      where: { id: replyToId, familyId: ctx.family.id, deletedAt: null },
+    });
+    if (!parent) return NextResponse.json({ error: "The letter this replies to was not found." }, { status: 404 });
+  }
   const saved = await saveFamilyDocument({
     familyId: ctx.family.id,
     actorId: ctx.session.user.id,
@@ -35,6 +42,9 @@ export async function POST(req: Request) {
     writtenAt: String(form.get("writtenAt") || ""),
     personIds,
     file: file instanceof File ? file : null,
+    replyToId,
+    translation: String(form.get("translation") || "") || null,
+    needsReview: String(form.get("needsReview") || "") === "true" ? true : undefined,
   });
   return NextResponse.json(saved);
 }

@@ -68,3 +68,26 @@ export function compileLifeStory(input: {
     sections,
   } satisfies BookChapter;
 }
+
+export type NameIndexEntry = { name: string; href: string; chapter: string };
+
+export function compileNameIndex(
+  people: { id: string; displayName: string; names?: { name: string }[] }[],
+): NameIndexEntry[] {
+  const seen = new Set<string>();
+  const entries: NameIndexEntry[] = [];
+  for (const person of people) {
+    const names = [person.displayName, ...(person.names?.map((item) => item.name) ?? [])];
+    for (const name of names) {
+      const key = name.trim().toLowerCase();
+      if (!key || seen.has(`${key}:${person.id}`)) continue;
+      seen.add(`${key}:${person.id}`);
+      entries.push({
+        name: name.trim(),
+        href: `#chapter-${person.id}`,
+        chapter: person.displayName,
+      });
+    }
+  }
+  return entries.sort((a, b) => a.name.localeCompare(b.name) || a.chapter.localeCompare(b.chapter));
+}

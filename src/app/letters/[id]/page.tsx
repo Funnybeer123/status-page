@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { LetterEditor } from "@/app/letters/[id]/ui";
@@ -18,6 +19,8 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
       people: { include: { person: true } },
       comments: { include: { author: true } },
       revisions: { include: { editedBy: { select: { name: true } } }, orderBy: { editedAt: "desc" } },
+      replyTo: true,
+      replies: { orderBy: { writtenAt: "asc" } },
     },
   });
   if (!letter) notFound();
@@ -29,7 +32,14 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
       <p className="mt-2 text-bark">
         {formatDate(letter.writtenAt, "Undated")}
         {letter.people.length ? ` · ${letter.people.map((item) => item.person.displayName).join(", ")}` : ""}
+        {letter.needsReview ? " · Needs a transcript check" : ""}
       </p>
+      {letter.replyTo ? (
+        <p className="mt-2 font-sans text-sm" data-testid="letter-reply-to">
+          In reply to{" "}
+          <Link href={`/letters/${letter.replyTo.id}`} className="text-seal">{letter.replyTo.title}</Link>
+        </p>
+      ) : null}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="paper-card overflow-hidden p-4">
           {letter.asset ? (
@@ -43,10 +53,31 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           id={letter.id}
           title={letter.title}
           transcript={letter.transcript}
+          translation={letter.translation || ""}
           writtenAt={letter.writtenAt ? letter.writtenAt.toISOString().slice(0, 10) : ""}
+          needsReview={letter.needsReview}
           canEdit={canWrite(ctx.role)}
         />
       </div>
+      {letter.translation ? (
+        <section className="mt-8 paper-card p-5" data-testid="letter-translation-view">
+          <h2 className="font-display text-2xl">Translation</h2>
+          <p className="mt-2 whitespace-pre-wrap text-bark">{letter.translation}</p>
+        </section>
+      ) : null}
+      {letter.replies.length ? (
+        <section className="mt-8" data-testid="letter-replies">
+          <h2 className="font-display text-2xl">Replies</h2>
+          <ul className="mt-3 space-y-2">
+            {letter.replies.map((reply) => (
+              <li key={reply.id}>
+                <Link href={`/letters/${reply.id}`} className="text-seal">{reply.title}</Link>
+                <span className="ml-2 font-sans text-sm text-bark">{formatDate(reply.writtenAt, "")}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {letter.revisions.length ? (
         <section className="mt-10" data-testid="transcript-history">
           <h2 className="font-display text-2xl">Earlier transcripts</h2>

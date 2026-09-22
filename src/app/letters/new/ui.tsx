@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function LetterForm({ people }: { people: { id: string; displayName: string }[] }) {
+export function LetterForm({
+  people,
+  letters = [],
+}: {
+  people: { id: string; displayName: string }[];
+  letters?: { id: string; title: string }[];
+}) {
   const router = useRouter();
   const [transcript, setTranscript] = useState("");
   const [busy, setBusy] = useState(false);
@@ -69,6 +75,12 @@ export function LetterForm({ people }: { people: { id: string; displayName: stri
       <button type="button" onClick={runOcr} disabled={!file || ocrBusy} className="rounded-full border border-bark/20 px-4 py-2 font-sans text-sm">
         {ocrBusy ? "Reading scan…" : "OCR this scan"}
       </button>
+      <select name="replyToId" className="w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="letter-reply-to">
+        <option value="">In reply to (optional)</option>
+        {letters.map((letter) => (
+          <option key={letter.id} value={letter.id}>{letter.title}</option>
+        ))}
+      </select>
       <textarea
         value={transcript}
         onChange={(event) => setTranscript(event.target.value)}
@@ -76,6 +88,7 @@ export function LetterForm({ people }: { people: { id: string; displayName: stri
         placeholder="Editable transcript"
         className="w-full rounded-lg border border-bark/15 bg-paper px-3 py-2"
       />
+      <textarea name="translation" rows={4} placeholder="Translation kept beside the original" className="w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <fieldset className="font-sans text-sm">
         <legend className="mb-2">Linked people</legend>
         <div className="flex flex-wrap gap-2">
