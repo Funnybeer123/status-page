@@ -16,7 +16,10 @@ export default async function CemeteriesPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="cemeteries-heading">Cemeteries</h1>
-      <p className="mt-3 max-w-2xl text-bark">Burial places, plots, and a link to each memorial.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Burial places, plots, and a link to each memorial.{" "}
+        <Link href="/cemeteries/map" className="text-seal">Map of cemeteries</Link>
+      </p>
       {canWrite(ctx.role) ? <CemeteryForm /> : null}
       <ul className="mt-10 space-y-3" data-testid="cemeteries-list">
         {cemeteries.map((cemetery) => (

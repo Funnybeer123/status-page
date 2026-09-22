@@ -38,12 +38,16 @@ const schema = z.discriminatedUnion("kind", [
     place: z.string().min(1).max(160),
     acquiredOn: optionalDate,
     notes: z.string().max(800).optional(),
+    abstract: z.string().max(4000).optional(),
+    homeId: z.string().optional(),
   }),
   z.object({
     kind: z.literal("military"),
     personId: z.string(),
     branch: z.string().min(1).max(160),
     unit: z.string().max(160).optional(),
+    unitId: z.string().optional(),
+    unitName: z.string().max(160).optional(),
     rank: z.string().max(80).optional(),
     startedOn: optionalDate,
     endedOn: optionalDate,
@@ -104,12 +108,20 @@ export async function GET(req: Request) {
   }
   if (kind === "land") {
     return NextResponse.json({
-      records: await prisma.landRecord.findMany({ where: { familyId }, include: { person: true }, orderBy: { acquiredOn: "asc" } }),
+      records: await prisma.landRecord.findMany({
+        where: { familyId },
+        include: { person: true, home: true },
+        orderBy: { acquiredOn: "asc" },
+      }),
     });
   }
   if (kind === "military") {
     return NextResponse.json({
-      records: await prisma.militaryService.findMany({ where: { familyId }, include: { person: true }, orderBy: { startedOn: "asc" } }),
+      records: await prisma.militaryService.findMany({
+        where: { familyId },
+        include: { person: true, militaryUnit: true },
+        orderBy: { startedOn: "asc" },
+      }),
     });
   }
   if (kind === "bible") {
@@ -188,34 +200,57 @@ export async function POST(req: Request) {
   }
   if (data.kind === "land") {
     if (!(await belong(familyId, data.personId))) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+    const home = data.homeId
+      ? await prisma.familyHome.findFirst({ where: { id: data.homeId, familyId } })
+      : null;
     const record = await prisma.landRecord.create({
       data: {
         familyId,
         personId: data.personId,
+        homeId: home?.id ?? null,
         title: data.title.trim(),
         place: data.place.trim(),
         acquiredOn: data.acquiredOn ? new Date(data.acquiredOn) : null,
+        abstract: data.abstract?.trim() || null,
         notes: data.notes?.trim() || null,
       },
-      include: { person: true },
+      include: { person: true, home: true },
     });
     await recordActivity({ familyId, actorId, verb: "recorded", entityType: "land", entityId: record.id, title: record.title });
     return NextResponse.json({ record });
   }
   if (data.kind === "military") {
     if (!(await belong(familyId, data.personId))) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+    let unitId = data.unitId || null;
+    let unitName = data.unit?.trim() || null;
+    if (data.unitName?.trim()) {
+      const unit = await prisma.militaryUnit.create({
+        data: {
+          familyId,
+          name: data.unitName.trim(),
+          branch: data.branch.trim(),
+        },
+      });
+      unitId = unit.id;
+      unitName = unit.name;
+    } else if (unitId) {
+      const existing = await prisma.militaryUnit.findFirst({ where: { id: unitId, familyId } });
+      if (existing) unitName = unitName || existing.name;
+      else unitId = null;
+    }
     const record = await prisma.militaryService.create({
       data: {
         familyId,
         personId: data.personId,
+        unitId,
         branch: data.branch.trim(),
-        unit: data.unit?.trim() || null,
+        unit: unitName,
         rank: data.rank?.trim() || null,
         startedOn: data.startedOn ? new Date(data.startedOn) : null,
         endedOn: data.endedOn ? new Date(data.endedOn) : null,
         notes: data.notes?.trim() || null,
       },
-      include: { person: true },
+      include: { person: true, militaryUnit: true },
     });
     await recordActivity({ familyId, actorId, verb: "recorded", entityType: "military", entityId: record.id, title: record.branch });
     return NextResponse.json({ record });

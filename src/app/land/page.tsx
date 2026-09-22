@@ -8,9 +8,10 @@ import { formatDate } from "@/lib/dates";
 
 export default async function LandPage() {
   const ctx = await requireFamily();
-  const [people, records] = await Promise.all([
+  const [people, records, homes] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
-    prisma.landRecord.findMany({ where: { familyId: ctx.family.id }, include: { person: true }, orderBy: { acquiredOn: "asc" } }),
+    prisma.landRecord.findMany({ where: { familyId: ctx.family.id }, include: { person: true, home: true }, orderBy: { acquiredOn: "asc" } }),
+    prisma.familyHome.findMany({ where: { familyId: ctx.family.id }, orderBy: { title: "asc" } }),
   ]);
   const options = people.map((person) => ({ id: person.id, displayName: person.displayName }));
   return (
@@ -28,6 +29,8 @@ export default async function LandPage() {
             { name: "title", placeholder: "North farm", required: true },
             { name: "place", placeholder: "Cedar Falls, Iowa", required: true },
             { name: "acquiredOn", placeholder: "Acquired", type: "date" },
+            { name: "abstract", placeholder: "Deed abstract" },
+            { name: "homeId", label: "Tied to a home", options: homes.map((home) => ({ id: home.id, label: home.title })) },
             { name: "notes", placeholder: "Notes" },
           ]}
         />
@@ -39,8 +42,15 @@ export default async function LandPage() {
             <p className="text-bark">
               <Link href={`/people/${row.personId}`} className="text-seal">{row.person.displayName}</Link>
               {" · "}{row.place}
+              {row.home ? (
+                <>
+                  {" · "}
+                  <Link href={`/homes/${row.home.id}`} className="text-seal">{row.home.title}</Link>
+                </>
+              ) : null}
               {row.acquiredOn ? ` · ${formatDate(row.acquiredOn)}` : ""}
             </p>
+            {row.abstract ? <p className="mt-2 text-bark" data-testid="land-abstract">{row.abstract}</p> : null}
             {row.notes ? <p className="mt-2 text-bark">{row.notes}</p> : null}
           </li>
         ))}

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { loadFamilyReminders, loadOnThisDaySources } from "@/lib/familyDates";
 import { collectOnThisDay, onThisDayHeading } from "@/lib/onThisDay";
 import { activityHref } from "@/lib/activity";
-import { remindersThisWeek } from "@/lib/reminders";
+import { remindersThisWeek, remindersTomorrow, tomorrowHeading } from "@/lib/reminders";
 import { howRelated } from "@/lib/related";
 import { alive } from "@/lib/alive";
 import { canWrite } from "@/lib/roles";
@@ -98,6 +98,7 @@ export default async function HomePage() {
     : [];
   const today = collectOnThisDay({ ...sources, role: ctx.role });
   const week = remindersThisWeek(reminders);
+  const tomorrow = remindersTomorrow(reminders);
   const thisWeek = compileThisWeek(
     weekActivities.map((item) => ({
       id: item.id,
@@ -159,6 +160,22 @@ export default async function HomePage() {
           </ul>
         </section>
       ) : null}
+
+      <section className="mt-10" data-testid="tomorrow-reminder">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{tomorrowHeading(tomorrow.length)}</h2>
+          <Link href="/tomorrow" className="font-sans text-sm text-seal">Tomorrow</Link>
+        </div>
+        <ul className="mt-4 space-y-3" data-testid="tomorrow-home-list">
+          {tomorrow.map((item) => (
+            <li key={item.id} className="paper-card flex flex-wrap items-baseline justify-between gap-3 p-4">
+              <Link href={`/people/${item.personId}`} className="font-display text-xl text-seal">{item.title}</Link>
+              <span className="font-sans text-sm text-gold">Tomorrow</span>
+            </li>
+          ))}
+          {!tomorrow.length ? <li className="text-bark">No family date falls tomorrow.</li> : null}
+        </ul>
+      </section>
 
       <section className="mt-10" data-testid="dashboard-dates">
         <div className="flex items-baseline justify-between">

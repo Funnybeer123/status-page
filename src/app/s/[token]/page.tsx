@@ -24,6 +24,7 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
       },
     });
     if (!person || !person.deathDate) notFound();
+    person.ownerNote = null;
     const chapter = compileLifeStory({
       person,
       names: person.names,

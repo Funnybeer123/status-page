@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { syncVitalEvents } from "@/lib/events";
-import { hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
+import { canSeeOwnerNote, hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
 import { isoDay, recordPersonChanges } from "@/lib/personChanges";
 
 const schema = z.object({
@@ -18,6 +18,7 @@ const schema = z.object({
   languages: z.string().max(200).optional().nullable(),
   burialPlot: z.string().max(200).optional().nullable(),
   pronunciation: z.string().max(160).optional().nullable(),
+  ownerNote: z.string().max(4000).optional().nullable(),
 });
 
 const personInclude = {
@@ -55,6 +56,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       living: !person.deathDate,
       factsHidden: shouldHideLivingFacts(ctx.role, person) || hideChild,
       childHidden: hideChild,
+      ownerNote: canSeeOwnerNote(ctx.role) ? person.ownerNote : null,
     },
   });
 }
@@ -109,6 +111,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       languages: body.data.languages === undefined ? existing.languages : body.data.languages || null,
       burialPlot: body.data.burialPlot === undefined ? existing.burialPlot : body.data.burialPlot || null,
       pronunciation: body.data.pronunciation === undefined ? existing.pronunciation : body.data.pronunciation || null,
+      ownerNote:
+        body.data.ownerNote === undefined || ctx.role !== Role.owner
+          ? existing.ownerNote
+          : body.data.ownerNote || null,
     },
   });
   await syncVitalEvents({

@@ -4,6 +4,8 @@ import { CommentThread } from "@/components/CommentThread";
 import { PhotoLocateForm, PhotoTagForm } from "@/app/archive/tag";
 import { PhotoPlaceForm } from "@/app/archive/place";
 import { TranscribeForm } from "@/app/oral/ui";
+import { FilmMomentForm } from "@/app/films/ui";
+import { filmMomentLine, sortFilmMoments } from "@/lib/filmMoments";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -19,7 +21,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
   const [asset, people, places] = await Promise.all([
     prisma.asset.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
-      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
@@ -93,6 +95,18 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
       ) : null}
       {asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
         <p className="mt-6 text-bark" data-testid="oral-transcript">{asset.document.transcript}</p>
+      ) : null}
+      {asset.kind === "video" || asset.mimeType.startsWith("video/") ? (
+        <section className="mt-8" data-testid="film-moments">
+          <h2 className="font-display text-2xl">Moments in the film</h2>
+          <ul className="mt-4 space-y-2">
+            {sortFilmMoments(asset.filmMoments).map((moment) => (
+              <li key={moment.id} className="paper-card p-4">{filmMomentLine(moment)}</li>
+            ))}
+            {!asset.filmMoments.length ? <li className="text-bark">No moments marked yet.</li> : null}
+          </ul>
+          {canWrite(ctx.role) ? <FilmMomentForm assetId={asset.id} /> : null}
+        </section>
       ) : null}
       {canWrite(ctx.role) && !asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
         <TranscribeForm

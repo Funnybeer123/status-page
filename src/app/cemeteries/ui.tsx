@@ -20,6 +20,8 @@ export function CemeteryForm() {
         region: data.get("region"),
         country: data.get("country"),
         notes: data.get("notes"),
+        latitude: data.get("latitude") || undefined,
+        longitude: data.get("longitude") || undefined,
       }),
     });
     const payload = await response.json();
@@ -37,6 +39,10 @@ export function CemeteryForm() {
         <input name="locality" placeholder="Town" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
         <input name="region" placeholder="County or state" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
         <input name="country" placeholder="Country" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input name="latitude" placeholder="Latitude" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+        <input name="longitude" placeholder="Longitude" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       </div>
       <input name="notes" placeholder="Notes" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}

@@ -5,7 +5,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { ageLabel, formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
-import { isLiving } from "@/lib/privacy";
+import { canSeeOwnerNote, isLiving } from "@/lib/privacy";
 import { ShareLinkButton } from "@/app/share/ui";
 import { CommentThread } from "@/components/CommentThread";
 import { canWrite } from "@/lib/roles";
@@ -27,6 +27,7 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
     },
   });
   if (!person || isLiving(person)) notFound();
+  if (!canSeeOwnerNote(ctx.role)) person.ownerNote = null;
   const chapter = compileLifeStory({
     person,
     names: person.names,

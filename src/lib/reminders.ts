@@ -89,3 +89,13 @@ export function upcomingReminders(reminders: Reminder[], withinDays = 90) {
 export function remindersThisWeek(reminders: Reminder[]) {
   return reminders.filter((item) => item.daysUntil <= 7);
 }
+
+export function remindersTomorrow(reminders: Reminder[]) {
+  return reminders.filter((item) => item.daysUntil === 1);
+}
+
+export function tomorrowHeading(count: number) {
+  if (!count) return "No family date tomorrow";
+  if (count === 1) return "Tomorrow’s family date";
+  return `Tomorrow · ${count} family dates`;
+}

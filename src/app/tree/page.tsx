@@ -48,11 +48,20 @@ export default async function TreePage({
           <h1 className="mt-2 font-display text-4xl" data-testid="tree-heading">The tree</h1>
           <p className="mt-3 max-w-xl text-bark">Open anyone for names, places, a timeline, and letters. Switch to the ancestor chart to walk parents and grandparents.</p>
         </div>
-        {canWrite(ctx.role) ? (
-          <Link href="/people/new" className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream">
-            Add a person
-          </Link>
-        ) : null}
+        <div className="flex flex-wrap gap-3">
+          <a
+            href={`/api/tree/svg${params.branchId ? `?branchId=${params.branchId}` : ""}`}
+            className="rounded-full border border-bark/20 px-5 py-2 font-sans text-sm"
+            data-testid="tree-svg-download"
+          >
+            Download the tree as SVG
+          </a>
+          {canWrite(ctx.role) ? (
+            <Link href="/people/new" className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream">
+              Add a person
+            </Link>
+          ) : null}
+        </div>
       </div>
       <div className="mt-6 flex flex-wrap gap-2 font-sans text-sm">
         <Link href="/tree" className={`rounded-full px-3 py-1 ${!params.view ? "bg-seal text-cream" : "border border-bark/15"}`}>Generations</Link>

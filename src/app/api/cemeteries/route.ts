@@ -11,6 +11,8 @@ const cemeterySchema = z.object({
   region: z.string().max(120).optional(),
   country: z.string().max(120).optional(),
   notes: z.string().max(800).optional(),
+  latitude: z.union([z.number(), z.string()]).optional(),
+  longitude: z.union([z.number(), z.string()]).optional(),
 });
 
 const plotSchema = z.object({
@@ -57,6 +59,8 @@ export async function POST(req: Request) {
   }
   const body = cemeterySchema.safeParse(raw);
   if (!body.success) return NextResponse.json({ error: "A cemetery needs a name." }, { status: 400 });
+  const lat = body.data.latitude === undefined || body.data.latitude === "" ? null : Number(body.data.latitude);
+  const lng = body.data.longitude === undefined || body.data.longitude === "" ? null : Number(body.data.longitude);
   const cemetery = await prisma.cemetery.create({
     data: {
       familyId: ctx.family.id,
@@ -65,6 +69,8 @@ export async function POST(req: Request) {
       region: body.data.region?.trim() || null,
       country: body.data.country?.trim() || null,
       notes: body.data.notes?.trim() || null,
+      latitude: Number.isFinite(lat) ? lat : null,
+      longitude: Number.isFinite(lng) ? lng : null,
     },
     include: { plots: { include: { person: true } } },
   });

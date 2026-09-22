@@ -93,5 +93,12 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "guestbook") return `/people/${entityId}/memorial`;
   if (entityType === "citation") return "/worksheets";
   if (entityType === "newsletter") return "/newsletter";
+  if (entityType === "chapter") return `/people/${entityId}`;
+  if (entityType === "film" || entityType === "moment") return `/films`;
+  if (entityType === "unit") return `/military/units/${entityId}`;
+  if (entityType === "hymn") return "/hymns";
+  if (entityType === "farm") return "/farms";
+  if (entityType === "land") return "/land";
+  if (entityType === "military") return "/military";
   return "/activity";
 }

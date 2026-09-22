@@ -47,13 +47,23 @@ export function shouldHideLivingFacts(role: Role, person?: { deathDate?: Date | 
   return isLiving(person) && !canSeeLivingFacts(role);
 }
 
-export function redactPerson<T extends { deathDate?: Date | string | null; birthDate?: Date | string | null; notes?: string | null }>(
+export function canSeeOwnerNote(role: Role) {
+  return role === Role.owner;
+}
+
+export function redactOwnerNote<T extends { ownerNote?: string | null }>(person: T, role: Role): T {
+  if (canSeeOwnerNote(role)) return person;
+  return { ...person, ownerNote: null };
+}
+
+export function redactPerson<T extends { deathDate?: Date | string | null; birthDate?: Date | string | null; notes?: string | null; ownerNote?: string | null }>(
   person: T,
   role: Role,
 ): T {
-  if (!shouldHideLivingFacts(role, person)) return person;
+  const hiddenNote = redactOwnerNote(person, role);
+  if (!shouldHideLivingFacts(role, person)) return hiddenNote;
   return {
-    ...person,
+    ...hiddenNote,
     birthDate: null,
     notes: null,
   };

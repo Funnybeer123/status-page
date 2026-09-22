@@ -945,8 +945,10 @@ async function ensureHartArchive() {
       region: "Iowa",
       country: "United States",
       notes: "North of town, past the cottonwoods.",
+      latitude: 42.541,
+      longitude: -92.448,
     },
-    update: { name: "Fairview Cemetery" },
+    update: { name: "Fairview Cemetery", latitude: 42.541, longitude: -92.448 },
   });
   const existingPlot = await prisma.cemeteryPlot.findFirst({
     where: { cemeteryId: cemetery.id, personId: eleanor.id },
@@ -1120,8 +1122,21 @@ async function ensureHartArchive() {
       place: "Cedar Falls, Iowa",
       acquiredOn: new Date("1948-06-14"),
       notes: "The bee yard stayed with the children.",
+      abstract: "The north forty stayed with the children after the 1948 deed.",
     },
-    update: { title: "North farm" },
+    update: { title: "North farm", abstract: "The north forty stayed with the children after the 1948 deed." },
+  });
+  const draftUnit = await prisma.militaryUnit.upsert({
+    where: { id: "unit-draft-board" },
+    create: {
+      id: "unit-draft-board",
+      familyId: family.id,
+      name: "Black Hawk County draft board",
+      branch: "Army",
+      place: "Cedar Falls",
+      notes: "A week of processing, then home for harvest.",
+    },
+    update: { name: "Black Hawk County draft board" },
   });
   await prisma.militaryService.upsert({
     where: { id: "mil-samuel-draft" },
@@ -1129,13 +1144,14 @@ async function ensureHartArchive() {
       id: "mil-samuel-draft",
       familyId: family.id,
       personId: samuel.id,
+      unitId: draftUnit.id,
       branch: "County draft board",
-      unit: "Processing",
+      unit: "Black Hawk County draft board",
       startedOn: new Date("1944-09-22"),
       endedOn: new Date("1944-09-29"),
       notes: "A week of processing, then home for harvest.",
     },
-    update: { branch: "County draft board" },
+    update: { branch: "County draft board", unitId: draftUnit.id, unit: "Black Hawk County draft board" },
   });
   await prisma.bibleRecord.upsert({
     where: { id: "bible-hart" },
@@ -1782,6 +1798,126 @@ async function ensureHartArchive() {
     where: { personId: "person-eleanor", x: null },
     data: { x: 48, y: 42 },
   });
+
+  await prisma.person.update({
+    where: { id: eleanor.id },
+    data: { ownerNote: "The cedar chest key is in the upstairs desk. Do not put this on the memorial." },
+  });
+  await prisma.lifeChapter.upsert({
+    where: { id: "chapter-eleanor-childhood" },
+    create: {
+      id: "chapter-eleanor-childhood",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: "childhood",
+      title: "Childhood",
+      startedOn: new Date("1928-03-12"),
+      endedOn: new Date("1946-03-12"),
+      notes: "Market Street and St. John's.",
+    },
+    update: { title: "Childhood" },
+  });
+  await prisma.lifeChapter.upsert({
+    where: { id: "chapter-eleanor-work" },
+    create: {
+      id: "chapter-eleanor-work",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: "work",
+      title: "Work years",
+      startedOn: new Date("1946-03-12"),
+      endedOn: new Date("1993-03-12"),
+      notes: "The millinery counter, then the farm kitchen.",
+    },
+    update: { title: "Work years" },
+  });
+  await prisma.lifeChapter.upsert({
+    where: { id: "chapter-eleanor-later" },
+    create: {
+      id: "chapter-eleanor-later",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: "later",
+      title: "Later years",
+      startedOn: new Date("1993-03-12"),
+      endedOn: new Date("2015-06-03"),
+      notes: "Sunday rolls and the grandchildren.",
+    },
+    update: { title: "Later years" },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-baptism" },
+    create: {
+      id: "event-eleanor-baptism",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: EventKind.baptism,
+      title: "Eleanor baptized at St. John's",
+      happenedOn: new Date("1928-04-08"),
+    },
+    update: { title: "Eleanor baptized at St. John's" },
+  });
+  const northHome = await prisma.familyHome.upsert({
+    where: { id: "home-north-farm" },
+    create: {
+      id: "home-north-farm",
+      familyId: family.id,
+      title: "North farm house",
+      line: "North of the cottonwoods",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      notes: "The bee yard stayed with the children.",
+    },
+    update: { title: "North farm house" },
+  });
+  await prisma.landRecord.update({
+    where: { id: "land-north-farm" },
+    data: { homeId: northHome.id, abstract: "The north forty stayed with the children after the 1948 deed." },
+  });
+  await prisma.familyFarm.upsert({
+    where: { id: "farm-north" },
+    create: {
+      id: "farm-north",
+      familyId: family.id,
+      homeId: northHome.id,
+      title: "North farm",
+      place: "Cedar Falls, Iowa",
+      startedOn: new Date("1948-06-14"),
+      notes: "Sam kept the bees after he stopped farming.",
+    },
+    update: { homeId: northHome.id },
+  });
+  await prisma.familyHymn.upsert({
+    where: { id: "hymn-abide" },
+    create: {
+      id: "hymn-abide",
+      familyId: family.id,
+      title: "Abide with Me",
+      verse: "Fast falls the eventide.",
+      occasion: "Funerals at Fairview",
+    },
+    update: { title: "Abide with Me" },
+  });
+  const picnicFilm = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Picnic home movie, 1961" },
+  });
+  if (picnicFilm) {
+    const existingMoment = await prisma.filmMoment.findFirst({
+      where: { assetId: picnicFilm.id, title: "Mother cuts the Sunday rolls" },
+    });
+    if (!existingMoment) {
+      await prisma.filmMoment.create({
+        data: {
+          id: "moment-sunday-rolls",
+          familyId: family.id,
+          assetId: picnicFilm.id,
+          seconds: 83,
+          title: "Mother cuts the Sunday rolls",
+          notes: "Under the cottonwoods, July 1961.",
+        },
+      });
+    }
+  }
 }
 
 async function writeHartMedia() {

@@ -169,6 +169,11 @@ model Family {
   inscriptions  GravestoneInscription[]
   holidays      FamilyHoliday[]
   reunionDishes ReunionDish[]
+  lifeChapters  LifeChapter[]
+  filmMoments   FilmMoment[]
+  militaryUnits MilitaryUnit[]
+  hymns         FamilyHymn[]
+  farms         FamilyFarm[]
 }
 
 model Membership {
@@ -211,6 +216,7 @@ model Person {
   languages      String?
   burialPlot     String?
   pronunciation  String?
+  ownerNote      String?
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -265,6 +271,7 @@ model Person {
   inscriptions   GravestoneInscription[]
   guestbook      Comment[]
   potluckDishes  ReunionDish[]
+  lifeChapters   LifeChapter[]
 }
 
 model Relationship {
@@ -312,6 +319,7 @@ model Asset {
   pinnedMemories PinnedMemory[]
   promptAnswers  StoryPromptAnswer[]
   researchTasks  ResearchTask[]
+  filmMoments    FilmMoment[]
 }
 
 model PersonTag {
@@ -781,6 +789,8 @@ model Cemetery {
   locality  String?
   region    String?
   country   String?
+  latitude  Float?
+  longitude Float?
   notes     String?
   createdAt DateTime        @default(now())
   family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -930,12 +940,15 @@ model LandRecord {
   id         String    @id @default(cuid())
   familyId   String
   personId   String
+  homeId     String?
   title      String
   place      String
   acquiredOn DateTime? @db.Date
+  abstract   String?
   notes      String?
-  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  home       FamilyHome? @relation(fields: [homeId], references: [id], onDelete: SetNull)
 
   @@index([familyId, personId])
 }
@@ -944,14 +957,16 @@ model MilitaryService {
   id        String    @id @default(cuid())
   familyId  String
   personId  String
+  unitId    String?
   branch    String
   unit      String?
   rank      String?
   startedOn DateTime? @db.Date
   endedOn   DateTime? @db.Date
   notes     String?
-  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+  militaryUnit MilitaryUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   @@index([familyId, personId])
 }
@@ -1234,8 +1249,10 @@ model FamilyHome {
   notes     String?
   family    Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
   place     Place?               @relation(fields: [placeId], references: [id], onDelete: SetNull)
-  photos    FamilyHomePhoto[]
-  residents FamilyHomeResident[]
+  photos      FamilyHomePhoto[]
+  residents   FamilyHomeResident[]
+  landRecords LandRecord[]
+  farms       FamilyFarm[]
 
   @@index([familyId])
 }
@@ -1357,4 +1374,75 @@ model ReunionDish {
   recipe    Document?         @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([familyId, reunionId])
+}
+
+model LifeChapter {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  kind      String
+  title     String
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  createdAt DateTime  @default(now())
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model FilmMoment {
+  id        String   @id @default(cuid())
+  familyId  String
+  assetId   String
+  seconds   Int
+  title     String
+  notes     String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, assetId])
+}
+
+model MilitaryUnit {
+  id        String            @id @default(cuid())
+  familyId  String
+  name      String
+  branch    String?
+  place     String?
+  notes     String?
+  createdAt DateTime          @default(now())
+  family    Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  services  MilitaryService[]
+
+  @@index([familyId])
+}
+
+model FamilyHymn {
+  id        String  @id @default(cuid())
+  familyId  String
+  title     String
+  verse     String?
+  occasion  String?
+  notes     String?
+  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model FamilyFarm {
+  id        String      @id @default(cuid())
+  familyId  String
+  homeId    String?
+  title     String
+  place     String?
+  startedOn DateTime?   @db.Date
+  endedOn   DateTime?   @db.Date
+  notes     String?
+  family    Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  home      FamilyHome? @relation(fields: [homeId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
 }

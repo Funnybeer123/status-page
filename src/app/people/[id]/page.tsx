@@ -12,7 +12,10 @@ import { prisma } from "@/lib/prisma";
 import { ageLabel, formatDate, lifespan, qualifyDate } from "@/lib/dates";
 import { PersonDetailsForm } from "@/app/people/[id]/details";
 import { canWrite } from "@/lib/roles";
-import { hideEventFromViewer, hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
+import { canSeeOwnerNote, hideEventFromViewer, hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
+import { PersonSearchForm } from "@/app/people/search-form";
+import { OwnerNoteForm } from "@/app/people/owner-note";
+import { chapterHeading, compileLifeChapters } from "@/lib/chapters";
 import { childPublicName } from "@/lib/children";
 import { qualityLabel } from "@/lib/sourceQuality";
 import { placeLabel } from "@/lib/places";
@@ -36,6 +39,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         storyLinks: { include: { story: true } },
         citations: { include: { document: true, asset: true, event: true, name: true } },
         handwritingSamples: { include: { document: true, asset: true } },
+        lifeChapters: true,
       },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
@@ -68,6 +72,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     person.citations = [];
     person.storiesTold = [];
     person.storyLinks = [];
+    person.lifeChapters = [];
+    person.ownerNote = null;
+  }
+  if (!canSeeOwnerNote(ctx.role)) {
+    person.ownerNote = null;
   }
   const letters = hideChild
     ? []
@@ -94,6 +103,36 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         (tag) => !tag.asset.deletedAt && !hidePhotoFromAudience(ctx.role, tag.asset.tags.map((item) => item.person)),
       );
   const showProfile = profile && !hideChild;
+  const chapters = hideChild
+    ? []
+    : compileLifeChapters({
+        birthDate: hidden ? null : person.birthDate,
+        deathDate: person.deathDate,
+        named: person.lifeChapters,
+        items: [
+          ...stories.map((story) => ({
+            id: story.id,
+            kind: "story" as const,
+            title: story.title,
+            happenedOn: story.recordedAt,
+            href: `/stories/${story.id}`,
+          })),
+          ...letters.map((item) => ({
+            id: item.document.id,
+            kind: "letter" as const,
+            title: item.document.title,
+            happenedOn: item.document.writtenAt,
+            href: `/letters/${item.document.id}`,
+          })),
+          ...archiveTags.map((tag) => ({
+            id: tag.asset.id,
+            kind: "photo" as const,
+            title: tag.asset.title || "Photograph",
+            happenedOn: tag.asset.capturedAt,
+            href: `/archive/${tag.asset.id}`,
+          })),
+        ],
+      });
 
   return (
     <AppShell>
@@ -162,6 +201,16 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 Person packet
               </Link>
             ) : null}
+            {!hideChild ? (
+              <Link href={`/people/${person.id}/chapters`} className="mt-2 block font-sans text-sm text-seal" data-testid="chapters-link">
+                Life chapters
+              </Link>
+            ) : null}
+            {!hideChild ? (
+              <Link href={`/people/${person.id}/search`} className="mt-2 block font-sans text-sm text-seal" data-testid="person-search-link">
+                Search this life
+              </Link>
+            ) : null}
             <Link href="/handwriting" className="mt-2 block font-sans text-sm text-seal">
               Handwriting
             </Link>
@@ -201,6 +250,13 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               <p className="mt-2 max-w-2xl text-lg leading-relaxed">{person.notes}</p>
             </div>
           ) : null}
+          {canSeeOwnerNote(ctx.role) && person.ownerNote ? (
+            <div data-testid="owner-note">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Owner-only note</p>
+              <p className="mt-2 max-w-2xl text-lg leading-relaxed">{person.ownerNote}</p>
+            </div>
+          ) : null}
+          {!hideChild ? <PersonSearchForm personId={person.id} /> : null}
           {!hidden && (person.causeOfDeath || person.languages || person.burialPlot) ? (
             <div data-testid="person-later-facts">
               <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Later facts</p>
@@ -285,6 +341,18 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               ))}
             </ul>
           </div>
+          {!hideChild ? (
+            <div data-testid="person-chapters">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Life chapters</p>
+              <ul className="mt-3 space-y-2">
+                {chapters.map((chapter) => (
+                  <li key={chapter.id}>
+                    <Link href={`/people/${person.id}/chapters`} className="text-seal">{chapterHeading(chapter)}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Stories</p>
             <ul className="mt-3 space-y-2">
@@ -393,6 +461,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               burialPlot={person.burialPlot || ""}
               pronunciation={person.pronunciation || ""}
             />
+          ) : null}
+          {canSeeOwnerNote(ctx.role) ? (
+            <OwnerNoteForm personId={person.id} ownerNote={person.ownerNote || ""} />
           ) : null}
           {canWrite(ctx.role) ? (
             <PersonArchiveForms

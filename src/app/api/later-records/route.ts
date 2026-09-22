@@ -87,6 +87,22 @@ const schema = z.discriminatedUnion("kind", [
     season: z.string().max(80).optional(),
     notes: z.string().max(800).optional(),
   }),
+  z.object({
+    kind: z.literal("hymn"),
+    title: z.string().min(1).max(160),
+    verse: z.string().max(800).optional(),
+    occasion: z.string().max(160).optional(),
+    notes: z.string().max(800).optional(),
+  }),
+  z.object({
+    kind: z.literal("farm"),
+    title: z.string().min(1).max(160),
+    place: z.string().max(160).optional(),
+    homeId: z.string().optional(),
+    startedOn: optionalDate,
+    endedOn: optionalDate,
+    notes: z.string().max(800).optional(),
+  }),
 ]);
 
 async function belong(familyId: string, personId?: string | null) {
@@ -147,6 +163,16 @@ export async function GET(req: Request) {
   if (kind === "holiday") {
     return NextResponse.json({
       records: await prisma.familyHoliday.findMany({ where: { familyId }, orderBy: { title: "asc" } }),
+    });
+  }
+  if (kind === "hymn") {
+    return NextResponse.json({
+      records: await prisma.familyHymn.findMany({ where: { familyId }, orderBy: { title: "asc" } }),
+    });
+  }
+  if (kind === "farm") {
+    return NextResponse.json({
+      records: await prisma.familyFarm.findMany({ where: { familyId }, include: { home: true }, orderBy: { title: "asc" } }),
     });
   }
   return NextResponse.json({ error: "Unknown record kind." }, { status: 400 });
@@ -301,6 +327,38 @@ export async function POST(req: Request) {
       include: { person: true },
     });
     await recordActivity({ familyId, actorId, verb: "recorded", entityType: "inscription", entityId: record.id, title: record.person.displayName });
+    return NextResponse.json({ record });
+  }
+  if (data.kind === "hymn") {
+    const record = await prisma.familyHymn.create({
+      data: {
+        familyId,
+        title: data.title.trim(),
+        verse: data.verse?.trim() || null,
+        occasion: data.occasion?.trim() || null,
+        notes: data.notes?.trim() || null,
+      },
+    });
+    await recordActivity({ familyId, actorId, verb: "recorded", entityType: "hymn", entityId: record.id, title: record.title });
+    return NextResponse.json({ record });
+  }
+  if (data.kind === "farm") {
+    const home = data.homeId
+      ? await prisma.familyHome.findFirst({ where: { id: data.homeId, familyId } })
+      : null;
+    const record = await prisma.familyFarm.create({
+      data: {
+        familyId,
+        homeId: home?.id ?? null,
+        title: data.title.trim(),
+        place: data.place?.trim() || null,
+        startedOn: data.startedOn ? new Date(data.startedOn) : null,
+        endedOn: data.endedOn ? new Date(data.endedOn) : null,
+        notes: data.notes?.trim() || null,
+      },
+      include: { home: true },
+    });
+    await recordActivity({ familyId, actorId, verb: "recorded", entityType: "farm", entityId: record.id, title: record.title });
     return NextResponse.json({ record });
   }
   const record = await prisma.familyHoliday.create({
