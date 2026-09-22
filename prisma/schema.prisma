@@ -119,6 +119,9 @@ model User {
   familyVisits   FamilyVisit[]
   vaultNotes     FamilyVaultNote[]
   guestBookEntries HomeGuestBook[]
+  photoGuesses     PhotoGuess[]
+  readLaterItems   ReadLater[]
+  trashAudits      TrashAudit[]
 }
 
 model Family {
@@ -225,6 +228,11 @@ model Family {
   phoneContacts FamilyPhoneContact[]
   guestBookEntries HomeGuestBook[]
   filmCaptions  FilmCaption[]
+  photoGuesses  PhotoGuess[]
+  shopItems     ReunionShopItem[]
+  placeNames    PlaceName[]
+  trashAudits   TrashAudit[]
+  readLaterItems ReadLater[]
 }
 
 model Membership {
@@ -271,6 +279,7 @@ model Person {
   pronunciationAssetId String?
   ownerNote      String?
   phoneContacts  FamilyPhoneContact[]
+  photoGuesses   PhotoGuess[]
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -410,6 +419,7 @@ model Asset {
   borrowedFromAlbum Album? @relation("BorrowedFrom", fields: [borrowedFromAlbumId], references: [id], onDelete: SetNull)
   filmCaptions   FilmCaption[] @relation("FilmCaptionFilm")
   oralCaptions   FilmCaption[] @relation("FilmCaptionOral")
+  guesses        PhotoGuess[]
 }
 
 model PersonTag {
@@ -475,6 +485,7 @@ model Document {
   weather        String?
   secretUntil    DateTime?        @db.Date
   ocrConfidence  Int?
+  readLaterItems ReadLater[]
 }
 
 model DocumentPerson {
@@ -520,6 +531,7 @@ model Place {
   huntClues  HuntClue[]
   placePins  PlacePin[]
   photoPairs PhotoPair[]
+  names      PlaceName[]
 
   @@index([familyId])
   @@index([parentId])
@@ -603,6 +615,7 @@ model Story {
   keepOutOfAsk   Boolean       @default(false)
   askConversation AskConversation?
   placePins      PlacePin[]
+  readLaterItems ReadLater[]
 
   @@index([familyId])
 }
@@ -1028,6 +1041,7 @@ model ReunionGathering {
   dishes     ReunionDish[]
   brings     ReunionBring[]
   seats      ReunionSeat[]
+  shopItems  ReunionShopItem[]
 
   @@index([familyId, happenedOn])
 }
@@ -1036,6 +1050,8 @@ model ReunionGuest {
   reunionId String
   personId  String
   coming    Boolean          @default(true)
+  arrived   Boolean          @default(false)
+  arrivedAt DateTime?
   reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
   person    Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
 
@@ -2169,4 +2185,78 @@ model LifeDraft {
   person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, personId])
+}
+
+model PhotoGuess {
+  id        String   @id @default(cuid())
+  familyId  String
+  assetId   String
+  userId    String
+  personId  String?
+  name      String?
+  note      String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person    Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, assetId])
+}
+
+model ReunionShopItem {
+  id        String           @id @default(cuid())
+  familyId  String
+  reunionId String
+  label     String
+  quantity  Int?
+  notes     String?
+  createdAt DateTime         @default(now())
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, reunionId])
+}
+
+model PlaceName {
+  id        String   @id @default(cuid())
+  familyId  String
+  placeId   String
+  name      String
+  notes     String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, placeId])
+}
+
+model TrashAudit {
+  id         String   @id @default(cuid())
+  familyId   String
+  actorId    String
+  entityType String
+  entityId   String
+  title      String
+  action     String
+  createdAt  DateTime @default(now())
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
+}
+
+model ReadLater {
+  id         String    @id @default(cuid())
+  familyId   String
+  userId     String
+  documentId String?
+  storyId    String?
+  createdAt  DateTime  @default(now())
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, userId])
 }

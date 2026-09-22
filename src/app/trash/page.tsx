@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { TrashRestore } from "@/app/trash/ui";
 import { requireFamily } from "@/lib/family";
@@ -15,7 +16,10 @@ export default async function TrashPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="trash-heading">Trash</h1>
-      <p className="mt-3 max-w-2xl text-bark">People, photographs, and letters a relative moved aside. Restore brings them back.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        People, photographs, and letters a relative moved aside. Restore brings them back.{" "}
+        <Link href="/trash/audit" className="text-seal">Who put what in the trash</Link>
+      </p>
       <section className="mt-10">
         <h2 className="font-display text-2xl">People</h2>
         <ul className="mt-4 space-y-2" data-testid="trash-people">

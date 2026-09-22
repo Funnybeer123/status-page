@@ -89,6 +89,14 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
         <Link href={`/reunions/${reunion.id}/rsvp-card`} className="text-seal" data-testid="rsvp-card-link">
           Printable RSVP card
         </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/shop`} className="text-seal" data-testid="shop-link">
+          Shopping list
+        </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/checkin`} className="text-seal" data-testid="checkin-link">
+          Check-in
+        </Link>
       </p>
       <section className="mt-10" data-testid="reunion-bring">
         <h2 className="font-display text-3xl">{bringListHeading(bringItems.length)}</h2>

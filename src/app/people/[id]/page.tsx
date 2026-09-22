@@ -232,6 +232,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               </Link>
             ) : null}
             {!hideChild ? (
+              <Link href={`/people/${person.id}/bookmark`} className="mt-2 block font-sans text-sm text-seal" data-testid="life-bookmark-link">
+                Life bookmark
+              </Link>
+            ) : null}
+            {!hideChild ? (
               <Link href={`/people/${person.id}/address`} className="mt-2 block font-sans text-sm text-seal">
                 Address card
               </Link>

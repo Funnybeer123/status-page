@@ -17,7 +17,10 @@ export default async function UnidentifiedPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="unidentified-heading">Unidentified photographs</h1>
-      <p className="mt-3 max-w-2xl text-bark">Pictures nobody has named yet. A relative can tag the faces they still know.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Pictures nobody has named yet. A relative can tag the faces they still know.{" "}
+        <Link href="/mystery" className="text-seal">Photo mystery queue</Link>
+      </p>
       <ul className="mt-10 grid gap-4 sm:grid-cols-2" data-testid="unidentified-list">
         {unknown.map((asset) => (
           <li key={asset.id} className="paper-card overflow-hidden">

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { loadOnThisDaySources } from "@/lib/familyDates";
 import { collectOnThisDay, onThisDayHeading } from "@/lib/onThisDay";
+import { kioskArrivedLine } from "@/lib/reunionCheckin";
 
 export default async function ReunionKioskPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -22,6 +23,7 @@ export default async function ReunionKioskPage({ params }: { params: Promise<{ i
   if (!reunion) notFound();
   const today = collectOnThisDay({ ...sources, role: ctx.role }).slice(0, 6);
   const coming = reunion.guests.filter((guest) => guest.coming);
+  const arrived = reunion.guests.filter((guest) => guest.arrived);
   return (
     <div className="min-h-screen bg-cream px-8 py-10 text-ink" data-testid="reunion-kiosk">
       <p className="font-sans text-sm uppercase tracking-[0.28em] text-gold">{ctx.family.name}</p>
@@ -45,6 +47,9 @@ export default async function ReunionKioskPage({ params }: { params: Promise<{ i
         <h2 className="font-display text-4xl">Who’s here</h2>
         <p className="mt-4 text-2xl text-bark" data-testid="kiosk-coming">
           {coming.map((guest) => guest.person.displayName).join(" · ") || "No one has said they are coming."}
+        </p>
+        <p className="mt-4 text-2xl text-bark" data-testid="kiosk-arrived">
+          {kioskArrivedLine(arrived.map((guest) => guest.person.displayName))}
         </p>
       </section>
       <section className="mt-12">

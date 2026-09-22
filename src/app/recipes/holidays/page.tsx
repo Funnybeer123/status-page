@@ -23,6 +23,8 @@ export default async function HolidayCookbookPage() {
         <Link href="/recipes/untagged" className="text-seal">Recipes without a holiday</Link>
         {" · "}
         <Link href="/holidays" className="text-seal">Family holidays</Link>
+        {" · "}
+        <Link href="/recipes/cards" className="text-seal">Recipe cards</Link>
       </p>
       <div className="mt-10 space-y-8" data-testid="holiday-cookbook">
         {groups.map((group) => (
@@ -33,6 +35,10 @@ export default async function HolidayCookbookPage() {
                 <li key={recipe.id}>
                   <Link href={`/letters/${recipe.id}`} className="text-seal">
                     {recipeHolidayLine(recipe.title, recipe.holiday?.title)}
+                  </Link>
+                  {" · "}
+                  <Link href={`/recipes/${recipe.id}/card`} className="text-seal">
+                    Card
                   </Link>
                 </li>
               ))}

@@ -18,7 +18,10 @@ export default async function BookmarksPage() {
       <h1 className="mt-2 font-display text-4xl" data-testid="bookmarks-heading">
         {bookmarkHeading(bookmarks.length)}
       </h1>
-      <p className="mt-3 max-w-2xl text-bark">People you want to find again from the family home.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        People you want to find again from the family home.{" "}
+        <Link href="/bookmarks/lives" className="text-seal">Printable life bookmarks</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="bookmarks-page-list">
         {bookmarks.map((item) => (
           <li key={`${item.userId}-${item.personId}`} className="paper-card p-5">

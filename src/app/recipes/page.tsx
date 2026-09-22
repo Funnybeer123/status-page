@@ -25,6 +25,8 @@ export default async function RecipesPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Recipes the family still makes, tied to the person who kept them.{" "}
         <Link href="/recipes/holidays" className="text-seal">Holiday cookbook</Link>
+        {" · "}
+        <Link href="/recipes/cards" className="text-seal">Recipe cards</Link>
       </p>
       {canWrite(ctx.role) ? (
         <RecipeForm
@@ -37,6 +39,10 @@ export default async function RecipesPage() {
           <li key={recipe.id} className="paper-card p-5">
             <Link href={`/letters/${recipe.id}`} className="font-display text-2xl text-seal">
               {recipeHolidayLine(recipe.title, recipe.holiday?.title)}
+            </Link>
+            {" · "}
+            <Link href={`/recipes/${recipe.id}/card`} className="font-sans text-sm text-seal">
+              Printable card
             </Link>
             <p className="text-bark">{recipe.people.map((item) => item.person.displayName).join(", ") || "A family recipe"}</p>
             <p className="mt-2 line-clamp-3 text-bark">{recipe.transcript}</p>

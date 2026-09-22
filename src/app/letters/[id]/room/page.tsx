@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { compileLetterThread } from "@/lib/letterThread";
+import { compileLetterThread, markLetterEnds } from "@/lib/letterThread";
 import { formatDate } from "@/lib/dates";
 
 export default async function ReadingRoomPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,16 +15,18 @@ export default async function ReadingRoomPage({ params }: { params: Promise<{ id
     orderBy: { writtenAt: "asc" },
   });
   if (!letters.some((letter) => letter.id === id)) notFound();
-  const thread = compileLetterThread(
-    letters.map((letter) => ({
-      id: letter.id,
-      title: letter.title,
-      transcript: letter.transcript,
-      writtenAt: letter.writtenAt,
-      replyToId: letter.replyToId,
-      people: letter.people.map((item) => item.person.displayName),
-    })),
-    id,
+  const thread = markLetterEnds(
+    compileLetterThread(
+      letters.map((letter) => ({
+        id: letter.id,
+        title: letter.title,
+        transcript: letter.transcript,
+        writtenAt: letter.writtenAt,
+        replyToId: letter.replyToId,
+        people: letter.people.map((item) => item.person.displayName),
+      })),
+      id,
+    ),
   );
   return (
     <AppShell>
@@ -39,6 +41,12 @@ export default async function ReadingRoomPage({ params }: { params: Promise<{ id
             data-testid={`reading-turn-${turn.side}`}
           >
             <p className="font-display text-2xl">{turn.title}</p>
+            {turn.endLabel ? (
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                {turn.firstLetter ? <span data-testid="first-letter">{turn.lastLetter ? "" : "First letter"}</span> : null}
+                {turn.lastLetter ? <span data-testid="last-letter">{turn.endLabel}</span> : null}
+              </p>
+            ) : null}
             <p className="font-sans text-sm text-gold">
               {formatDate(turn.writtenAt, "Undated")}
               {turn.people?.length ? ` · ${turn.people.join(", ")}` : ""}

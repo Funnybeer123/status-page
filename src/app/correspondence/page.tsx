@@ -17,7 +17,10 @@ export default async function CorrespondencePage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="correspondence-heading">Correspondence</h1>
-      <p className="mt-3 max-w-2xl text-bark">Letters and notes grouped by the year they were written.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Letters and notes grouped by the year they were written.{" "}
+        <Link href="/correspondence/single" className="text-seal">Single-letter threads</Link>
+      </p>
       <div className="mt-10 space-y-8" data-testid="correspondence-list">
         {groups.map(([year, items]) => (
           <section key={year}>

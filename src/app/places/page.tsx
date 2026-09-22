@@ -68,6 +68,8 @@ export default async function PlacesPage({
         <Link href="/atlas" className="text-seal">Family atlas</Link>
         {" · "}
         <Link href="/places/gps/missing" className="text-seal">Places without GPS</Link>
+        {" · "}
+        <Link href="/places/names" className="text-seal">Family names for places</Link>
       </p>
       <div className="mt-6 flex flex-wrap gap-2" data-testid="place-filter">
         <Link href="/places" className={`rounded-full px-3 py-1 font-sans text-sm ${!within ? "bg-seal text-cream" : "border border-bark/15"}`}>

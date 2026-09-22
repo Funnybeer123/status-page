@@ -32,7 +32,9 @@ export default async function LivingTreePage() {
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
         Only people still living, for a reunion namelist or a hall display.{" "}
-        <Link href="/tree" className="text-seal">The full tree</Link>.
+        <Link href="/tree" className="text-seal">The full tree</Link>
+        {" · "}
+        <Link href="/tree/when" className="text-seal">Who was alive when</Link>.
       </p>
       <div className="mt-10" data-testid="living-tree">
         <TreeView people={treePeople} relationships={visibleRels} />

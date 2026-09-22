@@ -3543,6 +3543,95 @@ async function ensureHartArchive() {
       update: { secretUntil: new Date("1963-01-01") },
     });
   }
+
+  const unsortedProgram = await prisma.asset.findUnique({ where: { id: "asset-unsorted-program" } });
+  if (unsortedProgram && demoUser) {
+    await prisma.photoGuess.upsert({
+      where: { id: "guess-unsorted-program" },
+      create: {
+        id: "guess-unsorted-program",
+        familyId: family.id,
+        assetId: unsortedProgram.id,
+        userId: demoUser.id,
+        personId: eleanor.id,
+        name: "Eleanor at the harvest program",
+        note: "The hatband is the same one from the Grange hall.",
+      },
+      update: { personId: eleanor.id, name: "Eleanor at the harvest program" },
+    });
+  }
+  await prisma.reunionShopItem.upsert({
+    where: { id: "shop-hart-plates" },
+    create: {
+      id: "shop-hart-plates",
+      familyId: family.id,
+      reunionId: "reunion-hart-2026",
+      label: "Plates",
+      quantity: 48,
+      notes: "Paper, the harvest-dance cream color.",
+    },
+    update: { quantity: 48 },
+  });
+  await prisma.reunionShopItem.upsert({
+    where: { id: "shop-hart-chairs" },
+    create: {
+      id: "shop-hart-chairs",
+      familyId: family.id,
+      reunionId: "reunion-hart-2026",
+      label: "Chairs",
+      quantity: 40,
+      notes: "Folding chairs from the Grange closet.",
+    },
+    update: { quantity: 40 },
+  });
+  await prisma.reunionShopItem.upsert({
+    where: { id: "shop-hart-tags" },
+    create: {
+      id: "shop-hart-tags",
+      familyId: family.id,
+      reunionId: "reunion-hart-2026",
+      label: "Name tags",
+      quantity: 60,
+      notes: "Print the living-tree names.",
+    },
+    update: { quantity: 60 },
+  });
+  await prisma.placeName.upsert({
+    where: { id: "pname-sams-place" },
+    create: {
+      id: "pname-sams-place",
+      familyId: family.id,
+      placeId: "place-north-farm",
+      name: "Sam’s place",
+      notes: "How Ellie still said the north farm.",
+    },
+    update: { name: "Sam’s place" },
+  });
+  if (demoUser) {
+    await prisma.readLater.upsert({
+      where: { id: "later-harvest" },
+      create: {
+        id: "later-harvest",
+        familyId: family.id,
+        userId: demoUser.id,
+        documentId: "doc-harvest",
+      },
+      update: { documentId: "doc-harvest" },
+    });
+  }
+  if (lilyLiving) {
+    await prisma.reunionGuest.upsert({
+      where: { reunionId_personId: { reunionId: "reunion-hart-2026", personId: lilyLiving.id } },
+      create: {
+        reunionId: "reunion-hart-2026",
+        personId: lilyLiving.id,
+        coming: true,
+        arrived: true,
+        arrivedAt: new Date("2026-09-22T14:00:00Z"),
+      },
+      update: { arrived: true, arrivedAt: new Date("2026-09-22T14:00:00Z") },
+    });
+  }
 }
 
 async function writeHartMedia() {

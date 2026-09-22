@@ -10,6 +10,7 @@ import { KeepOutToggle } from "@/app/follow/ui";
 import { keepOutLine } from "@/lib/keepOut";
 import { StoryEditForm } from "@/app/ask-save/ui";
 import { askCitationLine } from "@/lib/askStory";
+import { ReadLaterButton } from "@/app/alive-when/ui";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -39,6 +40,9 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
             <Link className="text-seal" href={`/people/${story.teller.id}`}>{story.teller.displayName}</Link>
           </>
         ) : null}
+      </p>
+      <p className="mt-3 font-sans text-sm">
+        <ReadLaterButton storyId={story.id} />
       </p>
       <article className="paper-card mt-8 whitespace-pre-wrap p-6 text-lg leading-relaxed" data-testid="story-body">{story.body}</article>
       {canWrite(ctx.role) ? <StoryEditForm storyId={story.id} title={story.title} body={story.body} /> : null}

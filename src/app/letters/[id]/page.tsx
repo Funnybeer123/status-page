@@ -19,6 +19,7 @@ import { CiteBlock } from "@/components/CiteBlock";
 import { PostmarkForm } from "@/app/then-now/ui";
 import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
 import { SecretUntilForm, WeatherForm, OcrConfidenceForm } from "@/app/memory-lane/ui";
+import { ReadLaterButton } from "@/app/alive-when/ui";
 import { hiddenSecretBody, isSecretLocked, secretUntilLine } from "@/lib/secretUntil";
 import { hasWeather, weatherNoteLine, weatherOnDayHeading } from "@/lib/weatherNote";
 import { ocrConfidenceLine } from "@/lib/ocrConfidence";
@@ -100,6 +101,8 @@ export default async function LetterPage({
             </Link>
           </>
         ) : null}
+        {" · "}
+        <ReadLaterButton documentId={letter.id} />
       </p>
       {letter.replyTo ? (
         <p className="mt-2 font-sans text-sm" data-testid="letter-reply-to">

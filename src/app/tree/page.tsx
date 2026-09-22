@@ -87,6 +87,9 @@ export default async function TreePage({
         <Link href="/branches/legend" className="rounded-full border border-bark/15 px-3 py-1">
           Color legend
         </Link>
+        <Link href="/tree/when" className="rounded-full border border-bark/15 px-3 py-1" data-testid="alive-when-link">
+          Who was alive when
+        </Link>
       </div>
       <div className="mt-10">
         {params.view === "pedigree" ? (() => {

@@ -8,10 +8,13 @@ import { formatYear } from "@/lib/dates";
 export function TreeView({
   people,
   relationships,
+  highlightIds,
 }: {
   people: TreePerson[];
   relationships: Relationship[];
+  highlightIds?: string[];
 }) {
+  const highlighted = highlightIds ? new Set(highlightIds) : null;
   const { rows } = buildGenerations(people, relationships);
   const generations = [...rows.entries()].sort((a, b) => a[0] - b[0]);
   const names = new Map(people.map((person) => [person.id, person.displayName]));
@@ -40,7 +43,11 @@ export function TreeView({
                   <Link
                     key={person.id}
                     href={`/people/${person.id}`}
-                    className="paper-card w-44 overflow-hidden text-center transition hover:-translate-y-0.5"
+                    className={`paper-card w-44 overflow-hidden text-center transition hover:-translate-y-0.5 ${
+                      highlighted?.has(person.id) ? "ring-2 ring-seal" : highlighted ? "opacity-40" : ""
+                    }`}
+                    data-testid={highlighted ? (highlighted.has(person.id) ? "tree-alive" : "tree-not-alive") : undefined}
+                    data-person-id={person.id}
                   >
                     <div className="aspect-[4/5] bg-cedar/10">
                       {person.profileUrl ? (

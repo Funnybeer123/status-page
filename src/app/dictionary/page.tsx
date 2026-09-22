@@ -34,6 +34,8 @@ export default async function DictionaryPage() {
         <Link href="/dictionary/unused" className="text-seal">Nicknames still missing how they are used</Link>
         {" · "}
         <Link href="/nicknames" className="text-seal">Simple nickname list</Link>
+        {" · "}
+        <Link href="/places/names" className="text-seal">Family names for places</Link>
       </p>
     </AppShell>
   );
