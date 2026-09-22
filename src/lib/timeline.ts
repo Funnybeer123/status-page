@@ -11,7 +11,7 @@ export type TimelinePerson = { id: string; displayName: string; generation: numb
 
 export type TimelineEntry = {
   id: string;
-  source: "event" | "letter" | "note" | "photo" | "video" | "story";
+  source: "event" | "letter" | "note" | "photo" | "video" | "story" | "audio";
   kind: string;
   title: string;
   summary: string | null;
@@ -49,6 +49,7 @@ export type TimelineCounts = {
   photos: number;
   videos: number;
   stories: number;
+  audio: number;
 };
 
 export type TimelineHistory = {
@@ -91,6 +92,7 @@ export function countBySource(entries: TimelineEntry[]): TimelineCounts {
     photos: entries.filter((entry) => entry.source === "photo").length,
     videos: entries.filter((entry) => entry.source === "video").length,
     stories: entries.filter((entry) => entry.source === "story").length,
+    audio: entries.filter((entry) => entry.source === "audio").length,
   };
 }
 
@@ -104,6 +106,9 @@ export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
     occupation: "Occupation",
     education: "Education",
     military: "Military",
+    census: "Census",
+    burial: "Burial",
+    audio: "Oral history",
     letter: "Letter",
     note: "Oral note",
     photo: "Photograph",
@@ -292,7 +297,7 @@ export async function familyHistory(
       include: { people: { include: { person: true } }, asset: true },
     }),
     prisma.asset.findMany({
-      where: { familyId, kind: { in: ["photo", "video"] }, document: { is: null } },
+      where: { familyId, kind: { in: ["photo", "video", "audio"] }, document: { is: null } },
       include: { tags: { include: { person: true } } },
     }),
     prisma.story.findMany({
@@ -394,9 +399,9 @@ export async function familyHistory(
     );
     entries.push({
       id: asset.id,
-      source: asset.kind === "video" ? "video" : "photo",
-      kind: kindLabel(asset.kind, asset.kind === "video" ? "video" : "photo"),
-      title: asset.title || (asset.kind === "video" ? "Home movie" : "Photograph"),
+      source: asset.kind === "video" ? "video" : asset.kind === "audio" ? "audio" : "photo",
+      kind: kindLabel(asset.kind, asset.kind === "video" ? "video" : asset.kind === "audio" ? "audio" : "photo"),
+      title: asset.title || (asset.kind === "video" ? "Home movie" : asset.kind === "audio" ? "Oral history" : "Photograph"),
       summary: null,
       happenedOn: iso(asset.capturedAt),
       href: "/archive",

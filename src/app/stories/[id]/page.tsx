@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
+import { CommentThread } from "@/components/CommentThread";
+import { canWrite } from "@/lib/roles";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -15,6 +17,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
       people: { include: { person: true } },
       document: true,
       citations: { include: { document: true, asset: true } },
+      comments: { include: { author: true } },
     },
   });
   if (!story) notFound();
@@ -48,6 +51,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
           Also kept as a note so Ask can find it. Search or ask about the words above.
         </p>
       ) : null}
+      <CommentThread comments={story.comments} storyId={story.id} canWrite={canWrite(ctx.role)} />
     </AppShell>
   );
 }

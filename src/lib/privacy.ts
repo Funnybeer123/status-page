@@ -42,7 +42,13 @@ export function hideEventFromViewer(
 ) {
   if (canSeeLivingFacts(role)) return false;
   if (!isLiving(event.person)) return false;
-  return event.kind === "birth" || event.kind === "residence" || event.kind === "occupation" || event.kind === "education";
+  return (
+    event.kind === "birth" ||
+    event.kind === "residence" ||
+    event.kind === "occupation" ||
+    event.kind === "education" ||
+    event.kind === "census"
+  );
 }
 
 export function redactEventDate<T extends { kind: string; happenedOn?: Date | string | null; summary?: string | null }>(

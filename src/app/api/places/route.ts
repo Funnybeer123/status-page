@@ -10,6 +10,8 @@ const schema = z.object({
   locality: z.string().max(120).optional(),
   region: z.string().max(120).optional(),
   country: z.string().max(120).optional(),
+  latitude: z.union([z.string(), z.number()]).optional(),
+  longitude: z.union([z.string(), z.number()]).optional(),
 });
 
 export async function GET() {
@@ -36,6 +38,8 @@ export async function POST(req: Request) {
     locality: body.data.locality,
     region: body.data.region,
     country: body.data.country,
+    latitude: body.data.latitude,
+    longitude: body.data.longitude,
   });
   return NextResponse.json({ place });
 }

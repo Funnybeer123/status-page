@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { PersonArchiveForms } from "@/app/people/[id]/archive";
+import { MergeForm } from "@/app/people/[id]/merge";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate, lifespan } from "@/lib/dates";
@@ -95,6 +96,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             </Link>
             <Link href={`/timeline?personId=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
               Full history on the timeline
+            </Link>
+            <Link href={`/book?personId=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Printable life story
+            </Link>
+            <Link href={`/tree?personId=${person.id}&view=pedigree`} className="mt-2 block font-sans text-sm text-seal">
+              Ancestor chart
             </Link>
           </div>
         </aside>
@@ -218,9 +225,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">In the archive</p>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
               {person.tags.map((tag) => (
-                <Link key={tag.id} href="/archive" className="paper-card overflow-hidden">
+                <Link key={tag.id} href={`/archive/${tag.asset.id}`} className="paper-card overflow-hidden">
                   {tag.asset.mimeType.startsWith("video/") ? (
                     <video src={`/api/media/${tag.asset.storagePath}`} className="aspect-square w-full object-cover" />
+                  ) : tag.asset.mimeType.startsWith("audio/") ? (
+                    <div className="flex aspect-square items-center justify-center bg-cedar/10 p-4 font-sans text-sm text-bark">Oral history</div>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={`/api/media/${tag.asset.storagePath}`} alt={tag.asset.title ?? ""} className="aspect-square w-full object-cover" />
@@ -230,6 +239,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               ))}
             </div>
           </div>
+          {canWrite(ctx.role) ? (
+            <MergeForm
+              keepId={person.id}
+              people={people.map((item) => ({ id: item.id, displayName: item.displayName }))}
+            />
+          ) : null}
           {canWrite(ctx.role) ? (
             <PersonArchiveForms
               personId={person.id}

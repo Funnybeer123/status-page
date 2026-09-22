@@ -162,6 +162,8 @@ export function PersonArchiveForms({
             <option value="occupation">Occupation</option>
             <option value="education">Education</option>
             <option value="military">Military</option>
+            <option value="census">Census</option>
+            <option value="burial">Burial</option>
             <option value="other">Other</option>
           </select>
           <input name="title" required placeholder="Harvest dance at the Grange" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />

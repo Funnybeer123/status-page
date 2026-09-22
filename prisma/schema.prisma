@@ -22,6 +22,7 @@ enum AssetKind {
   photo
   video
   letter
+  audio
 }
 
 enum DocKind {
@@ -46,6 +47,8 @@ enum EventKind {
   occupation
   education
   military
+  census
+  burial
   other
 }
 
@@ -57,6 +60,9 @@ model User {
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   assets       Asset[]      @relation("UploadedBy")
+  activities   Activity[]
+  comments     Comment[]
+  albums       Album[]      @relation("AlbumCreator")
 }
 
 model Family {
@@ -76,6 +82,9 @@ model Family {
   events        LifeEvent[]
   stories       Story[]
   citations     Citation[]
+  activities    Activity[]
+  albums        Album[]
+  comments      Comment[]
 }
 
 model Membership {
@@ -110,6 +119,8 @@ model Person {
   deathDate      DateTime?        @db.Date
   notes          String?
   profileAssetId String?
+  sex            String?
+  gedcomXref     String?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   fromRels       Relationship[]   @relation("FromPerson")
   toRels         Relationship[]   @relation("ToPerson")
@@ -154,6 +165,8 @@ model Asset {
   tags         PersonTag[]
   document     Document?
   citations    Citation[]
+  comments     Comment[]
+  albumItems   AlbumItem[]
 }
 
 model PersonTag {
@@ -181,6 +194,8 @@ model Document {
   chunks     Chunk[]
   story      Story?
   citations  Citation[]
+  comments   Comment[]
+  albumItems AlbumItem[]
 }
 
 model DocumentPerson {
@@ -211,6 +226,8 @@ model Place {
   locality   String?
   region     String?
   country    String?
+  latitude   Float?
+  longitude  Float?
   family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   residences Residence[]
   events     LifeEvent[]
@@ -281,6 +298,8 @@ model Story {
   document       Document?     @relation(fields: [documentId], references: [id], onDelete: SetNull)
   people         StoryPerson[]
   citations      Citation[]
+  comments       Comment[]
+  albumItems     AlbumItem[]
 
   @@index([familyId])
 }
@@ -316,4 +335,67 @@ model Citation {
   asset       Asset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
+}
+
+model Activity {
+  id         String   @id @default(cuid())
+  familyId   String
+  actorId    String
+  verb       String
+  entityType String
+  entityId   String?
+  title      String
+  summary    String?
+  createdAt  DateTime @default(now())
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
+}
+
+model Album {
+  id          String      @id @default(cuid())
+  familyId    String
+  title       String
+  summary     String?
+  createdAt   DateTime    @default(now())
+  createdById String
+  family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation("AlbumCreator", fields: [createdById], references: [id])
+  items       AlbumItem[]
+
+  @@index([familyId])
+}
+
+model AlbumItem {
+  id         String    @id @default(cuid())
+  albumId    String
+  assetId    String?
+  documentId String?
+  storyId    String?
+  addedAt    DateTime  @default(now())
+  album      Album     @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([albumId])
+}
+
+model Comment {
+  id         String    @id @default(cuid())
+  familyId   String
+  authorId   String
+  body       String
+  createdAt  DateTime  @default(now())
+  assetId    String?
+  documentId String?
+  storyId    String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
 }

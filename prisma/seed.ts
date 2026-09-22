@@ -162,23 +162,23 @@ async function ensureHartArchive() {
 
   const cedar = await prisma.place.upsert({
     where: { id: "place-cedar-falls" },
-    create: { id: "place-cedar-falls", familyId: family.id, name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States" },
-    update: { name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States" },
+    create: { id: "place-cedar-falls", familyId: family.id, name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.5278, longitude: -92.4453 },
+    update: { name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.5278, longitude: -92.4453 },
   });
   const northFarm = await prisma.place.upsert({
     where: { id: "place-north-farm" },
-    create: { id: "place-north-farm", familyId: family.id, name: "North farm", locality: "Cedar Falls", region: "Iowa", country: "United States" },
-    update: { name: "North farm" },
+    create: { id: "place-north-farm", familyId: family.id, name: "North farm", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.54, longitude: -92.452 },
+    update: { name: "North farm", latitude: 42.54, longitude: -92.452 },
   });
   const iowaCity = await prisma.place.upsert({
     where: { id: "place-iowa-city" },
-    create: { id: "place-iowa-city", familyId: family.id, name: "Iowa City", locality: "Iowa City", region: "Iowa", country: "United States" },
-    update: { name: "Iowa City" },
+    create: { id: "place-iowa-city", familyId: family.id, name: "Iowa City", locality: "Iowa City", region: "Iowa", country: "United States", latitude: 41.6611, longitude: -91.5302 },
+    update: { name: "Iowa City", latitude: 41.6611, longitude: -91.5302 },
   });
   const grange = await prisma.place.upsert({
     where: { id: "place-grange" },
-    create: { id: "place-grange", familyId: family.id, name: "Grange hall", locality: "Cedar Falls", region: "Iowa", country: "United States" },
-    update: { name: "Grange hall" },
+    create: { id: "place-grange", familyId: family.id, name: "Grange hall", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.529, longitude: -92.446 },
+    update: { name: "Grange hall", latitude: 42.529, longitude: -92.446 },
   });
 
   await prisma.personName.upsert({
@@ -347,6 +347,46 @@ async function ensureHartArchive() {
       title: "Samuel kept bees on the north farm",
       summary: "After he stopped farming he would not take a comb until after the harvest-dance anniversary.",
       happenedOn: new Date("1988-06-01"),
+    },
+    update: {},
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-sam-military" },
+    create: {
+      id: "event-sam-military",
+      familyId: family.id,
+      personId: samuel.id,
+      placeId: cedar.id,
+      kind: EventKind.military,
+      title: "Samuel reported for the county draft board",
+      summary: "He left the north farm for a week of processing, then came home for harvest.",
+      happenedOn: new Date("1944-09-22"),
+    },
+    update: { happenedOn: new Date("1944-09-22") },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-census" },
+    create: {
+      id: "event-eleanor-census",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      kind: EventKind.census,
+      title: "Eleanor enumerated on the Cedar Falls census",
+      happenedOn: new Date("1950-04-01"),
+    },
+    update: {},
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-burial" },
+    create: {
+      id: "event-eleanor-burial",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      kind: EventKind.burial,
+      title: "Eleanor buried at Fairview",
+      happenedOn: new Date("2015-06-06"),
     },
     update: {},
   });

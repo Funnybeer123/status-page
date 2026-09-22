@@ -28,7 +28,7 @@ function LoginForm() {
       setError("Those credentials were not recognized.");
       return;
     }
-    router.push(params.get("next") || "/tree");
+    router.push(params.get("next") || "/");
     router.refresh();
   }
 

@@ -5,6 +5,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { syncVitalEvents } from "@/lib/events";
 import { redactPeople } from "@/lib/privacy";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   displayName: z.string().min(1).max(120),
@@ -13,6 +14,7 @@ const schema = z.object({
   birthDate: z.string().optional(),
   deathDate: z.string().optional(),
   notes: z.string().max(4000).optional(),
+  sex: z.string().max(8).optional(),
 });
 
 export async function GET() {
@@ -40,7 +42,17 @@ export async function POST(req: Request) {
       birthDate: body.data.birthDate ? new Date(body.data.birthDate) : null,
       deathDate: body.data.deathDate ? new Date(body.data.deathDate) : null,
       notes: body.data.notes || null,
+      sex: body.data.sex || null,
     },
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "added",
+    entityType: "person",
+    entityId: person.id,
+    title: person.displayName,
+    summary: "A person was added to the tree.",
   });
   await syncVitalEvents({
     familyId: ctx.family.id,

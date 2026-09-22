@@ -29,8 +29,17 @@ export function ArchiveClient({ people }: { people: { id: string; displayName: s
 
   return (
     <form onSubmit={onSubmit} className="paper-card mt-8 grid gap-3 p-5 md:grid-cols-2">
-      <input type="file" name="file" required className="font-sans text-sm" />
-      <input name="title" placeholder="Caption" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <input type="file" name="file" required accept="image/*,video/*,audio/*" className="font-sans text-sm" />
+      <input name="title" placeholder="Caption or oral-history title" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <label className="font-sans text-sm">
+        Kind
+        <select name="kind" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2">
+          <option value="">Detect from the file</option>
+          <option value="photo">Photograph</option>
+          <option value="video">Film</option>
+          <option value="audio">Oral history</option>
+        </select>
+      </label>
       <label className="font-sans text-sm">
         Date
         <input type="date" name="capturedAt" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" />

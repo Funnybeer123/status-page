@@ -7,6 +7,7 @@ import { parseDate } from "@/lib/parse";
 import { findOrCreatePlace } from "@/lib/places";
 import { recordResidenceEvent } from "@/lib/events";
 import { hideResidenceForViewer } from "@/lib/privacy";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   personId: z.string(),
@@ -70,6 +71,15 @@ export async function POST(req: Request) {
     startedAt: residence.startedAt,
     endedAt: residence.endedAt,
     placeId: place.id,
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "recorded",
+    entityType: "place",
+    entityId: place.id,
+    title: `Lived in ${place.name}`,
+    summary: person.displayName,
   });
   return NextResponse.json({ residence });
 }

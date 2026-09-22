@@ -34,3 +34,20 @@ a {
   height: 1px;
   background: linear-gradient(90deg, transparent, #c4a574, transparent);
 }
+
+@media print {
+  header,
+  nav,
+  form,
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: white;
+    color: #1f140c;
+  }
+  .paper-card {
+    box-shadow: none;
+    border: none;
+  }
+}

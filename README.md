@@ -31,7 +31,9 @@ The answer cites Eleanor’s 18 October 1947 letter to Ruth.
 - Add people and parent/partner links; browse a three-generation tree.
 - Record maiden names, nicknames, the places people lived, and a full family history (vitals, moves, marriages, letters, photographs, films, stories, and oral notes) with person and generation filters, gap callouts, and a form to add a missing event from the timeline.
 - Write stories and oral notes; cite letters and photographs on facts.
-- Ask how two people are related; search the whole archive; see upcoming family dates.
+- Ask how two people are related; search the whole archive; see upcoming family dates on the home dashboard after login.
+- On this day, an activity feed, a map of places lived, an ancestor chart beside the tree, GEDCOM import/export, a printable family book, albums, comments, merge duplicates, whole-archive export, and oral-history audio.
+- Fact types include military service, immigration, census, and burial.
 - Living relatives are redacted for viewers (birth dates, notes, current places).
 - Upload photos and videos, stamp a date (EXIF when present), and tag people.
 - Upload a letter scan, run Tesseract OCR, and keep an editable dated transcript.

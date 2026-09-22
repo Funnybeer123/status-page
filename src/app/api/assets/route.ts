@@ -6,6 +6,7 @@ import exifr from "exifr";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { saveUpload } from "@/lib/media";
+import { recordActivity } from "@/lib/activity";
 
 export async function GET(req: Request) {
   const ctx = await apiFamily();
@@ -40,16 +41,22 @@ export async function POST(req: Request) {
       ? AssetKind.letter
       : forced === "video"
         ? AssetKind.video
-        : forced === "photo"
-          ? AssetKind.photo
-          : mime.startsWith("video/")
-            ? AssetKind.video
-            : AssetKind.photo;
+        : forced === "audio"
+          ? AssetKind.audio
+          : forced === "photo"
+            ? AssetKind.photo
+            : mime.startsWith("video/")
+              ? AssetKind.video
+              : mime.startsWith("audio/")
+                ? AssetKind.audio
+                : AssetKind.photo;
   const bytes = Buffer.from(await file.arrayBuffer());
   if (bytes.length > 80 * 1024 * 1024) {
     return NextResponse.json({ error: "That file is larger than 80 MB." }, { status: 413 });
   }
-  const ext = extname(file.name) || (mime.startsWith("video/") ? ".mp4" : mime.includes("svg") ? ".svg" : ".bin");
+  const ext =
+    extname(file.name) ||
+    (mime.startsWith("video/") ? ".mp4" : mime.startsWith("audio/") ? ".wav" : mime.includes("svg") ? ".svg" : ".bin");
   const filename = `${Date.now()}-${randomBytes(4).toString("hex")}${ext}`;
   const storagePath = await saveUpload(ctx.family.id, filename, bytes);
 
@@ -84,6 +91,15 @@ export async function POST(req: Request) {
       tags: tagIds.length ? { create: tagIds.map((personId) => ({ personId })) } : undefined,
     },
     include: { tags: { include: { person: true } } },
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "uploaded",
+    entityType: "asset",
+    entityId: asset.id,
+    title: title || (kind === "audio" ? "Oral history" : "Photograph"),
+    summary: kind,
   });
   return NextResponse.json({ asset });
 }

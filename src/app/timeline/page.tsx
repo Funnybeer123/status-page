@@ -60,6 +60,7 @@ export default async function TimelinePage({
           history.counts.notes ? `${history.counts.notes} notes` : null,
           history.counts.photos ? `${history.counts.photos} photographs` : null,
           history.counts.videos ? `${history.counts.videos} films` : null,
+          history.counts.audio ? `${history.counts.audio} oral histories` : null,
           history.counts.stories ? `${history.counts.stories} stories` : null,
         ]
           .filter(Boolean)
@@ -172,6 +173,8 @@ export default async function TimelinePage({
                 {entry.mediaUrl ? (
                   entry.mimeType?.startsWith("video/") ? (
                     <video controls src={entry.mediaUrl} className="mt-4 aspect-video w-full bg-cedar object-cover" />
+                  ) : entry.mimeType?.startsWith("audio/") || entry.source === "audio" ? (
+                    <audio controls src={entry.mediaUrl} className="mt-4 w-full" />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={entry.mediaUrl} alt={entry.title} className="mt-4 max-h-72 w-full object-cover" />

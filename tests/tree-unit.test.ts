@@ -14,6 +14,8 @@ function person(id: string, name: string): TreePerson {
     deathDate: null,
     notes: null,
     profileAssetId: null,
+    sex: null,
+    gedcomXref: null,
     profileUrl: null,
   };
 }

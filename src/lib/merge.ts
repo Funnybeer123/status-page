@@ -1,0 +1,84 @@
+import { prisma } from "@/lib/prisma";
+
+export async function mergePeople(input: { familyId: string; keepId: string; dropId: string }) {
+  if (input.keepId === input.dropId) {
+    throw new Error("Choose two different people to merge.");
+  }
+  const [keep, drop] = await Promise.all([
+    prisma.person.findFirst({ where: { id: input.keepId, familyId: input.familyId } }),
+    prisma.person.findFirst({ where: { id: input.dropId, familyId: input.familyId } }),
+  ]);
+  if (!keep || !drop) throw new Error("Both people must belong to this family.");
+
+  await prisma.$transaction(async (tx) => {
+    const rels = await tx.relationship.findMany({
+      where: { familyId: input.familyId, OR: [{ fromPersonId: drop.id }, { toPersonId: drop.id }] },
+    });
+    for (const rel of rels) {
+      const fromPersonId = rel.fromPersonId === drop.id ? keep.id : rel.fromPersonId;
+      const toPersonId = rel.toPersonId === drop.id ? keep.id : rel.toPersonId;
+      if (fromPersonId === toPersonId) {
+        await tx.relationship.delete({ where: { id: rel.id } });
+        continue;
+      }
+      const exists = await tx.relationship.findFirst({
+        where: { familyId: input.familyId, type: rel.type, fromPersonId, toPersonId },
+      });
+      if (exists) await tx.relationship.delete({ where: { id: rel.id } });
+      else await tx.relationship.update({ where: { id: rel.id }, data: { fromPersonId, toPersonId } });
+    }
+
+    await tx.personName.updateMany({ where: { personId: drop.id }, data: { personId: keep.id } });
+    await tx.residence.updateMany({ where: { personId: drop.id }, data: { personId: keep.id } });
+    await tx.lifeEvent.updateMany({ where: { personId: drop.id }, data: { personId: keep.id } });
+    await tx.lifeEvent.updateMany({ where: { otherPersonId: drop.id }, data: { otherPersonId: keep.id } });
+    await tx.citation.updateMany({ where: { personId: drop.id }, data: { personId: keep.id } });
+    await tx.story.updateMany({ where: { tellerPersonId: drop.id }, data: { tellerPersonId: keep.id } });
+    await tx.chunk.updateMany({ where: { personId: drop.id }, data: { personId: keep.id } });
+
+    const tags = await tx.personTag.findMany({ where: { personId: drop.id } });
+    for (const tag of tags) {
+      const exists = await tx.personTag.findFirst({ where: { assetId: tag.assetId, personId: keep.id } });
+      if (exists) await tx.personTag.delete({ where: { id: tag.id } });
+      else await tx.personTag.update({ where: { id: tag.id }, data: { personId: keep.id } });
+    }
+
+    const docs = await tx.documentPerson.findMany({ where: { personId: drop.id } });
+    for (const link of docs) {
+      const exists = await tx.documentPerson.findFirst({
+        where: { documentId: link.documentId, personId: keep.id },
+      });
+      if (exists) await tx.documentPerson.delete({ where: { documentId_personId: { documentId: link.documentId, personId: drop.id } } });
+      else {
+        await tx.documentPerson.delete({ where: { documentId_personId: { documentId: link.documentId, personId: drop.id } } });
+        await tx.documentPerson.create({ data: { documentId: link.documentId, personId: keep.id } });
+      }
+    }
+
+    const stories = await tx.storyPerson.findMany({ where: { personId: drop.id } });
+    for (const link of stories) {
+      const exists = await tx.storyPerson.findFirst({ where: { storyId: link.storyId, personId: keep.id } });
+      if (exists) await tx.storyPerson.delete({ where: { storyId_personId: { storyId: link.storyId, personId: drop.id } } });
+      else {
+        await tx.storyPerson.delete({ where: { storyId_personId: { storyId: link.storyId, personId: drop.id } } });
+        await tx.storyPerson.create({ data: { storyId: link.storyId, personId: keep.id } });
+      }
+    }
+
+    await tx.person.update({
+      where: { id: keep.id },
+      data: {
+        givenName: keep.givenName || drop.givenName,
+        familyName: keep.familyName || drop.familyName,
+        birthDate: keep.birthDate || drop.birthDate,
+        deathDate: keep.deathDate || drop.deathDate,
+        notes: [keep.notes, drop.notes].filter(Boolean).join("\n\n") || null,
+        sex: keep.sex || drop.sex,
+        profileAssetId: keep.profileAssetId || drop.profileAssetId,
+      },
+    });
+    await tx.person.delete({ where: { id: drop.id } });
+  });
+
+  return prisma.person.findFirstOrThrow({ where: { id: keep.id } });
+}

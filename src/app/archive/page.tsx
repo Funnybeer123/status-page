@@ -35,7 +35,7 @@ export default async function ArchivePage({
         <div>
           <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
           <h1 className="mt-2 font-display text-4xl">Archive</h1>
-          <p className="mt-3 max-w-xl text-bark">Photographs, a picnic reel, and letter scans, each with a date when we know it.</p>
+          <p className="mt-3 max-w-xl text-bark">Photographs, films, letter scans, and oral-history audio, each with a date when we know it.</p>
         </div>
       </div>
       {canWrite(ctx.role) ? (
@@ -52,14 +52,18 @@ export default async function ArchivePage({
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((asset) => (
           <article key={asset.id} className="paper-card overflow-hidden">
+            <a href={`/archive/${asset.id}`}>
             {asset.mimeType.startsWith("video/") ? (
-              <video controls src={`/api/media/${asset.storagePath}`} className="aspect-[4/3] w-full bg-cedar object-cover" />
+              <video src={`/api/media/${asset.storagePath}`} className="aspect-[4/3] w-full bg-cedar object-cover" />
+            ) : asset.mimeType.startsWith("audio/") || asset.kind === "audio" ? (
+              <div className="flex aspect-[4/3] items-center justify-center bg-cedar/10 font-sans text-bark">Oral history</div>
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={`/api/media/${asset.storagePath}`} alt={asset.title ?? ""} className="aspect-[4/3] w-full object-cover" />
             )}
+            </a>
             <div className="p-4">
-              <p className="font-display text-lg">{asset.title}</p>
+              <p className="font-display text-lg"><a href={`/archive/${asset.id}`}>{asset.title}</a></p>
               <p className="mt-1 font-sans text-xs uppercase tracking-wide text-gold">{asset.kind} · {formatDate(asset.capturedAt)}</p>
               <p className="mt-2 font-sans text-sm text-bark">
                 {asset.tags.map((tag) => tag.person.displayName).join(", ") || "Untagged"}

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { saveUpload } from "@/lib/media";
 import { replaceChunks } from "@/lib/chunk";
 import { ocrFile } from "@/lib/ocr";
+import { recordActivity } from "@/lib/activity";
 
 export async function GET() {
   const ctx = await apiFamily();
@@ -79,6 +80,15 @@ export async function POST(req: Request) {
     documentId: document.id,
     personId: personIds[0],
     transcript: text,
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "saved",
+    entityType: "document",
+    entityId: document.id,
+    title,
+    summary: kind,
   });
   return NextResponse.json({ document });
 }

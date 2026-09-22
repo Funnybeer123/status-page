@@ -1,44 +1,122 @@
 import Link from "next/link";
 import { auth } from "@/auth";
+import { AppShell } from "@/components/AppShell";
+import { getFamilyContext } from "@/lib/family";
+import { prisma } from "@/lib/prisma";
+import { loadFamilyReminders, loadOnThisDaySources } from "@/lib/familyDates";
+import { collectOnThisDay, onThisDayHeading } from "@/lib/onThisDay";
+import { activityHref } from "@/lib/activity";
+import { remindersThisWeek } from "@/lib/reminders";
 
 export default async function HomePage() {
   const session = await auth();
-  return (
-    <div className="mx-auto max-w-5xl px-6 py-16">
-      <p className="font-sans text-xs uppercase tracking-[0.28em] text-gold">A private family archive</p>
-      <h1 className="mt-4 font-display text-5xl leading-tight md:text-7xl">Family Lineage</h1>
-      <p className="mt-6 max-w-2xl text-xl leading-relaxed text-bark">
-        Each family keeps its own tree, places, stories, and letters. Ask how the grandparents met, and the
-        answer comes from their correspondence — not from the public web.
-      </p>
-      <div className="mt-10 flex flex-wrap gap-4">
-        {session ? (
-          <Link href="/tree" className="rounded-full bg-seal px-6 py-3 font-sans text-cream">
-            Open your families
+  if (!session?.user?.id) {
+    return (
+      <div className="mx-auto max-w-5xl px-6 py-16">
+        <p className="font-sans text-xs uppercase tracking-[0.28em] text-gold">A private family archive</p>
+        <h1 className="mt-4 font-display text-5xl leading-tight md:text-7xl">Family Lineage</h1>
+        <p className="mt-6 max-w-2xl text-xl leading-relaxed text-bark">
+          Each family keeps its own tree, places, stories, and letters. Ask how the grandparents met, and the
+          answer comes from their correspondence — not from the public web.
+        </p>
+        <div className="mt-10 flex flex-wrap gap-4">
+          <Link href="/login?demo=1" className="rounded-full bg-seal px-6 py-3 font-sans text-cream">
+            Try the Hart family
           </Link>
-        ) : (
-          <>
-            <Link href="/login?demo=1" className="rounded-full bg-seal px-6 py-3 font-sans text-cream">
-              Try the Hart family
-            </Link>
-            <Link href="/signup" className="rounded-full border border-bark/20 px-6 py-3 font-sans">
-              Create an account
-            </Link>
-          </>
-        )}
+          <Link href="/signup" className="rounded-full border border-bark/20 px-6 py-3 font-sans">
+            Create an account
+          </Link>
+        </div>
       </div>
-      <div className="mt-16 grid gap-6 md:grid-cols-3">
-        {[
-          ["People and tree", "Generations, maiden names, the places they lived, and how two people are related."],
-          ["Timeline and dates", "Life events, letters, and photographs in order — plus birthdays the family still keeps."],
-          ["Stories and Ask", "Oral notes sit beside letters. A grandchild-style question is answered from this archive."],
-        ].map(([title, copy]) => (
-          <article key={title} className="paper-card p-6">
-            <h2 className="font-display text-2xl">{title}</h2>
-            <p className="mt-3 text-bark">{copy}</p>
-          </article>
-        ))}
+    );
+  }
+
+  const ctx = await getFamilyContext();
+  if (!ctx.family || !ctx.role) {
+    return (
+      <div className="mx-auto max-w-3xl px-6 py-16">
+        <h1 className="font-display text-4xl">Create a family</h1>
+        <p className="mt-3 text-bark">You are signed in. Start a family or accept an invite.</p>
+        <Link href="/families" className="mt-6 inline-block rounded-full bg-seal px-5 py-2 font-sans text-cream">
+          Families
+        </Link>
       </div>
-    </div>
+    );
+  }
+
+  const [{ upcoming, reminders }, sources, activities] = await Promise.all([
+    loadFamilyReminders(ctx.family.id, ctx.role),
+    loadOnThisDaySources(ctx.family.id),
+    prisma.activity.findMany({
+      where: { familyId: ctx.family.id },
+      include: { actor: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+    }),
+  ]);
+  const today = collectOnThisDay({ ...sources, role: ctx.role });
+  const week = remindersThisWeek(reminders);
+
+  return (
+    <AppShell>
+      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
+      <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
+      <p className="mt-3 max-w-2xl text-bark">Upcoming dates, what happened on this day, and who added what.</p>
+
+      <section className="mt-10" data-testid="dashboard-dates">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">Upcoming family dates</h2>
+          <Link href="/dates" className="font-sans text-sm text-seal">All dates</Link>
+        </div>
+        <ul className="mt-4 space-y-3">
+          {upcoming.slice(0, 6).map((item) => (
+            <li key={item.id} className="paper-card flex flex-wrap items-baseline justify-between gap-3 p-4">
+              <Link href={`/people/${item.personId}`} className="font-display text-xl text-seal">{item.title}</Link>
+              <span className="font-sans text-sm text-gold">
+                {item.daysUntil === 0 ? "Today" : item.daysUntil === 1 ? "Tomorrow" : `In ${item.daysUntil} days`}
+              </span>
+            </li>
+          ))}
+          {!upcoming.length ? <li className="text-bark">No dated events in the next 90 days.</li> : null}
+        </ul>
+        {week.length ? (
+          <p className="mt-3 font-sans text-sm text-bark">{week.length} this week.</p>
+        ) : null}
+      </section>
+
+      <section className="mt-10" data-testid="dashboard-today">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">On this day · {onThisDayHeading()}</h2>
+          <Link href="/today" className="font-sans text-sm text-seal">The full day</Link>
+        </div>
+        <ul className="mt-4 space-y-3">
+          {today.slice(0, 4).map((item) => (
+            <li key={item.id} className="paper-card p-4">
+              <Link href={item.href} className="font-display text-xl text-seal">{item.title}</Link>
+              <p className="font-sans text-sm text-bark">{item.year || item.kind}</p>
+            </li>
+          ))}
+          {!today.length ? <li className="text-bark">Nothing in the archive falls on today&apos;s month and day yet.</li> : null}
+        </ul>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">Recent activity</h2>
+          <Link href="/activity" className="font-sans text-sm text-seal">Activity feed</Link>
+        </div>
+        <ul className="mt-4 space-y-3">
+          {activities.map((item) => (
+            <li key={item.id} className="paper-card p-4">
+              <p className="font-sans text-sm text-gold">{item.actor.name} {item.verb}</p>
+              <Link href={activityHref(item.entityType, item.entityId)} className="font-display text-xl text-seal">
+                {item.title}
+              </Link>
+            </li>
+          ))}
+          {!activities.length ? <li className="text-bark">Nothing logged yet. Add a person, a letter, or a photograph.</li> : null}
+        </ul>
+      </section>
+    </AppShell>
   );
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { LetterEditor } from "@/app/letters/[id]/ui";
+import { CommentThread } from "@/components/CommentThread";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -11,7 +12,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const letter = await prisma.document.findFirst({
     where: { id, familyId: ctx.family.id },
-    include: { asset: true, people: { include: { person: true } } },
+    include: { asset: true, people: { include: { person: true } }, comments: { include: { author: true } } },
   });
   if (!letter) notFound();
 
@@ -40,6 +41,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           canEdit={canWrite(ctx.role)}
         />
       </div>
+      <CommentThread comments={letter.comments} documentId={letter.id} canWrite={canWrite(ctx.role)} />
     </AppShell>
   );
 }

@@ -107,6 +107,7 @@ async function main() {
     page.waitForNavigation({ waitUntil: "networkidle0" }),
     page.click("[data-testid=login-submit]"),
   ]);
+  await page.goto(`${BASE}/tree`, { waitUntil: "networkidle0" });
   await page.waitForSelector("[data-testid=tree-heading]");
   const treeHtml = await page.content();
   if (!treeHtml.includes("Rose Whitaker") || treeHtml.includes("Eleanor Hart")) {

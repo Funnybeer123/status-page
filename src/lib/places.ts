@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { lookupCoordinates, parseCoord } from "@/lib/geocode";
 
 export async function findOrCreatePlace(input: {
   familyId: string;
@@ -7,6 +8,8 @@ export async function findOrCreatePlace(input: {
   locality?: string | null;
   region?: string | null;
   country?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
 }) {
   if (input.placeId) {
     const existing = await prisma.place.findFirst({
@@ -23,7 +26,15 @@ export async function findOrCreatePlace(input: {
   const match = await prisma.place.findFirst({
     where: { familyId: input.familyId, name, locality, region, country },
   });
-  if (match) return match;
+  const guessed = lookupCoordinates({ name, locality, region, country });
+  const latitude = parseCoord(input.latitude) ?? guessed?.latitude ?? null;
+  const longitude = parseCoord(input.longitude) ?? guessed?.longitude ?? null;
+  if (match) {
+    if ((match.latitude == null || match.longitude == null) && latitude != null && longitude != null) {
+      return prisma.place.update({ where: { id: match.id }, data: { latitude, longitude } });
+    }
+    return match;
+  }
   return prisma.place.create({
     data: {
       familyId: input.familyId,
@@ -31,6 +42,8 @@ export async function findOrCreatePlace(input: {
       locality,
       region,
       country,
+      latitude,
+      longitude,
     },
   });
 }

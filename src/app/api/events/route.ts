@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { parseDate } from "@/lib/parse";
 import { findOrCreatePlace } from "@/lib/places";
 import { hideEventFromViewer } from "@/lib/privacy";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   personId: z.string(),
@@ -73,6 +74,15 @@ export async function POST(req: Request) {
       happenedOn: parseDate(body.data.happenedOn),
     },
     include: { person: true, otherPerson: true, place: true },
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "recorded",
+    entityType: "event",
+    entityId: event.id,
+    title: event.title,
+    summary: event.kind,
   });
   return NextResponse.json({ event });
 }

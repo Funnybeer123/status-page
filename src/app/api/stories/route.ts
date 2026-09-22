@@ -5,6 +5,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { parseDate, splitIds } from "@/lib/parse";
 import { createStoryRecord } from "@/lib/stories";
+import { recordActivity } from "@/lib/activity";
 
 const schema = z.object({
   title: z.string().min(1).max(200),
@@ -57,6 +58,15 @@ export async function POST(req: Request) {
     recordedAt: parseDate(body.data.recordedAt),
     tellerPersonId: body.data.tellerPersonId || null,
     personIds,
+  });
+  await recordActivity({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    verb: "wrote",
+    entityType: "story",
+    entityId: story.id,
+    title: story.title,
+    summary: "A story was added to the archive.",
   });
   return NextResponse.json({ story });
 }
