@@ -7,6 +7,7 @@ const people = [
   { id: "rose", displayName: "Rose Whitaker" },
   { id: "louis", displayName: "Louis Whitaker" },
   { id: "helen", displayName: "Helen Park" },
+  { id: "owen", displayName: "Owen Park" },
   { id: "nora", displayName: "Nora Park" },
   { id: "ben", displayName: "Ben Park" },
 ];
@@ -15,8 +16,11 @@ const relationships = [
   { fromPersonId: "rose", toPersonId: "louis", type: RelType.partner },
   { fromPersonId: "rose", toPersonId: "helen", type: RelType.parent },
   { fromPersonId: "louis", toPersonId: "helen", type: RelType.parent },
+  { fromPersonId: "helen", toPersonId: "owen", type: RelType.partner },
   { fromPersonId: "helen", toPersonId: "nora", type: RelType.parent },
+  { fromPersonId: "owen", toPersonId: "nora", type: RelType.parent },
   { fromPersonId: "helen", toPersonId: "ben", type: RelType.parent },
+  { fromPersonId: "owen", toPersonId: "ben", type: RelType.parent },
 ];
 
 test("relation labels cover parent, grandchild, sibling, and cousin-style hops", () => {
