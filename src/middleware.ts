@@ -22,6 +22,7 @@ export function middleware(req: NextRequest) {
     pathname === "/api/signup" ||
     pathname.startsWith("/s/") ||
     pathname.startsWith("/api/media") ||
+    (pathname.startsWith("/api/cal/") && pathname !== "/api/cal/token") ||
     pathname.startsWith("/icon")
   ) {
     return NextResponse.next();

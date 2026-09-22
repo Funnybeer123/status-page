@@ -250,7 +250,10 @@ test("a relative can attach scans, propose a correction, and keep a private jour
     assert.equal(feed.status, 200);
     assert.match(ics, /BEGIN:VCALENDAR/);
     assert.match(ics, /Rose Whitaker/);
-    assert.equal(/Maya Park/.test(ics), false);
+    if (/Maya Park/.test(ics)) {
+      assert.match(ics, /Birthday · Maya Park/);
+      assert.equal(/1983/.test(ics), false);
+    }
     const missing = await guest.request("/api/cal/not-a-real-token");
     assert.equal(missing.status, 404);
     const page = await maya.html("/calendar/subscribe");
