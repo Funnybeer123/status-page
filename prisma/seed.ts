@@ -1724,8 +1724,8 @@ async function ensureHartArchive() {
     where: { id: eleanor.id },
     data: { pronunciation: "EL-uh-nor hart" },
   });
-  const lily = await prisma.person.findUnique({ where: { id: "person-lily" } });
-  if (lily) {
+  const lilyForChild = await prisma.person.findUnique({ where: { id: "person-lily" } });
+  if (lilyForChild) {
     const nora = await prisma.person.upsert({
       where: { id: "person-nora" },
       create: {
@@ -1740,11 +1740,11 @@ async function ensureHartArchive() {
       update: { birthDate: new Date("2018-06-14") },
     });
     const alreadyChild = await prisma.relationship.findFirst({
-      where: { familyId: family.id, fromPersonId: lily.id, toPersonId: nora.id, type: RelType.parent },
+      where: { familyId: family.id, fromPersonId: lilyForChild.id, toPersonId: nora.id, type: RelType.parent },
     });
     if (!alreadyChild) {
       await prisma.relationship.create({
-        data: { familyId: family.id, type: RelType.parent, fromPersonId: lily.id, toPersonId: nora.id },
+        data: { familyId: family.id, type: RelType.parent, fromPersonId: lilyForChild.id, toPersonId: nora.id },
       });
     }
   }
