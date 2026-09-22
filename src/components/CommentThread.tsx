@@ -10,13 +10,17 @@ export function CommentThread({
   assetId,
   documentId,
   storyId,
+  personId,
   canWrite,
+  placeholder = "What the family still says — @Name to notify them",
 }: {
   comments: Comment[];
   assetId?: string;
   documentId?: string;
   storyId?: string;
+  personId?: string;
   canWrite: boolean;
+  placeholder?: string;
 }) {
   const router = useRouter();
   const [error, setError] = useState("");
@@ -35,6 +39,7 @@ export function CommentThread({
         assetId,
         documentId,
         storyId,
+        personId,
       }),
     });
     const payload = await response.json();
@@ -49,7 +54,9 @@ export function CommentThread({
 
   return (
     <section className="mt-10" data-testid="comment-thread">
-      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Family comments</p>
+      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold" data-testid={personId ? "guestbook-heading" : undefined}>
+        {personId ? "Guestbook" : "Family comments"}
+      </p>
       <ul className="mt-4 space-y-3">
         {comments.map((comment) => (
           <li key={comment.id} className="paper-card p-4">
@@ -61,10 +68,10 @@ export function CommentThread({
       </ul>
       {canWrite ? (
         <form onSubmit={onSubmit} className="mt-4 grid gap-3">
-          <textarea name="body" required rows={3} placeholder="What the family still says — @Name to notify them" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="comment-body" />
+          <textarea name="body" required rows={3} placeholder={placeholder} className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="comment-body" />
           {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
           <button disabled={busy} className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit" data-testid="comment-submit">
-            {busy ? "Saving…" : "Add a comment"}
+            {busy ? "Saving…" : personId ? "Sign the guestbook" : "Add a comment"}
           </button>
         </form>
       ) : null}

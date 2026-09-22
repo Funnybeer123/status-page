@@ -35,6 +35,11 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
         {letter.people.length ? ` · ${letter.people.map((item) => item.person.displayName).join(", ")}` : ""}
         {letter.needsReview ? " · Needs a transcript check" : ""}
       </p>
+      <p className="mt-3 font-sans text-sm">
+        <Link href={`/letters/${letter.id}/room`} className="text-seal" data-testid="reading-room-link">
+          Open the reading room
+        </Link>
+      </p>
       {letter.replyTo ? (
         <p className="mt-2 font-sans text-sm" data-testid="letter-reply-to">
           In reply to{" "}

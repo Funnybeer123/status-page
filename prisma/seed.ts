@@ -28,6 +28,8 @@ We were married this morning at St. John's with only family in the pews. Sam put
 
 — written in the family Bible`;
 
+const PICNIC_TRANSCRIPT = `Helen speaking over the picnic reel, July 1961. Mother is cutting Sunday rolls under the cottonwoods. Father will not take a comb from the bees until after the harvest-dance anniversary. The children keep asking how Grandma met Grandpa. I tell them: the Grange hall, the cider, and the walk home.`;
+
 const MEG_NOTE = `I keep Ellie's cedar chest in the upstairs hall. The harvest-dance letter is still folded in the tray, next to the picnic reel from 1961. When the grandchildren ask how Grandma met Grandpa, that is the letter I hand them.
 
 — Margaret Chen, 12 March 2016`;
@@ -1617,6 +1619,105 @@ async function ensureHartArchive() {
       notes: "Sunday rolls and cider.",
     },
     update: { title: "Harvest-dance anniversary supper" },
+  });
+
+  const dancePhoto = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Harvest dance, Grange hall" },
+  });
+  if (dancePhoto) {
+    await prisma.asset.update({ where: { id: dancePhoto.id }, data: { placeId: grange.id } });
+  }
+  const picnicPhoto = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Hart picnic, 1961" },
+  });
+  if (picnicPhoto) {
+    await prisma.asset.update({ where: { id: picnicPhoto.id }, data: { placeId: northFarm.id } });
+  }
+
+  const picnicReel = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Picnic home movie, 1961" },
+  });
+  if (picnicReel) {
+    const reelDoc = await prisma.document.upsert({
+      where: { id: "doc-picnic-reel" },
+      create: {
+        id: "doc-picnic-reel",
+        familyId: family.id,
+        assetId: picnicReel.id,
+        title: "Picnic reel, Helen speaking",
+        kind: DocKind.note,
+        transcript: PICNIC_TRANSCRIPT,
+        writtenAt: picnicReel.capturedAt,
+        people: margaret ? { create: [{ personId: margaret.id }] } : undefined,
+      },
+      update: { transcript: PICNIC_TRANSCRIPT, title: "Picnic reel, Helen speaking" },
+    });
+    await prisma.chunk.deleteMany({ where: { documentId: reelDoc.id } });
+    await prisma.chunk.createMany({
+      data: chunkText(PICNIC_TRANSCRIPT).map((content) => ({
+        familyId: family.id,
+        documentId: reelDoc.id,
+        personId: margaret?.id ?? eleanor.id,
+        content,
+      })),
+    });
+  }
+
+  if (demoUser) {
+    await prisma.comment.upsert({
+      where: { id: "guestbook-eleanor" },
+      create: {
+        id: "guestbook-eleanor",
+        familyId: family.id,
+        authorId: demoUser.id,
+        personId: eleanor.id,
+        body: "I still make her Sunday rolls the night before the harvest-dance anniversary.",
+      },
+      update: { body: "I still make her Sunday rolls the night before the harvest-dance anniversary." },
+    });
+  }
+
+  await prisma.citation.upsert({
+    where: { id: "cite-eleanor-census" },
+    create: {
+      id: "cite-eleanor-census",
+      familyId: family.id,
+      personId: eleanor.id,
+      eventId: "event-eleanor-census",
+      documentId: "doc-harvest",
+      kind: "census",
+      claim: "Eleanor Hart was counted in 1950 at Cedar Falls.",
+      pageNote: "1950 census, Cedar Falls, ED 7-12",
+    },
+    update: { kind: "census", claim: "Eleanor Hart was counted in 1950 at Cedar Falls." },
+  });
+  await prisma.citation.upsert({
+    where: { id: "cite-eleanor-birth" },
+    create: {
+      id: "cite-eleanor-birth",
+      familyId: family.id,
+      personId: eleanor.id,
+      eventId: "event-person-eleanor-birth",
+      documentId: "doc-harvest",
+      kind: "birth",
+      claim: "Eleanor Hart was born in 1928 at Cedar Falls.",
+      pageNote: "Birth 1928, Cedar Falls",
+    },
+    update: { kind: "birth" },
+  });
+  await prisma.citation.upsert({
+    where: { id: "cite-eleanor-death" },
+    create: {
+      id: "cite-eleanor-death",
+      familyId: family.id,
+      personId: eleanor.id,
+      eventId: "event-person-eleanor-death",
+      documentId: "doc-harvest",
+      kind: "death",
+      claim: "Eleanor Hart died in 2015 at Cedar Falls.",
+      pageNote: "Death 2015, Cedar Falls",
+    },
+    update: { kind: "death" },
   });
 }
 

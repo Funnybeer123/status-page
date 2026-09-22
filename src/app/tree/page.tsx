@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { TreeView } from "@/components/TreeView";
 import { PedigreeView } from "@/components/PedigreeView";
 import { buildPedigree } from "@/lib/pedigree";
+import { buildAhnentafel } from "@/lib/ahnentafel";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
@@ -71,17 +72,21 @@ export default async function TreePage({
         ))}
       </div>
       <div className="mt-10">
-        {params.view === "pedigree" ? (
-          <PedigreeView
-            tree={buildPedigree(
-              params.personId && treePeople.some((person) => person.id === params.personId)
-                ? params.personId
-                : treePeople[treePeople.length - 1]?.id || "",
-              treePeople,
-              visibleRels,
-            )}
-          />
-        ) : (
+        {params.view === "pedigree" ? (() => {
+          const rootId =
+            params.personId && treePeople.some((person) => person.id === params.personId)
+              ? params.personId
+              : treePeople[treePeople.length - 1]?.id || "";
+          const numbers = new Map(
+            buildAhnentafel(rootId, treePeople, visibleRels).map((row) => [row.person.id, row.number]),
+          );
+          return (
+            <PedigreeView
+              tree={buildPedigree(rootId, treePeople, visibleRels)}
+              numbers={numbers}
+            />
+          );
+        })() : (
           <TreeView people={treePeople} relationships={visibleRels} />
         )}
       </div>

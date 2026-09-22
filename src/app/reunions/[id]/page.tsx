@@ -31,6 +31,11 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
         {formatDate(reunion.happenedOn)} · {reunion.place}
       </p>
       {reunion.notes ? <p className="mt-2 text-bark">{reunion.notes}</p> : null}
+      <p className="mt-4 font-sans text-sm">
+        <Link href={`/reunions/${reunion.id}/kiosk`} className="text-seal" data-testid="kiosk-link">
+          Reunion kiosk
+        </Link>
+      </p>
       <section className="mt-10">
         <h2 className="font-display text-3xl">Who’s coming</h2>
         <ul className="mt-4 space-y-2" data-testid="reunion-coming">

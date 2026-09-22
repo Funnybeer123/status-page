@@ -52,7 +52,8 @@ export default async function MapPage({
       <p className="mt-3 max-w-2xl text-bark">
         {person
           ? "The towns this person lived in, in the order the family recorded them."
-          : "Every named place on the archive, with the people who lived or marked an event there."}
+          : "Every named place on the archive, with the people who lived or marked an event there."}{" "}
+        <Link href="/map/photos" className="text-seal">Where photographs were taken</Link>.
       </p>
       {bounds ? (
         <div className="paper-card mt-8 overflow-hidden" data-testid="family-map">

@@ -7,6 +7,7 @@ import { ageLabel, formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { isLiving } from "@/lib/privacy";
 import { ShareLinkButton } from "@/app/share/ui";
+import { CommentThread } from "@/components/CommentThread";
 import { canWrite } from "@/lib/roles";
 
 export default async function MemorialPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,6 +23,7 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
       storiesTold: true,
       storyLinks: { include: { story: true } },
       tags: { include: { asset: true } },
+      guestbook: { include: { author: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!person || isLiving(person)) notFound();
@@ -70,6 +72,14 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
           </section>
         ))}
       </article>
+      <div data-testid="memorial-guestbook">
+        <CommentThread
+          comments={person.guestbook}
+          personId={person.id}
+          canWrite={canWrite(ctx.role)}
+          placeholder="Leave a memory in the guestbook"
+        />
+      </div>
       {canWrite(ctx.role) ? <ShareLinkButton kind="memorial" entityId={person.id} /> : null}
       <p className="mt-8 font-sans text-sm">
         <Link href={`/people/${person.id}`} className="text-seal">Back to the record</Link>

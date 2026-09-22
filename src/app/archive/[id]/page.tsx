@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { CommentThread } from "@/components/CommentThread";
 import { PhotoTagForm } from "@/app/archive/tag";
+import { PhotoPlaceForm } from "@/app/archive/place";
+import { TranscribeForm } from "@/app/oral/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -12,12 +14,13 @@ import { TrashRestore } from "@/app/trash/ui";
 export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [asset, people] = await Promise.all([
+  const [asset, people, places] = await Promise.all([
     prisma.asset.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
-      include: { tags: { include: { person: true } }, comments: { include: { author: true } } },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
+    prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
   ]);
   if (!asset) notFound();
   return (
@@ -27,6 +30,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
       <p className="mt-2 text-bark">
         {formatDate(asset.capturedAt, "Undated")}
         {asset.tags.length ? ` · ${asset.tags.map((tag) => tag.person.displayName).join(", ")}` : ""}
+        {asset.place ? ` · Taken at ${asset.place.name}` : ""}
       </p>
       <div className="paper-card mt-8 overflow-hidden p-4">
         {asset.mimeType.startsWith("video/") ? (
@@ -47,6 +51,18 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
           assetId={asset.id}
           people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
           taggedIds={asset.tags.map((tag) => tag.personId)}
+        />
+      ) : null}
+      {canWrite(ctx.role) && asset.kind === "photo" ? (
+        <PhotoPlaceForm assetId={asset.id} places={places.map((place) => ({ id: place.id, name: place.name }))} />
+      ) : null}
+      {asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
+        <p className="mt-6 text-bark" data-testid="oral-transcript">{asset.document.transcript}</p>
+      ) : null}
+      {canWrite(ctx.role) && !asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
+        <TranscribeForm
+          assetId={asset.id}
+          people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
         />
       ) : null}
       <CommentThread

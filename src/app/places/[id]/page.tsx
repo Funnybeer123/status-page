@@ -15,6 +15,7 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
     include: {
       residences: { include: { person: true } },
       events: { include: { person: true } },
+      photos: true,
     },
   });
   if (!place) notFound();
@@ -57,10 +58,24 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
           {!place.events.length ? <li className="text-bark">None yet.</li> : null}
         </ul>
       </section>
+      {place.photos.length ? (
+        <section className="mt-10">
+          <h2 className="font-display text-2xl">Photographs taken here</h2>
+          <ul className="mt-4 space-y-3" data-testid="place-photos">
+            {place.photos.map((photo) => (
+              <li key={photo.id} className="paper-card p-4">
+                <Link href={`/archive/${photo.id}`} className="font-display text-xl text-seal">{photo.title || "A photograph"}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <p className="mt-8 font-sans text-sm">
         <Link href="/places" className="text-seal">All places</Link>
         {" · "}
         <Link href="/map" className="text-seal">Map</Link>
+        {" · "}
+        <Link href="/map/photos" className="text-seal">Photo map</Link>
       </p>
     </AppShell>
   );

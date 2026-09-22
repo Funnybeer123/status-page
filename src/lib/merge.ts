@@ -82,3 +82,34 @@ export async function mergePeople(input: { familyId: string; keepId: string; dro
 
   return prisma.person.findFirstOrThrow({ where: { id: keep.id } });
 }
+
+export async function mergePlaces(input: { familyId: string; keepId: string; dropId: string }) {
+  if (input.keepId === input.dropId) {
+    throw new Error("Choose two different places to merge.");
+  }
+  const [keep, drop] = await Promise.all([
+    prisma.place.findFirst({ where: { id: input.keepId, familyId: input.familyId } }),
+    prisma.place.findFirst({ where: { id: input.dropId, familyId: input.familyId } }),
+  ]);
+  if (!keep || !drop) throw new Error("Both places must belong to this family.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.residence.updateMany({ where: { placeId: drop.id }, data: { placeId: keep.id } });
+    await tx.lifeEvent.updateMany({ where: { placeId: drop.id }, data: { placeId: keep.id } });
+    await tx.familyHome.updateMany({ where: { placeId: drop.id }, data: { placeId: keep.id } });
+    await tx.asset.updateMany({ where: { placeId: drop.id }, data: { placeId: keep.id } });
+    await tx.place.update({
+      where: { id: keep.id },
+      data: {
+        locality: keep.locality || drop.locality,
+        region: keep.region || drop.region,
+        country: keep.country || drop.country,
+        latitude: keep.latitude ?? drop.latitude,
+        longitude: keep.longitude ?? drop.longitude,
+      },
+    });
+    await tx.place.delete({ where: { id: drop.id } });
+  });
+
+  return prisma.place.findFirstOrThrow({ where: { id: keep.id } });
+}

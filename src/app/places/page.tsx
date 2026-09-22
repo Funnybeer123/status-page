@@ -4,6 +4,9 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { placeLabel } from "@/lib/places";
 import { hideResidenceForViewer } from "@/lib/privacy";
+import { PlaceMergeForm } from "@/app/places/merge";
+import { suggestPlaceDuplicates } from "@/lib/placeDuplicates";
+import { canWrite } from "@/lib/roles";
 
 export default async function PlacesPage() {
   const ctx = await requireFamily();
@@ -12,14 +15,28 @@ export default async function PlacesPage() {
     include: {
       residences: { include: { person: true } },
       events: true,
+      photos: true,
     },
     orderBy: { name: "asc" },
   });
+  const duplicates = suggestPlaceDuplicates(places);
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="places-heading">Places</h1>
       <p className="mt-3 max-w-2xl text-bark">Towns, farms, and halls — open one to see who lived there.</p>
+      {duplicates.length ? (
+        <ul className="mt-6 space-y-2" data-testid="place-duplicates">
+          {duplicates.map((pair) => (
+            <li key={`${pair.keepId}-${pair.dropId}`} className="font-sans text-sm text-bark">
+              {pair.dropName} looks like {pair.keepName}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {canWrite(ctx.role) ? (
+        <PlaceMergeForm places={places.map((place) => ({ id: place.id, name: place.name }))} />
+      ) : null}
       <ul className="mt-10 space-y-3" data-testid="places-list">
         {places.map((place) => {
           const residents = place.residences.filter((item) => !hideResidenceForViewer(ctx.role, item.person));
@@ -29,7 +46,10 @@ export default async function PlacesPage() {
               <p className="text-bark">
                 {residents.map((item) => item.person.displayName).join(", ") || "No residences recorded."}
               </p>
-              <p className="font-sans text-sm text-gold">{place.events.length} dated events</p>
+              <p className="font-sans text-sm text-gold">
+                {place.events.length} dated events
+                {place.photos.length ? ` · ${place.photos.length} photograph${place.photos.length === 1 ? "" : "s"}` : ""}
+              </p>
             </li>
           );
         })}

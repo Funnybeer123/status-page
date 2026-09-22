@@ -53,3 +53,14 @@ export function flattenPedigree(root: PedigreeNode | null) {
   visit(root);
   return [...rows.entries()].sort((a, b) => a[0] - b[0]);
 }
+
+export function ahnentafelOnTree(root: PedigreeNode | null) {
+  const numbers = new Map<string, number>();
+  function visit(node: PedigreeNode | null, number: number) {
+    if (!node) return;
+    if (!numbers.has(node.person.id)) numbers.set(node.person.id, number);
+    node.parents.forEach((parent, index) => visit(parent, number * 2 + index));
+  }
+  visit(root, 1);
+  return numbers;
+}

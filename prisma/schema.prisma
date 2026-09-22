@@ -261,6 +261,7 @@ model Person {
   digitizeItems  DigitizeItem[]
   handwritingSamples HandwritingSample[]
   inscriptions   GravestoneInscription[]
+  guestbook      Comment[]
 }
 
 model Relationship {
@@ -290,8 +291,10 @@ model Asset {
   createdAt    DateTime    @default(now())
   uploadedById String
   deletedAt    DateTime?
+  placeId      String?
   family       Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   uploadedBy   User        @relation("UploadedBy", fields: [uploadedById], references: [id])
+  place        Place?      @relation(fields: [placeId], references: [id], onDelete: SetNull)
   tags         PersonTag[]
   document     Document?
   citations    Citation[]
@@ -380,6 +383,7 @@ model Place {
   residences Residence[]
   events     LifeEvent[]
   homes      FamilyHome[]
+  photos     Asset[]
 
   @@index([familyId])
 }
@@ -480,6 +484,7 @@ model Citation {
   documentId  String?
   assetId     String?
   pageNote    String?
+  kind        String?
   family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person      Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
   event       LifeEvent?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -546,11 +551,13 @@ model Comment {
   assetId    String?
   documentId String?
   storyId    String?
+  personId   String?
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   author     User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: Cascade)
   document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  person     Person?   @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([familyId, createdAt])
 }

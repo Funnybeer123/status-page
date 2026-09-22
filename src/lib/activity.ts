@@ -90,5 +90,8 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "handwriting") return "/handwriting";
   if (entityType === "inscription") return "/inscriptions";
   if (entityType === "holiday") return "/holidays";
+  if (entityType === "guestbook") return `/people/${entityId}/memorial`;
+  if (entityType === "citation") return "/worksheets";
+  if (entityType === "newsletter") return "/newsletter";
   return "/activity";
 }
