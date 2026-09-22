@@ -1,10 +1,17 @@
-export type StartStep = { id: "claim" | "story" | "photo"; title: string; done: boolean; href: string };
+export type StartStep = { id: "claim" | "story" | "photo" | "there"; title: string; done: boolean; href: string };
 
 export function startSteps(input: { claimed: boolean; hasStory: boolean; hasPhoto: boolean }) {
   return [
     { id: "claim" as const, title: "Claim yourself on the tree", done: input.claimed, href: "/me" },
     { id: "story" as const, title: "Add one story", done: input.hasStory, href: "/stories" },
     { id: "photo" as const, title: "Upload one photograph", done: input.hasPhoto, href: "/archive" },
+  ];
+}
+
+export function progressSteps(input: { claimed: boolean; hasStory: boolean; hasPhoto: boolean; hasThere?: boolean }) {
+  return [
+    ...startSteps(input),
+    { id: "there" as const, title: "Mark an event you were at", done: Boolean(input.hasThere), href: "/there" },
   ];
 }
 
@@ -25,4 +32,15 @@ export function peopleNeedingFirst(
 
 export function neededHeading(stories: number, photos: number) {
   return `${stories} still need a story · ${photos} still need a photograph`;
+}
+
+export function remainingSteps(steps: StartStep[]) {
+  return steps.filter((step) => !step.done);
+}
+
+export function progressHeading(steps: StartStep[]) {
+  const left = remainingSteps(steps);
+  if (!left.length) return "Nothing left on the start list";
+  if (left.length === 1) return `Still to do: ${left[0]!.title.toLowerCase()}`;
+  return `${left.length} start-here steps still to do`;
 }

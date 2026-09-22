@@ -12,6 +12,7 @@ import { alive } from "@/lib/alive";
 import { canWrite } from "@/lib/roles";
 import { PinMemoryForm } from "@/app/homes/pin-form";
 import { compileThisWeek, thisWeekHeading, thisWeekSince } from "@/lib/thisWeek";
+import { BannerForm } from "@/app/banner/ui";
 
 export default async function HomePage() {
   const session = await auth();
@@ -113,9 +114,16 @@ export default async function HomePage() {
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
+      {ctx.family.bannerText ? (
+        <aside className="mt-4 paper-card p-5" data-testid="family-banner">
+          <p className="font-display text-3xl">{ctx.family.bannerText}</p>
+          {ctx.family.bannerNote ? <p className="mt-2 text-bark">{ctx.family.bannerNote}</p> : null}
+        </aside>
+      ) : null}
       <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
       <p className="mt-3 max-w-2xl text-bark">
-        Upcoming dates, what happened on this day, and who added what.
+        Upcoming dates, what happened on this day, and who added what.{" "}
+        <Link href="/year" className="text-seal">This year in the family</Link>.
         {me ? (
           <>
             {" "}You are <Link href={`/people/${me.id}`} className="text-seal" data-testid="home-me">{me.displayName}</Link>.
@@ -145,6 +153,9 @@ export default async function HomePage() {
         </ul>
         {canWrite(ctx.role) ? (
           <PinMemoryForm stories={pinStories} documents={pinLetters} assets={pinPhotos} />
+        ) : null}
+        {canWrite(ctx.role) ? (
+          <BannerForm bannerText={ctx.family.bannerText} bannerNote={ctx.family.bannerNote} />
         ) : null}
       </section>
 

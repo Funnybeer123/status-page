@@ -11,7 +11,7 @@ export default async function TasksPage() {
     prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
     prisma.researchTask.findMany({
       where: { familyId: ctx.family.id },
-      include: { person: true, asset: true },
+      include: { person: true, assignee: true, asset: true },
       orderBy: [{ doneAt: "asc" }, { createdAt: "desc" }],
     }),
   ]);
@@ -32,6 +32,9 @@ export default async function TasksPage() {
             <p className={`font-display text-2xl ${item.doneAt ? "text-bark line-through" : ""}`}>{item.title}</p>
             {item.person ? (
               <Link href={`/people/${item.person.id}`} className="font-sans text-sm text-seal">{item.person.displayName}</Link>
+            ) : null}
+            {item.assignee ? (
+              <p className="font-sans text-sm text-gold">Assigned to {item.assignee.displayName}</p>
             ) : null}
             <p className="text-bark">{item.body}</p>
             {item.asset ? (

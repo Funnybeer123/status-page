@@ -6,7 +6,7 @@ import { useState } from "react";
 type Person = { id: string; displayName: string };
 type Field =
   | { name: string; placeholder: string; type?: string; required?: boolean }
-  | { name: "personId" | "childId" | "godparentId" | "holderId" | "makerId" | "borrowerId"; people: Person[]; label: string; required?: boolean }
+  | { name: "personId" | "childId" | "godparentId" | "holderId" | "makerId" | "borrowerId" | "assigneeId"; people: Person[]; label: string; required?: boolean }
   | { name: "personIds"; people: Person[]; label: string }
   | { name: string; options: { id: string; label: string }[]; label: string };
 

@@ -42,6 +42,9 @@ export default async function StartPage() {
           </>
         ) : null}
       </p>
+      <p className="mt-2 font-sans text-sm">
+        <Link href="/start/progress" className="text-seal">What you still have not done</Link>
+      </p>
       <StartWizard
         people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
         personId={claimedId}

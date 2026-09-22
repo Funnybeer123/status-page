@@ -2294,6 +2294,119 @@ async function ensureHartArchive() {
       title: "They met about harvest time",
     },
   });
+
+  const lilyForYear = people.find((person) => person.id === "person-lily");
+  const margaretForYear = people.find((person) => person.id === "person-margaret");
+
+  await prisma.family.update({
+    where: { id: family.id },
+    data: {
+      bannerText: "The Harts of Cedar Falls",
+      bannerNote: "He called her Whitaker as if it were a compliment.",
+    },
+  });
+
+  if (lilyForYear) {
+    await prisma.researchTask.updateMany({
+      where: { id: "task-ask-lily-hatband", familyId: family.id },
+      data: { assigneeId: lilyForYear.id },
+    });
+  }
+  if (margaretForYear) {
+    await prisma.digitizeItem.updateMany({
+      where: { id: "digitize-ruth-chest", familyId: family.id },
+      data: { assigneeId: margaretForYear.id },
+    });
+  }
+
+  if (samuel) {
+    await prisma.cityDirectory.upsert({
+      where: { id: "dir-samuel-1950" },
+      create: {
+        id: "dir-samuel-1950",
+        familyId: family.id,
+        personId: samuel.id,
+        name: "Hart, Samuel",
+        occupation: "farmer",
+        address: "North farm, Cedar Falls",
+        year: 1950,
+        notes: "The book listed the north farm after the harvest.",
+      },
+      update: { occupation: "farmer", address: "North farm, Cedar Falls", year: 1950 },
+    });
+    await prisma.militaryPaper.upsert({
+      where: { id: "paper-samuel-draft" },
+      create: {
+        id: "paper-samuel-draft",
+        familyId: family.id,
+        personId: samuel.id,
+        serviceId: "mil-samuel-draft",
+        kind: "draft",
+        year: 1944,
+        numberNote: "Black Hawk board",
+        notes: "A week of processing, then home for harvest.",
+      },
+      update: { serviceId: "mil-samuel-draft", kind: "draft", year: 1944 },
+    });
+  }
+
+  await prisma.schoolClass.upsert({
+    where: { id: "class-cfhs-1945" },
+    create: {
+      id: "class-cfhs-1945",
+      familyId: family.id,
+      school: "Cedar Falls High",
+      year: 1945,
+      place: "Cedar Falls, Iowa",
+      notes: "She finished in the spring before the last wartime harvest.",
+    },
+    update: { school: "Cedar Falls High", year: 1945 },
+  });
+  await prisma.schoolClassPupil.upsert({
+    where: { classId_personId: { classId: "class-cfhs-1945", personId: eleanor.id } },
+    create: { classId: "class-cfhs-1945", personId: eleanor.id },
+    update: {},
+  });
+
+  const reunionEvent = await prisma.lifeEvent.upsert({
+    where: { id: "event-reunion-2026" },
+    create: {
+      id: "event-reunion-2026",
+      familyId: family.id,
+      personId: lilyForYear?.id ?? eleanor.id,
+      kind: EventKind.reunion,
+      title: "Hart reunion at the north farm",
+      summary: "Cold chicken under the cottonwoods.",
+      happenedOn: new Date("2026-07-04"),
+    },
+    update: { title: "Hart reunion at the north farm", happenedOn: new Date("2026-07-04") },
+  });
+  if (lilyForYear) {
+    await prisma.eventWitness.upsert({
+      where: { eventId_personId: { eventId: reunionEvent.id, personId: lilyForYear.id } },
+      create: {
+        familyId: family.id,
+        eventId: reunionEvent.id,
+        personId: lilyForYear.id,
+        role: "there",
+      },
+      update: { role: "there" },
+    });
+  }
+
+  await prisma.story.upsert({
+    where: { id: "story-cottonwoods-2026" },
+    create: {
+      id: "story-cottonwoods-2026",
+      familyId: family.id,
+      title: "Cottonwoods this summer",
+      body: "Lily said the cottonwoods still hold the walk home, the same way Ellie wrote it.",
+      recordedAt: new Date("2026-07-04"),
+      tellerPersonId: lilyForYear?.id ?? null,
+      people: lilyForYear ? { create: { personId: lilyForYear.id } } : undefined,
+    },
+    update: { title: "Cottonwoods this summer", recordedAt: new Date("2026-07-04") },
+  });
 }
 
 async function writeHartMedia() {

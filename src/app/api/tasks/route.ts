@@ -12,6 +12,7 @@ const createSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().max(4000).optional(),
   personId: z.string().optional(),
+  assigneeId: z.string().optional(),
 });
 
 const patchSchema = z.object({
@@ -24,7 +25,7 @@ export async function GET() {
   if ("error" in ctx) return ctx.error;
   const tasks = await prisma.researchTask.findMany({
     where: { familyId: ctx.family.id },
-    include: { person: true, asset: true },
+    include: { person: true, assignee: true, asset: true },
     orderBy: [{ doneAt: "asc" }, { createdAt: "desc" }],
   });
   return NextResponse.json({ tasks });
@@ -39,6 +40,7 @@ async function readCreate(req: Request) {
       title: String(form.get("title") || ""),
       body: String(form.get("body") || "") || undefined,
       personId: String(form.get("personId") || "") || undefined,
+      assigneeId: String(form.get("assigneeId") || "") || undefined,
       file: file instanceof File && file.size ? file : null,
     };
   }
@@ -52,6 +54,10 @@ export async function POST(req: Request) {
   if ("error" in ctx) return ctx.error;
   const input = await readCreate(req);
   if (!input?.title.trim()) return NextResponse.json({ error: "A research task needs a title." }, { status: 400 });
+  for (const id of [input.personId, input.assigneeId].filter(Boolean)) {
+    const person = await prisma.person.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
+    if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+  }
   let assetId: string | null = null;
   if (input.file) {
     const bytes = Buffer.from(await input.file.arrayBuffer());
@@ -76,10 +82,11 @@ export async function POST(req: Request) {
       title: input.title.trim(),
       body: input.body?.trim() || null,
       personId: input.personId || null,
+      assigneeId: input.assigneeId || null,
       createdById: ctx.session.user.id,
       assetId,
     },
-    include: { person: true, asset: true },
+    include: { person: true, assignee: true, asset: true },
   });
   await recordActivity({
     familyId: ctx.family.id,
@@ -105,7 +112,7 @@ export async function PATCH(req: Request) {
   const task = await prisma.researchTask.update({
     where: { id: existing.id },
     data: { doneAt: body.data.done ? new Date() : null },
-    include: { person: true, asset: true },
+    include: { person: true, assignee: true, asset: true },
   });
   return NextResponse.json({ task });
 }

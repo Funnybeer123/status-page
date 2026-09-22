@@ -24,6 +24,11 @@ export default async function SchoolsPage() {
       {canWrite(ctx.role) ? (
         <SchoolForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
       ) : null}
+      <p className="mt-2 font-sans text-sm">
+        <Link href="/classes" className="text-seal">Class lists</Link>
+        {" · "}
+        <Link href="/classes/mates" className="text-seal">Classmates</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="schools-list">
         {schools.map((row) => (
           <li key={row.id} className="paper-card p-5">

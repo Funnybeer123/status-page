@@ -1,6 +1,7 @@
 import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { shouldHideLivingFacts } from "@/lib/privacy";
+import { phoneticPeople } from "@/lib/phonetic";
 
 export type SearchHit = {
   kind: "person" | "name" | "place" | "story" | "document" | "asset" | "event";
@@ -34,7 +35,7 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
   if (query.length < 2) return { query, hits: [] };
 
   const like = contains(query);
-  const [people, names, places, stories, documents, assets, events] = await Promise.all([
+  const [people, names, places, stories, documents, assets, events, roster] = await Promise.all([
     prisma.person.findMany({
       where: {
         familyId,
@@ -64,6 +65,10 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
     prisma.lifeEvent.findMany({
       where: { familyId, OR: [{ title: like }, { summary: like }] },
       include: { person: true },
+    }),
+    prisma.person.findMany({
+      where: { familyId, deletedAt: null },
+      include: { names: true },
     }),
   ]);
 
@@ -131,6 +136,17 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
       title: asset.title || "Untitled item",
       excerpt: asset.kind,
       href: "/archive",
+    });
+  }
+
+  for (const person of phoneticPeople(query, roster)) {
+    if (hits.some((hit) => hit.kind === "person" && hit.id === person.id)) continue;
+    hits.push({
+      kind: "person",
+      id: person.id,
+      title: person.displayName,
+      excerpt: `Sounds like “${query}”`,
+      href: `/people/${person.id}`,
     });
   }
 

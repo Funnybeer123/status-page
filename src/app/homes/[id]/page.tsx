@@ -29,6 +29,11 @@ export default async function HomePage({ params }: { params: Promise<{ id: strin
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Home</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="home-title">{home.title}</h1>
       <p className="mt-3 text-bark">{[home.line, home.locality, home.region].filter(Boolean).join(", ")}</p>
+      <p className="mt-2 font-sans text-sm">
+        <Link href={`/homes/${home.id}/years`} className="text-seal">Who lived here, year by year</Link>
+        {" · "}
+        <Link href={`/homes/${home.id}/gaps`} className="text-seal">Empty years</Link>
+      </p>
       {home.notes ? <p className="mt-2 text-bark">{home.notes}</p> : null}
       {canWrite(ctx.role) ? (
         <HomeAddForm

@@ -28,6 +28,10 @@ export default async function SearchPage({
       {canWrite(ctx.role) && q.trim() ? <SavedSearchForm query={q} /> : null}
       <p className="mt-4 font-sans text-sm">
         <Link href="/searches" className="text-seal">Saved searches</Link>
+        {" · "}
+        <Link href={`/search/sounds${q.trim() ? `?q=${encodeURIComponent(q)}` : ""}`} className="text-seal">
+          Search by how it sounds
+        </Link>
       </p>
       <ul className="mt-10 space-y-4" data-testid="search-results">
         {results.hits.map((hit) => (

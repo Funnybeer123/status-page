@@ -60,6 +60,11 @@ export default async function MilitaryPage() {
         ))}
         {!records.length ? <li className="text-bark">No service recorded yet.</li> : null}
       </ul>
+      <p className="mt-8 font-sans text-sm">
+        <Link href="/military/papers" className="text-seal">Draft and pension papers</Link>
+        {" · "}
+        <Link href="/military/papers/needed" className="text-seal">Still missing a paper</Link>
+      </p>
     </AppShell>
   );
 }

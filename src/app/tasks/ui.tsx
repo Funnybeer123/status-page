@@ -30,6 +30,12 @@ export function TaskForm({ people }: { people: { id: string; displayName: string
           <option key={person.id} value={person.id}>{person.displayName}</option>
         ))}
       </select>
+      <select name="assigneeId" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">Assign to</option>
+        {people.map((person) => (
+          <option key={person.id} value={person.id}>{person.displayName}</option>
+        ))}
+      </select>
       <label className="font-sans text-sm text-bark">
         Attach a file
         <input name="file" type="file" className="mt-1 block w-full" data-testid="task-file" />

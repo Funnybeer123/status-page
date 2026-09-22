@@ -8,7 +8,7 @@ export default async function DigitizePage() {
   const ctx = await requireFamily();
   const [people, items, letters, bibles] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
-    prisma.digitizeItem.findMany({ where: { familyId: ctx.family.id, doneAt: null }, include: { holder: true }, orderBy: { createdAt: "asc" } }),
+    prisma.digitizeItem.findMany({ where: { familyId: ctx.family.id, doneAt: null }, include: { holder: true, assignee: true }, orderBy: { createdAt: "asc" } }),
     prisma.document.findMany({
       where: { familyId: ctx.family.id, deletedAt: null, assetId: null, kind: { in: ["letter", "note"] } },
       orderBy: { title: "asc" },
@@ -30,6 +30,7 @@ export default async function DigitizePage() {
             { name: "title", placeholder: "Ruth’s reply, still in the cedar chest", required: true },
             { name: "kind", placeholder: "letter, photo, or Bible", required: true },
             { name: "holderId", people: people.map((person) => ({ id: person.id, displayName: person.displayName })), label: "Who holds it" },
+            { name: "assigneeId", people: people.map((person) => ({ id: person.id, displayName: person.displayName })), label: "Assign the scan to" },
             { name: "notes", placeholder: "Where it lives" },
           ]}
         />
@@ -38,7 +39,11 @@ export default async function DigitizePage() {
         {items.map((item) => (
           <li key={item.id} className="paper-card p-5">
             <p className="font-display text-2xl">{item.title}</p>
-            <p className="text-bark">{item.kind}{item.holder ? ` · ${item.holder.displayName}` : ""}</p>
+            <p className="text-bark">
+              {item.kind}
+              {item.holder ? ` · ${item.holder.displayName}` : ""}
+              {item.assignee ? ` · assigned to ${item.assignee.displayName}` : ""}
+            </p>
             {item.notes ? <p className="mt-2 text-bark">{item.notes}</p> : null}
           </li>
         ))}

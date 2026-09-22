@@ -9,6 +9,7 @@ const schema = z.object({
   title: z.string().min(1).max(160),
   kind: z.string().min(1).max(40),
   holderId: z.string().optional(),
+  assigneeId: z.string().optional(),
   notes: z.string().max(800).optional(),
   doneAt: z.string().optional(),
   id: z.string().optional(),
@@ -20,7 +21,7 @@ export async function GET() {
   const [items, unscannedLetters, bibles] = await Promise.all([
     prisma.digitizeItem.findMany({
       where: { familyId: ctx.family.id, doneAt: null },
-      include: { holder: true },
+      include: { holder: true, assignee: true },
       orderBy: { createdAt: "asc" },
     }),
     prisma.document.findMany({
@@ -49,9 +50,9 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ item });
   }
-  if (body.data.holderId) {
-    const holder = await prisma.person.findFirst({ where: { id: body.data.holderId, familyId: ctx.family.id, deletedAt: null } });
-    if (!holder) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+  for (const id of [body.data.holderId, body.data.assigneeId].filter(Boolean)) {
+    const person = await prisma.person.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
+    if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
   }
   const item = await prisma.digitizeItem.create({
     data: {
@@ -59,9 +60,10 @@ export async function POST(req: Request) {
       title: body.data.title.trim(),
       kind: body.data.kind.trim(),
       holderId: body.data.holderId || null,
+      assigneeId: body.data.assigneeId || null,
       notes: body.data.notes?.trim() || null,
     },
-    include: { holder: true },
+    include: { holder: true, assignee: true },
   });
   await recordActivity({
     familyId: ctx.family.id,

@@ -20,12 +20,18 @@ export async function GET() {
         where: { familyId: ctx.family.id, deletedAt: null, tags: { some: { personId: claimedId } } },
       })) > 0
     : false;
+  const hasThere = claimedId
+    ? (await prisma.eventWitness.count({
+        where: { familyId: ctx.family.id, personId: claimedId, role: "there" },
+      })) > 0
+    : false;
   const steps = startSteps({ claimed: Boolean(claimedId), hasStory, hasPhoto });
   return NextResponse.json({
     claimed: Boolean(claimedId),
     personId: claimedId,
     hasStory,
     hasPhoto,
+    hasThere,
     steps,
     heading: startHeading(steps),
   });

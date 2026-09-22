@@ -109,6 +109,8 @@ model Family {
   id            String         @id @default(cuid())
   name          String
   slug          String         @unique
+  bannerText    String?
+  bannerNote    String?
   createdAt     DateTime       @default(now())
   memberships   Membership[]
   people        Person[]
@@ -182,6 +184,9 @@ model Family {
   photoNotes    PhotoNote[]
   shareConsents ShareConsent[]
   adoptionPapers AdoptionPaper[]
+  cityDirectories CityDirectory[]
+  militaryPapers MilitaryPaper[]
+  schoolClasses SchoolClass[]
 }
 
 model Membership {
@@ -242,6 +247,11 @@ model Person {
   heirlooms      Heirloom[]
   traditions     Tradition[]
   researchTasks  ResearchTask[]
+  assignedTasks  ResearchTask[] @relation("TaskAssignee")
+  assignedDigitize DigitizeItem[] @relation("DigitizeAssignee")
+  directoryEntries CityDirectory[]
+  militaryPapers MilitaryPaper[]
+  classSeats     SchoolClassPupil[]
   witnessed      EventWitness[]
   capsulesFrom   TimeCapsule[]  @relation("CapsuleFrom")
   capsulesTo     TimeCapsule[]  @relation("CapsuleAddressee")
@@ -379,6 +389,7 @@ model Document {
   pinnedMemories PinnedMemory[]
   potluckDishes ReunionDish[]
   adoptionPapers AdoptionPaper[]
+  militaryPapers MilitaryPaper[]
 }
 
 model DocumentPerson {
@@ -652,6 +663,7 @@ model ResearchTask {
   id          String    @id @default(cuid())
   familyId    String
   personId    String?
+  assigneeId  String?
   title       String
   body        String?
   doneAt      DateTime?
@@ -659,11 +671,13 @@ model ResearchTask {
   createdById String
   family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person      Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  assignee    Person?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
   assetId     String?
   asset       Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId, doneAt])
+  @@index([assigneeId])
 }
 
 model StoryPrompt {
@@ -992,6 +1006,7 @@ model MilitaryService {
   family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person    Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
   militaryUnit MilitaryUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  papers    MilitaryPaper[]
 
   @@index([familyId, personId])
 }
@@ -1316,8 +1331,11 @@ model DigitizeItem {
   createdAt DateTime @default(now())
   family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   holder   Person?   @relation(fields: [holderId], references: [id], onDelete: SetNull)
+  assigneeId String?
+  assignee Person?   @relation("DigitizeAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@index([familyId, doneAt])
+  @@index([assigneeId])
 }
 
 model PinnedMemory {
@@ -1613,4 +1631,62 @@ model AdoptionPaper {
   document       Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
+}
+
+model CityDirectory {
+  id         String   @id @default(cuid())
+  familyId   String
+  personId   String?
+  name       String
+  occupation String?
+  address    String
+  year       Int
+  notes      String?
+  createdAt  DateTime @default(now())
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, year])
+}
+
+model MilitaryPaper {
+  id         String           @id @default(cuid())
+  familyId   String
+  personId   String
+  serviceId  String?
+  documentId String?
+  kind       String
+  year       Int?
+  numberNote String?
+  notes      String?
+  createdAt  DateTime         @default(now())
+  family     Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  service    MilitaryService? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  document   Document?        @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, personId])
+}
+
+model SchoolClass {
+  id        String             @id @default(cuid())
+  familyId  String
+  school    String
+  year      Int
+  place     String?
+  notes     String?
+  createdAt DateTime           @default(now())
+  family    Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  pupils    SchoolClassPupil[]
+
+  @@index([familyId, year])
+}
+
+model SchoolClassPupil {
+  classId  String
+  personId String
+  class    SchoolClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  person   Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([classId, personId])
 }
