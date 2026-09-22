@@ -19,6 +19,8 @@ export default async function ProgramsPage() {
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
         <Link href="/reunions/programs/missing" className="text-seal">Reunions without a program</Link>
+        {" · "}
+        <Link href="/recitals" className="text-seal">Christmas programs</Link>
       </p>
       <ul className="mt-10 space-y-3" data-testid="programs-list">
         {reunions.map((reunion) => (

@@ -44,7 +44,8 @@
     "test:ui:register": "tsx tests/ui-register-layer.ts",
     "test:ui:pallbearer": "tsx tests/ui-pallbearer-layer.ts",
     "test:ui:quilting": "tsx tests/ui-quilting-layer.ts",
-    "test:ui:township": "tsx tests/ui-township-layer.ts"
+    "test:ui:township": "tsx tests/ui-township-layer.ts",
+    "test:ui:shelling": "tsx tests/ui-shelling-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

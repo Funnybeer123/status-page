@@ -31,6 +31,8 @@ export default async function ButterPage() {
       <p className="mt-3 max-w-2xl text-bark">
         The butter-and-egg account at the general store.{" "}
         <Link href="/butter/missing" className="text-seal">Missing account</Link>
+        {" · "}
+        <Link href="/molds" className="text-seal">Butter-mold marks</Link>
       </p>
       {canWrite(ctx.role) ? (
         <ButterForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />

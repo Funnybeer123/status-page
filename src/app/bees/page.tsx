@@ -30,6 +30,8 @@ export default async function BeesPage() {
         <Link href="/bees/missing" className="text-seal">Bees still needing a block</Link>
         {" · "}
         <Link href="/husking" className="text-seal">Husking bees</Link>
+        {" · "}
+        <Link href="/shelling" className="text-seal">Corn-shelling bees</Link>
       </p>
       {canWrite(ctx.role) ? (
         <>

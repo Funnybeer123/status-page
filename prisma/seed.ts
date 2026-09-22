@@ -4770,6 +4770,237 @@ async function ensureHartArchive() {
     },
     update: { office: "director", startedOn: new Date("1952-01-01"), endedOn: new Date("1958-12-31") },
   });
+
+  await prisma.shellingBee.upsert({
+    where: { id: "shelling-samuel-1950" },
+    create: {
+      id: "shelling-samuel-1950",
+      familyId: family.id,
+      ownerId: samuel.id,
+      heldOn: new Date("1950-11-12"),
+      place: "North farm",
+    },
+    update: { ownerId: samuel.id, heldOn: new Date("1950-11-12"), place: "North farm" },
+  });
+  for (const guest of [
+    ...(weiForBee ? [{ id: "shelling-wei", personId: weiForBee.id }] : []),
+    ...(robertForBee ? [{ id: "shelling-robert", personId: robertForBee.id }] : []),
+  ]) {
+    await prisma.shellingBeeGuest.upsert({
+      where: { id: guest.id },
+      create: {
+        id: guest.id,
+        familyId: family.id,
+        beeId: "shelling-samuel-1950",
+        personId: guest.personId,
+      },
+      update: { personId: guest.personId },
+    });
+  }
+
+  if (weiForBee) {
+    await prisma.horseTeam.upsert({
+      where: { id: "team-samuel-wei" },
+      create: {
+        id: "team-samuel-wei",
+        familyId: family.id,
+        lenderId: samuel.id,
+        borrowerId: weiForBee.id,
+        purpose: "harvest hauling",
+        loanedOn: new Date("1950-10-08"),
+      },
+      update: { purpose: "harvest hauling", loanedOn: new Date("1950-10-08"), borrowerId: weiForBee.id },
+    });
+  }
+
+  await prisma.smokehouseItem.upsert({
+    where: { id: "smoke-eleanor-hams" },
+    create: {
+      id: "smoke-eleanor-hams",
+      familyId: family.id,
+      personId: eleanor.id,
+      item: "hams",
+      hungOn: new Date("1951-11-20"),
+    },
+    update: { item: "hams", hungOn: new Date("1951-11-20") },
+  });
+
+  await prisma.insuranceAssessment.upsert({
+    where: { id: "insurance-cf-farmers" },
+    create: {
+      id: "insurance-cf-farmers",
+      familyId: family.id,
+      company: "Cedar Falls Farmers Mutual",
+      loss: "barn fire",
+      assessedOn: new Date("1952-03-04"),
+    },
+    update: { company: "Cedar Falls Farmers Mutual", loss: "barn fire", assessedOn: new Date("1952-03-04") },
+  });
+  for (const member of [
+    { id: "insurance-samuel", personId: samuel.id, paid: "$4.50" },
+    { id: "insurance-eleanor", personId: eleanor.id, paid: "$4.50" },
+  ]) {
+    await prisma.insuranceMember.upsert({
+      where: { id: member.id },
+      create: {
+        id: member.id,
+        familyId: family.id,
+        assessmentId: "insurance-cf-farmers",
+        personId: member.personId,
+        paid: member.paid,
+      },
+      update: { paid: member.paid },
+    });
+  }
+
+  await prisma.cycloneCellar.upsert({
+    where: { id: "cellar-1947" },
+    create: {
+      id: "cellar-1947",
+      familyId: family.id,
+      storm: "1947 tornado",
+      heldOn: new Date("1947-06-21"),
+      place: "North farm",
+    },
+    update: { storm: "1947 tornado", heldOn: new Date("1947-06-21"), place: "North farm" },
+  });
+  for (const guest of [
+    { id: "cellar-eleanor", personId: eleanor.id },
+    { id: "cellar-samuel", personId: samuel.id },
+    ...(margaretForBee ? [{ id: "cellar-margaret", personId: margaretForBee.id }] : []),
+  ]) {
+    await prisma.cycloneCellarGuest.upsert({
+      where: { id: guest.id },
+      create: {
+        id: guest.id,
+        familyId: family.id,
+        cellarId: "cellar-1947",
+        personId: guest.personId,
+      },
+      update: { personId: guest.personId },
+    });
+  }
+
+  await prisma.cakeCutter.upsert({
+    where: { id: "cake-eleanor-chen" },
+    create: {
+      id: "cake-eleanor-chen",
+      familyId: family.id,
+      cutterId: eleanor.id,
+      couple: "Margaret and Wei Chen",
+      wedding: "Chen wedding",
+      cutOn: new Date("1978-06-10"),
+    },
+    update: { couple: "Margaret and Wei Chen", wedding: "Chen wedding", cutOn: new Date("1978-06-10") },
+  });
+
+  await prisma.roadDistrict.upsert({
+    where: { id: "district-samuel-4" },
+    create: {
+      id: "district-samuel-4",
+      familyId: family.id,
+      personId: samuel.id,
+      district: "District 4",
+      startedOn: new Date("1952-01-01"),
+      endedOn: new Date("1958-12-31"),
+    },
+    update: { district: "District 4", startedOn: new Date("1952-01-01"), endedOn: new Date("1958-12-31") },
+  });
+
+  await prisma.butcheringCrew.upsert({
+    where: { id: "butcher-1950" },
+    create: {
+      id: "butcher-1950",
+      familyId: family.id,
+      title: "North-farm hog day",
+      heldOn: new Date("1950-12-02"),
+      place: "North farm",
+    },
+    update: { title: "North-farm hog day", heldOn: new Date("1950-12-02"), place: "North farm" },
+  });
+  for (const worker of [
+    { id: "butcher-samuel", personId: samuel.id, job: "stick" },
+    ...(weiForBee ? [{ id: "butcher-wei", personId: weiForBee.id, job: "scald" }] : []),
+    ...(robertForBee ? [{ id: "butcher-robert", personId: robertForBee.id, job: "scrape" }] : []),
+  ]) {
+    await prisma.butcheringWorker.upsert({
+      where: { id: worker.id },
+      create: {
+        id: worker.id,
+        familyId: family.id,
+        crewId: "butcher-1950",
+        personId: worker.personId,
+        job: worker.job,
+      },
+      update: { job: worker.job },
+    });
+  }
+
+  if (lilyForBee) {
+    await prisma.christmasPart.upsert({
+      where: { id: "recital-lily-1992" },
+      create: {
+        id: "recital-lily-1992",
+        familyId: family.id,
+        personId: lilyForBee.id,
+        piece: "Silent Night",
+        kind: "recited",
+        heldOn: new Date("1992-12-20"),
+        place: "St. John's",
+      },
+      update: { piece: "Silent Night", kind: "recited", heldOn: new Date("1992-12-20"), place: "St. John's" },
+    });
+  }
+
+  await prisma.peddlerVisit.upsert({
+    where: { id: "peddler-watkins-eleanor" },
+    create: {
+      id: "peddler-watkins-eleanor",
+      familyId: family.id,
+      peddler: "Watkins",
+      goods: "vanilla",
+      buyerId: eleanor.id,
+      visitedOn: new Date("1951-05-14"),
+    },
+    update: { peddler: "Watkins", goods: "vanilla", visitedOn: new Date("1951-05-14") },
+  });
+
+  await prisma.strayNotice.upsert({
+    where: { id: "stray-samuel-sow" },
+    create: {
+      id: "stray-samuel-sow",
+      familyId: family.id,
+      personId: samuel.id,
+      animal: "a sow",
+      postedOn: new Date("1950-04-03"),
+      place: "North township road",
+    },
+    update: { animal: "a sow", postedOn: new Date("1950-04-03"), place: "North township road" },
+  });
+
+  await prisma.medicineShowBuy.upsert({
+    where: { id: "show-eleanor-tonic" },
+    create: {
+      id: "show-eleanor-tonic",
+      familyId: family.id,
+      personId: eleanor.id,
+      item: "a tonic",
+      show: "Cedar Falls medicine show",
+      boughtOn: new Date("1953-08-16"),
+    },
+    update: { item: "a tonic", show: "Cedar Falls medicine show", boughtOn: new Date("1953-08-16") },
+  });
+
+  await prisma.butterMold.upsert({
+    where: { id: "mold-eleanor-h" },
+    create: {
+      id: "mold-eleanor-h",
+      familyId: family.id,
+      personId: eleanor.id,
+      mark: "H",
+    },
+    update: { mark: "H" },
+  });
 }
 
 async function writeHartMedia() {

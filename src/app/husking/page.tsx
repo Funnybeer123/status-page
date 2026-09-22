@@ -27,6 +27,8 @@ export default async function HuskingPage() {
         Who came to the husking bee, and whose field it was.{" "}
         <Link href="/bees" className="text-seal">Quilting bees</Link>
         {" · "}
+        <Link href="/shelling" className="text-seal">Corn-shelling bees</Link>
+        {" · "}
         <Link href="/husking/missing" className="text-seal">Bees still needing a roll</Link>
       </p>
       {canWrite(ctx.role) ? (

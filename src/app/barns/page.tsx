@@ -26,6 +26,8 @@ export default async function BarnsPage() {
       <p className="mt-3 max-w-2xl text-bark">
         The barn-raising crew, and each person’s job.{" "}
         <Link href="/barns/missing" className="text-seal">Raisings still needing a crew</Link>
+        {" · "}
+        <Link href="/butchering" className="text-seal">Hog-butchering</Link>
       </p>
       {canWrite(ctx.role) ? (
         <>

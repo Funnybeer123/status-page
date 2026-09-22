@@ -286,6 +286,23 @@ model Family {
   sorghumBoils     SorghumBoil[]
   sickWatches      SickWatch[]
   schoolBoards     SchoolBoardTerm[]
+  shellingBees     ShellingBee[]
+  shellingGuests   ShellingBeeGuest[]
+  horseTeams       HorseTeam[]
+  smokehouseItems  SmokehouseItem[]
+  assessments      InsuranceAssessment[]
+  assessmentPays   InsuranceMember[]
+  cycloneCellars   CycloneCellar[]
+  cycloneGuests    CycloneCellarGuest[]
+  cakeCutters      CakeCutter[]
+  roadDistricts    RoadDistrict[]
+  butcheringCrews  ButcheringCrew[]
+  butcheringJobs   ButcheringWorker[]
+  christmasParts   ChristmasPart[]
+  peddlerVisits    PeddlerVisit[]
+  strayNotices     StrayNotice[]
+  medicineShows    MedicineShowBuy[]
+  butterMolds      ButterMold[]
 }
 
 model Membership {
@@ -469,6 +486,21 @@ model Person {
   sickSits        SickWatch[]       @relation("SickSitter")
   sickFor         SickWatch[]       @relation("SickPerson")
   schoolBoards    SchoolBoardTerm[]
+  shellingCribs   ShellingBee[]       @relation("ShellingCrib")
+  shellingGuests  ShellingBeeGuest[]
+  teamsLent       HorseTeam[]         @relation("HorseLender")
+  teamsBorrowed   HorseTeam[]         @relation("HorseBorrower")
+  smokehouseItems SmokehouseItem[]
+  insurancePays   InsuranceMember[]
+  cellarGuests    CycloneCellarGuest[]
+  cakesCut        CakeCutter[]        @relation("CakeCutter")
+  roadDistricts   RoadDistrict[]
+  butcheringJobs  ButcheringWorker[]
+  christmasParts  ChristmasPart[]
+  peddlerBuys     PeddlerVisit[]      @relation("PeddlerBuyer")
+  strayNotices    StrayNotice[]
+  showBuys        MedicineShowBuy[]
+  butterMolds     ButterMold[]
 }
 
 model Relationship {
@@ -3138,6 +3170,246 @@ model SchoolBoardTerm {
   notes     String?
   family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ShellingBee {
+  id        String             @id @default(cuid())
+  familyId  String
+  ownerId   String
+  heldOn    DateTime?          @db.Date
+  place     String?
+  notes     String?
+  createdAt DateTime           @default(now())
+  family    Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  owner     Person             @relation("ShellingCrib", fields: [ownerId], references: [id], onDelete: Cascade)
+  guests    ShellingBeeGuest[]
+
+  @@index([familyId])
+}
+
+model ShellingBeeGuest {
+  id       String      @id @default(cuid())
+  familyId String
+  beeId    String
+  personId String
+  notes    String?
+  family   Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  bee      ShellingBee @relation(fields: [beeId], references: [id], onDelete: Cascade)
+  person   Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([beeId, personId])
+  @@index([familyId, beeId])
+}
+
+model HorseTeam {
+  id         String    @id @default(cuid())
+  familyId   String
+  lenderId   String
+  borrowerId String
+  purpose    String
+  loanedOn   DateTime? @db.Date
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  lender     Person    @relation("HorseLender", fields: [lenderId], references: [id], onDelete: Cascade)
+  borrower   Person    @relation("HorseBorrower", fields: [borrowerId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model SmokehouseItem {
+  id       String    @id @default(cuid())
+  familyId String
+  personId String
+  item     String
+  hungOn   DateTime? @db.Date
+  notes    String?
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model InsuranceAssessment {
+  id         String            @id @default(cuid())
+  familyId   String
+  company    String
+  loss       String
+  assessedOn DateTime?         @db.Date
+  notes      String?
+  createdAt  DateTime          @default(now())
+  family     Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  members    InsuranceMember[]
+
+  @@index([familyId])
+}
+
+model InsuranceMember {
+  id           String               @id @default(cuid())
+  familyId     String
+  assessmentId String
+  personId     String
+  paid         String
+  notes        String?
+  family       Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  assessment   InsuranceAssessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  person       Person               @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, personId])
+  @@index([familyId, assessmentId])
+}
+
+model CycloneCellar {
+  id        String                @id @default(cuid())
+  familyId  String
+  storm     String
+  heldOn    DateTime?             @db.Date
+  place     String?
+  notes     String?
+  createdAt DateTime              @default(now())
+  family    Family                @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  guests    CycloneCellarGuest[]
+
+  @@index([familyId])
+}
+
+model CycloneCellarGuest {
+  id       String        @id @default(cuid())
+  familyId String
+  cellarId String
+  personId String
+  notes    String?
+  family   Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  cellar   CycloneCellar @relation(fields: [cellarId], references: [id], onDelete: Cascade)
+  person   Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([cellarId, personId])
+  @@index([familyId, cellarId])
+}
+
+model CakeCutter {
+  id       String    @id @default(cuid())
+  familyId String
+  cutterId String
+  couple   String
+  wedding  String
+  cutOn    DateTime? @db.Date
+  notes    String?
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  cutter   Person    @relation("CakeCutter", fields: [cutterId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model RoadDistrict {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  district  String
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ButcheringCrew {
+  id        String              @id @default(cuid())
+  familyId  String
+  title     String
+  heldOn    DateTime?           @db.Date
+  place     String?
+  notes     String?
+  createdAt DateTime            @default(now())
+  family    Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  workers   ButcheringWorker[]
+
+  @@index([familyId])
+}
+
+model ButcheringWorker {
+  id       String         @id @default(cuid())
+  familyId String
+  crewId   String
+  personId String
+  job      String
+  notes    String?
+  family   Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  crew     ButcheringCrew @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  person   Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([crewId, personId])
+  @@index([familyId, crewId])
+}
+
+model ChristmasPart {
+  id       String    @id @default(cuid())
+  familyId String
+  personId String
+  piece    String
+  kind     String
+  heldOn   DateTime? @db.Date
+  place    String?
+  notes    String?
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model PeddlerVisit {
+  id        String    @id @default(cuid())
+  familyId  String
+  peddler   String
+  goods     String
+  buyerId   String
+  visitedOn DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  buyer     Person    @relation("PeddlerBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model StrayNotice {
+  id       String    @id @default(cuid())
+  familyId String
+  personId String
+  animal   String
+  postedOn DateTime? @db.Date
+  place    String?
+  notes    String?
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model MedicineShowBuy {
+  id       String    @id @default(cuid())
+  familyId String
+  personId String
+  item     String
+  show     String
+  boughtOn DateTime? @db.Date
+  notes    String?
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ButterMold {
+  id       String  @id @default(cuid())
+  familyId String
+  personId String
+  mark     String
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }

@@ -31,6 +31,8 @@ export default async function Page() {
       <p className="mt-3 max-w-2xl text-bark">
         Who worked the road tax, which road, and how many days. 
         <Link href="/road-tax/missing" className="text-seal">Missing road tax</Link>
+        {" · "}
+        <Link href="/districts" className="text-seal">Township road districts</Link>
       </p>
       {canWrite(ctx.role) ? (
         <RoadTaxForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />

@@ -19,6 +19,8 @@ export default async function WeddingsPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Every recorded marriage, with the place if the archive knows it.{" "}
         <Link href="/charivari" className="text-seal">Charivari</Link>
+        {" · "}
+        <Link href="/cakes" className="text-seal">Who cut the cake</Link>
       </p>
       <ul className="mt-10 space-y-3" data-testid="weddings-list">
         {weddings.map((event) => (
