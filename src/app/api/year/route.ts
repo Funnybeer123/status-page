@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { compileThisYear, thisYearHeading } from "@/lib/thisYear";
-import { hidePhotoFromAudience, shouldHideLivingFacts } from "@/lib/privacy";
+import { hideEventFromViewer, hidePhotoFromAudience, shouldHideLivingFacts } from "@/lib/privacy";
 
 export async function GET(req: Request) {
   const ctx = await apiFamily();
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     }),
     prisma.lifeEvent.findMany({
       where: { familyId: ctx.family.id },
-      select: { id: true, title: true, personId: true, happenedOn: true },
+      select: { id: true, title: true, personId: true, happenedOn: true, kind: true, person: { select: { deathDate: true } } },
     }),
   ]);
   const visiblePeople = people.filter((person) => !shouldHideLivingFacts(ctx.role, person) || Boolean(person.deathDate));
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     stories,
     photos: visiblePhotos,
     letters,
-    events,
+    events: events.filter((event) => !hideEventFromViewer(ctx.role, event)),
   });
   return NextResponse.json({ year, items, heading: thisYearHeading(year, items.length) });
 }

@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { compileThisYear, thisYearHeading } from "@/lib/thisYear";
-import { hidePhotoFromAudience, shouldHideLivingFacts } from "@/lib/privacy";
+import { hideEventFromViewer, hidePhotoFromAudience, shouldHideLivingFacts } from "@/lib/privacy";
 import { formatDate } from "@/lib/dates";
 
 export default async function ThisYearPage({
@@ -29,7 +29,7 @@ export default async function ThisYearPage({
     }),
     prisma.lifeEvent.findMany({
       where: { familyId: ctx.family.id },
-      select: { id: true, title: true, personId: true, happenedOn: true },
+      select: { id: true, title: true, personId: true, happenedOn: true, kind: true, person: { select: { deathDate: true } } },
     }),
   ]);
   const items = compileThisYear({
@@ -38,7 +38,7 @@ export default async function ThisYearPage({
     stories,
     photos: photos.filter((photo) => !hidePhotoFromAudience(ctx.role, photo.tags.map((tag) => tag.person))),
     letters,
-    events,
+    events: events.filter((event) => !hideEventFromViewer(ctx.role, event)),
   });
   return (
     <AppShell>
