@@ -235,7 +235,7 @@ test("a relative can keep an Ask conversation, letter thread, and later family r
     const book = await maya.html("/book");
     assert.match(book.text, /Name index/);
     assert.match(book.text, /Rose Whitaker/);
-    assert.match(book.text, `id="chapter-${ids.rose}"`);
+    assert.match(book.text, new RegExp(`id="chapter-${ids.rose}"`));
 
     const album = await maya.json<{ album: { id: string } }>("/api/albums", {
       method: "POST",
