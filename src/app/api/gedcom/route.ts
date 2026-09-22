@@ -3,21 +3,40 @@ import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { exportGedcom, parseGedcom } from "@/lib/gedcom";
+import { branchGedcomFilename } from "@/lib/webcal";
 import { syncVitalEvents, recordMarriageEvent } from "@/lib/events";
 import { recordActivity } from "@/lib/activity";
 
-export async function GET() {
+export async function GET(req: Request) {
   const ctx = await apiFamily();
   if ("error" in ctx) return ctx.error;
-  const [people, relationships] = await Promise.all([
+  const branchId = new URL(req.url).searchParams.get("branchId") || undefined;
+  const [people, relationships, branch] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
+    branchId
+      ? prisma.familyBranch.findFirst({
+          where: { id: branchId, familyId: ctx.family.id },
+          include: { members: true },
+        })
+      : Promise.resolve(null),
   ]);
-  const text = exportGedcom({ familyName: ctx.family.name, people, relationships });
+  if (branchId && !branch) return NextResponse.json({ error: "Branch not found." }, { status: 404 });
+  const allowed = branch ? new Set(branch.members.map((member) => member.personId)) : null;
+  const scopedPeople = allowed ? people.filter((person) => allowed.has(person.id)) : people;
+  const scopedRels = allowed
+    ? relationships.filter((rel) => allowed.has(rel.fromPersonId) && allowed.has(rel.toPersonId))
+    : relationships;
+  const text = exportGedcom({
+    familyName: branch ? branch.name : ctx.family.name,
+    people: scopedPeople,
+    relationships: scopedRels,
+  });
+  const filename = branch ? branchGedcomFilename(branch.name) : `${ctx.family.slug}.ged`;
   return new NextResponse(text, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${ctx.family.slug}.ged"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
 }

@@ -46,6 +46,10 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
         <Link href={`/reunions/${reunion.id}/kiosk`} className="text-seal" data-testid="kiosk-link">
           Reunion kiosk
         </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/tags`} className="text-seal" data-testid="name-tags-link">
+          Printable name tags
+        </Link>
       </p>
       <section className="mt-10">
         <h2 className="font-display text-3xl">Who’s coming</h2>

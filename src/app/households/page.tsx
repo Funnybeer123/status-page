@@ -12,7 +12,7 @@ export default async function HouseholdsPage() {
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.censusHousehold.findMany({
       where: { familyId: ctx.family.id },
-      include: { people: { include: { person: true } } },
+      include: { people: { include: { person: true } }, scan: true },
       orderBy: [{ year: "asc" }, { place: "asc" }],
     }),
   ]);
@@ -45,6 +45,7 @@ export default async function HouseholdsPage() {
                 occupation: row.occupation,
               })).join("; ")}
             </p>
+            {household.scan ? <p className="mt-2 font-sans text-sm text-gold">Census scan attached</p> : null}
             {(groups.get(household.groupKey) ?? []).length > 1 ? (
               <p className="mt-3 font-sans text-sm">
                 <Link href={`/census/compare?group=${encodeURIComponent(household.groupKey)}`} className="text-seal">

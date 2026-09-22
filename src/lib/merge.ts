@@ -113,3 +113,80 @@ export async function mergePlaces(input: { familyId: string; keepId: string; dro
 
   return prisma.place.findFirstOrThrow({ where: { id: keep.id } });
 }
+
+function earlier(a?: Date | null, b?: Date | null) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return a.getTime() <= b.getTime() ? a : b;
+}
+
+function later(a?: Date | null, b?: Date | null) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return a.getTime() >= b.getTime() ? a : b;
+}
+
+export async function mergeHomes(input: { familyId: string; keepId: string; dropId: string }) {
+  if (input.keepId === input.dropId) {
+    throw new Error("Choose two different houses to merge.");
+  }
+  const [keep, drop] = await Promise.all([
+    prisma.familyHome.findFirst({ where: { id: input.keepId, familyId: input.familyId } }),
+    prisma.familyHome.findFirst({ where: { id: input.dropId, familyId: input.familyId } }),
+  ]);
+  if (!keep || !drop) throw new Error("Both houses must belong to this family.");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.familyHomePhoto.updateMany({ where: { homeId: drop.id }, data: { homeId: keep.id } });
+    await tx.landRecord.updateMany({ where: { homeId: drop.id }, data: { homeId: keep.id } });
+    await tx.familyFarm.updateMany({ where: { homeId: drop.id }, data: { homeId: keep.id } });
+
+    const residents = await tx.familyHomeResident.findMany({ where: { homeId: drop.id } });
+    for (const row of residents) {
+      const exists = await tx.familyHomeResident.findUnique({
+        where: { homeId_personId: { homeId: keep.id, personId: row.personId } },
+      });
+      if (exists) {
+        await tx.familyHomeResident.update({
+          where: { homeId_personId: { homeId: keep.id, personId: row.personId } },
+          data: {
+            startedOn: earlier(exists.startedOn, row.startedOn),
+            endedOn: later(exists.endedOn, row.endedOn),
+          },
+        });
+        await tx.familyHomeResident.delete({
+          where: { homeId_personId: { homeId: drop.id, personId: row.personId } },
+        });
+      } else {
+        await tx.familyHomeResident.delete({
+          where: { homeId_personId: { homeId: drop.id, personId: row.personId } },
+        });
+        await tx.familyHomeResident.create({
+          data: {
+            homeId: keep.id,
+            personId: row.personId,
+            startedOn: row.startedOn,
+            endedOn: row.endedOn,
+          },
+        });
+      }
+    }
+
+    await tx.familyHome.update({
+      where: { id: keep.id },
+      data: {
+        line: keep.line || drop.line,
+        locality: keep.locality || drop.locality,
+        region: keep.region || drop.region,
+        notes: [keep.notes, drop.notes].filter(Boolean).join("\n\n") || null,
+        placeId: keep.placeId || drop.placeId,
+      },
+    });
+    await tx.familyHome.delete({ where: { id: drop.id } });
+  });
+
+  return prisma.familyHome.findFirstOrThrow({
+    where: { id: keep.id },
+    include: { photos: true, residents: { include: { person: true } }, landRecords: true, farms: true },
+  });
+}

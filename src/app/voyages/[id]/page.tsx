@@ -7,16 +7,22 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
 import { compilePassengerList, passengerLine, voyagePassengerHeading } from "@/lib/passengers";
+import { scanHeading, scanLine } from "@/lib/scans";
+import { ManifestAttachForm } from "@/app/attach/ui";
 
 export default async function VoyagePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [voyage, people] = await Promise.all([
+  const [voyage, people, assets] = await Promise.all([
     prisma.voyage.findFirst({
       where: { id, familyId: ctx.family.id },
-      include: { people: { include: { person: true } } },
+      include: { people: { include: { person: true } }, manifest: true },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
+    prisma.asset.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null },
+      orderBy: { title: "asc" },
+    }),
   ]);
   if (!voyage) notFound();
   const passengers = compilePassengerList(
@@ -40,6 +46,18 @@ export default async function VoyagePage({ params }: { params: Promise<{ id: str
         {voyage.departedFrom} → {voyage.arrivedAt}
         {voyage.departedOn ? ` · ${formatDate(voyage.departedOn)}` : ""}
       </p>
+      {voyage.manifest ? (
+        <figure className="paper-card mt-8 overflow-hidden" data-testid="voyage-manifest">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/media/${voyage.manifest.storagePath}`} alt={scanLine(voyage.manifest.title)} className="aspect-video w-full object-cover" />
+          <figcaption className="p-4 font-sans text-sm text-gold">{scanHeading("manifest", voyage.ship)}</figcaption>
+        </figure>
+      ) : canWrite(ctx.role) ? (
+        <ManifestAttachForm
+          voyages={[{ id: voyage.id, label: voyage.ship }]}
+          assets={assets.map((asset) => ({ id: asset.id, label: asset.title || "A scan" }))}
+        />
+      ) : null}
       {canWrite(ctx.role) ? (
         <PassengerForm voyageId={voyage.id} people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
       ) : null}

@@ -34,7 +34,7 @@ export async function GET() {
   if ("error" in ctx) return ctx.error;
   const voyages = await prisma.voyage.findMany({
     where: { familyId: ctx.family.id },
-    include: { people: { include: { person: true } } },
+    include: { people: { include: { person: true } }, manifest: true },
     orderBy: { departedOn: "asc" },
   });
   return NextResponse.json({ voyages });

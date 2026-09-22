@@ -103,6 +103,9 @@ model User {
   personChanges  PersonChange[]
   askConversations AskConversation[]
   savedSearches  SavedSearch[]
+  suggestions    FactSuggestion[] @relation("SuggestedBy")
+  reviews        FactSuggestion[] @relation("ReviewedBy")
+  journals       JournalEntry[]
 }
 
 model Family {
@@ -111,6 +114,7 @@ model Family {
   slug          String         @unique
   bannerText    String?
   bannerNote    String?
+  calendarToken String?        @unique
   createdAt     DateTime       @default(now())
   memberships   Membership[]
   people        Person[]
@@ -187,6 +191,8 @@ model Family {
   cityDirectories CityDirectory[]
   militaryPapers MilitaryPaper[]
   schoolClasses SchoolClass[]
+  suggestions   FactSuggestion[]
+  journals      JournalEntry[]
 }
 
 model Membership {
@@ -252,6 +258,7 @@ model Person {
   directoryEntries CityDirectory[]
   militaryPapers MilitaryPaper[]
   classSeats     SchoolClassPupil[]
+  suggestions    FactSuggestion[]
   witnessed      EventWitness[]
   capsulesFrom   TimeCapsule[]  @relation("CapsuleFrom")
   capsulesTo     TimeCapsule[]  @relation("CapsuleAddressee")
@@ -345,6 +352,8 @@ model Asset {
   researchTasks  ResearchTask[]
   filmMoments    FilmMoment[]
   photoNotes     PhotoNote[]
+  censusScans    CensusHousehold[]
+  voyageManifests Voyage[]
 }
 
 model PersonTag {
@@ -508,6 +517,7 @@ model Story {
   promptAnswers  StoryPromptAnswer[]
   interviewAnswers InterviewAnswer[]
   pinnedMemories PinnedMemory[]
+  journals       JournalEntry[]
 
   @@index([familyId])
 }
@@ -872,8 +882,10 @@ model Voyage {
   departedOn   DateTime?      @db.Date
   arrivedOn    DateTime?      @db.Date
   notes        String?
+  assetId      String?
   createdAt    DateTime       @default(now())
   family       Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  manifest     Asset?         @relation(fields: [assetId], references: [id], onDelete: SetNull)
   people       VoyagePerson[]
 
   @@index([familyId])
@@ -1498,8 +1510,10 @@ model CensusHousehold {
   street    String?
   groupKey  String
   notes     String?
+  assetId   String?
   createdAt DateTime                 @default(now())
   family    Family                   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  scan      Asset?                   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   people    CensusHouseholdPerson[]
 
   @@index([familyId, groupKey])
@@ -1689,4 +1703,43 @@ model SchoolClassPupil {
   person   Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@id([classId, personId])
+}
+
+model FactSuggestion {
+  id            String    @id @default(cuid())
+  familyId      String
+  createdById   String
+  personId      String?
+  entityType    String
+  entityId      String?
+  field         String
+  currentValue  String?
+  proposedValue String
+  note          String?
+  status        String    @default("pending")
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  family        Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy     User      @relation("SuggestedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy    User?     @relation("ReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  person        Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, status])
+}
+
+model JournalEntry {
+  id          String    @id @default(cuid())
+  familyId    String
+  authorId    String
+  title       String
+  body        String
+  recordedAt  DateTime? @db.Date
+  storyId     String?   @unique
+  createdAt   DateTime  @default(now())
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  story       Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, authorId])
 }

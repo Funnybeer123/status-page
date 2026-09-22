@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   const groupKey = url.searchParams.get("groupKey") || undefined;
   const households = await prisma.censusHousehold.findMany({
     where: { familyId: ctx.family.id, ...(groupKey ? { groupKey } : {}) },
-    include: { people: { include: { person: true } } },
+    include: { people: { include: { person: true } }, scan: true },
     orderBy: [{ year: "asc" }, { place: "asc" }],
   });
   return NextResponse.json({ households });

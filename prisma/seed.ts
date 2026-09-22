@@ -2150,6 +2150,67 @@ async function ensureHartArchive() {
     });
   }
 
+  const picnicScan =
+    picnicPhoto || (await prisma.asset.findFirst({ where: { familyId: family.id, title: "Hart picnic, 1961" } }));
+  const harvestScan = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Harvest dance, Grange hall" },
+  });
+  if (picnicScan) {
+    await prisma.censusHousehold.update({
+      where: { id: household1940.id },
+      data: { assetId: picnicScan.id },
+    });
+  }
+  if (harvestScan) {
+    await prisma.censusHousehold.update({
+      where: { id: household1950.id },
+      data: { assetId: harvestScan.id },
+    });
+  }
+  if (wei && (picnicScan || harvestScan)) {
+    await prisma.voyage.update({
+      where: { id: "voyage-wei-pacific" },
+      data: { assetId: picnicScan?.id ?? harvestScan?.id },
+    });
+  }
+  await prisma.family.update({
+    where: { id: family.id },
+    data: { calendarToken: family.calendarToken || "hart-family-dates" },
+  });
+  if (demoUser) {
+    await prisma.journalEntry.upsert({
+      where: { id: "journal-lily-cider" },
+      create: {
+        id: "journal-lily-cider",
+        familyId: family.id,
+        authorId: demoUser.id,
+        title: "What I still remember of Grandma's cider",
+        body: "She said the cider was too sweet. I have not shared this with the cousins yet.",
+        recordedAt: new Date("2026-03-12"),
+      },
+      update: { title: "What I still remember of Grandma's cider" },
+    });
+    const existingSuggest = await prisma.factSuggestion.findFirst({
+      where: { id: "suggest-eleanor-plot" },
+    });
+    if (!existingSuggest) {
+      await prisma.factSuggestion.create({
+        data: {
+          id: "suggest-eleanor-plot",
+          familyId: family.id,
+          createdById: demoUser.id,
+          personId: eleanor.id,
+          entityType: "person",
+          entityId: eleanor.id,
+          field: "burialPlot",
+          currentValue: eleanor.burialPlot,
+          proposedValue: "Fairview, plot near the cedar",
+          note: "The parish book says the plot by the cedar.",
+        },
+      });
+    }
+  }
+
   if (demoUser) {
     await prisma.savedSearch.upsert({
       where: { id: "search-harvest-dance" },

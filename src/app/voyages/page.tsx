@@ -12,7 +12,7 @@ export default async function VoyagesPage() {
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.voyage.findMany({
       where: { familyId: ctx.family.id },
-      include: { people: { include: { person: true } } },
+      include: { people: { include: { person: true } }, manifest: true },
       orderBy: { departedOn: "asc" },
     }),
   ]);
@@ -48,6 +48,7 @@ export default async function VoyagesPage() {
                 </>
               ) : null}
             </p>
+            {voyage.manifest ? <p className="mt-2 font-sans text-sm text-gold">Ship manifest attached</p> : null}
             {voyage.notes ? <p className="mt-2 text-bark">{voyage.notes}</p> : null}
           </li>
         ))}

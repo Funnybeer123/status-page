@@ -20,6 +20,11 @@ export default async function HomesPage() {
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="homes-heading">Homes</h1>
       <p className="mt-3 max-w-2xl text-bark">A house with photographs across the years, and who lived there.</p>
+      <p className="mt-3 font-sans text-sm">
+        <Link href="/homes/duplicates" className="text-seal">Duplicate houses</Link>
+        {" · "}
+        <Link href="/homes/merge" className="text-seal">Merge homes</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="home"

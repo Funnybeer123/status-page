@@ -4,6 +4,7 @@ import { BranchForm } from "@/app/branches/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
+import { branchGedcomHeading } from "@/lib/webcal";
 
 export default async function BranchesPage() {
   const ctx = await requireFamily();
@@ -37,6 +38,10 @@ export default async function BranchesPage() {
               <Link href={`/tree?branchId=${branch.id}`} className="text-seal">Filter the tree</Link>
               {" · "}
               <Link href={`/timeline?branchId=${branch.id}`} className="text-seal">Filter the timeline</Link>
+              {" · "}
+              <a href={`/api/gedcom?branchId=${branch.id}`} className="text-seal" data-testid="branch-gedcom">
+                {branchGedcomHeading(branch.name)}
+              </a>
             </p>
           </li>
         ))}

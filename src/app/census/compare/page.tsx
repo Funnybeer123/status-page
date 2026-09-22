@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { compareHeading, compareHouseholds, householdHeading, memberLine } from "@/lib/censusCompare";
+import { scanHeading, scanLine } from "@/lib/scans";
 
 export default async function CensusComparePage({
   searchParams,
@@ -17,7 +18,7 @@ export default async function CensusComparePage({
       ...(group ? { groupKey: group } : {}),
       ...(a || b ? { id: { in: [a, b].filter(Boolean) as string[] } } : {}),
     },
-    include: { people: { include: { person: true } } },
+    include: { people: { include: { person: true } }, scan: true },
     orderBy: { year: "asc" },
   });
   const earlier = households[0];
@@ -45,11 +46,23 @@ export default async function CensusComparePage({
       <h1 className="mt-2 font-display text-4xl" data-testid="census-compare-heading">
         {earlier && later ? compareHeading(earlier.place, earlier.year, later.year) : "Census comparison"}
       </h1>
-      <p className="mt-3 max-w-2xl text-bark">The same household in two years, side by side: who stayed, who arrived, and who left.</p>
+      <p className="mt-3 max-w-2xl text-bark">The same household in two years, side by side: who stayed, who arrived, and who left. The census scan sits with each year.</p>
+      {earlier?.scan || later?.scan ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="census-scans">Census scans attached</p>
+      ) : null}
       {earlier && later ? (
         <div className="mt-10 grid gap-6 md:grid-cols-2" data-testid="census-compare">
           <section className="paper-card p-5">
             <h2 className="font-display text-2xl">{householdHeading(earlier.place, earlier.year, earlier.street)}</h2>
+            {earlier.scan ? (
+              <figure className="mt-4" data-testid="census-scan-earlier">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${earlier.scan.storagePath}`} alt={scanLine(earlier.scan.title)} className="w-full rounded-lg object-cover" />
+                <figcaption className="mt-2 font-sans text-sm text-gold">{scanHeading("census", `${earlier.place}, ${earlier.year}`)}</figcaption>
+              </figure>
+            ) : (
+              <p className="mt-4 font-sans text-sm text-bark">No scan attached yet.</p>
+            )}
             <ul className="mt-4 space-y-2">
               {left.map((row) => (
                 <li key={row.personId}>{memberLine(row)}</li>
@@ -58,6 +71,15 @@ export default async function CensusComparePage({
           </section>
           <section className="paper-card p-5">
             <h2 className="font-display text-2xl">{householdHeading(later.place, later.year, later.street)}</h2>
+            {later.scan ? (
+              <figure className="mt-4" data-testid="census-scan-later">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${later.scan.storagePath}`} alt={scanLine(later.scan.title)} className="w-full rounded-lg object-cover" />
+                <figcaption className="mt-2 font-sans text-sm text-gold">{scanHeading("census", `${later.place}, ${later.year}`)}</figcaption>
+              </figure>
+            ) : (
+              <p className="mt-4 font-sans text-sm text-bark">No scan attached yet.</p>
+            )}
             <ul className="mt-4 space-y-2">
               {right.map((row) => (
                 <li key={row.personId}>{memberLine(row)}</li>

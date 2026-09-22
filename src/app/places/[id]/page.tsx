@@ -7,11 +7,12 @@ import { formatDate } from "@/lib/dates";
 import { placeLabel } from "@/lib/places";
 import { hideEventFromViewer, hideResidenceForViewer } from "@/lib/privacy";
 import { ancestorChain, descendantIds, placeBreadcrumb, placeKindLabel } from "@/lib/placeTree";
+import { chronicleHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
 
 export default async function PlacePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [place, places] = await Promise.all([
+  const [place, places, homes, households, voyages, letters, stories] = await Promise.all([
     prisma.place.findFirst({
       where: { id, familyId: ctx.family.id },
       include: {
@@ -29,6 +30,13 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         events: { include: { person: true } },
       },
     }),
+    prisma.familyHome.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.censusHousehold.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.voyage.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.document.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null, kind: { in: ["letter", "note"] } },
+    }),
+    prisma.story.findMany({ where: { familyId: ctx.family.id } }),
   ]);
   if (!place) notFound();
   const nodes = places.map((row) => ({ id: row.id, name: row.name, kind: row.kind, parentId: row.parentId }));
@@ -55,6 +63,74 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
     }
   }
   const residences = place.residences.filter((item) => !hideResidenceForViewer(ctx.role, item.person));
+  const chronicle = compileChronicle([
+    ...residences.map((item) => ({
+      id: `residence-${item.id}`,
+      kind: "residence" as const,
+      title: `${item.person.displayName} lived here`,
+      href: `/people/${item.person.id}`,
+      date: item.startedAt,
+    })),
+    ...events.map((event) => ({
+      id: `event-${event.id}`,
+      kind: "event" as const,
+      title: event.title,
+      href: `/people/${event.personId}`,
+      date: event.happenedOn,
+    })),
+    ...place.photos.map((photo) => ({
+      id: `photo-${photo.id}`,
+      kind: "photo" as const,
+      title: photo.title || "A photograph",
+      href: `/archive/${photo.id}`,
+      date: photo.capturedAt,
+    })),
+    ...homes
+      .filter((home) => (home.placeId && inside.has(home.placeId)) || placeMatch(place.name, home.locality) || placeMatch(place.name, home.title))
+      .map((home) => ({
+        id: `home-${home.id}`,
+        kind: "home" as const,
+        title: home.title,
+        href: `/homes/${home.id}`,
+        date: null,
+      })),
+    ...households
+      .filter((row) => placeMatch(place.name, row.place) || placeMatch(place.name, row.street))
+      .map((row) => ({
+        id: `census-${row.id}`,
+        kind: "census" as const,
+        title: `Census, ${row.place}, ${row.year}`,
+        href: `/households/${row.id}`,
+        date: `${row.year}-01-01`,
+      })),
+    ...voyages
+      .filter((row) => placeMatch(place.name, row.departedFrom) || placeMatch(place.name, row.arrivedAt))
+      .map((row) => ({
+        id: `voyage-${row.id}`,
+        kind: "voyage" as const,
+        title: row.ship,
+        href: `/voyages/${row.id}`,
+        date: row.departedOn,
+      })),
+    ...letters
+      .filter((row) => placeMatch(place.name, row.title) || placeMatch(place.name, row.transcript))
+      .map((row) => ({
+        id: `letter-${row.id}`,
+        kind: "letter" as const,
+        title: row.title,
+        href: `/letters/${row.id}`,
+        date: row.writtenAt,
+      })),
+    ...stories
+      .filter((row) => placeMatch(place.name, row.title) || placeMatch(place.name, row.body))
+      .map((row) => ({
+        id: `story-${row.id}`,
+        kind: "story" as const,
+        title: row.title,
+        href: `/stories/${row.id}`,
+        date: row.recordedAt,
+      })),
+  ]);
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">
@@ -150,6 +226,20 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
           </ul>
         </section>
       ) : null}
+      <section className="mt-10">
+        <h2 className="font-display text-2xl" data-testid="place-chronicle-heading">
+          {chronicleHeading(place.name, chronicle.length)}
+        </h2>
+        <ul className="mt-4 space-y-3" data-testid="place-chronicle">
+          {chronicle.map((item) => (
+            <li key={item.id} className="paper-card p-4">
+              <Link href={item.href} className="font-display text-xl text-seal">{item.title}</Link>
+              <p className="font-sans text-sm text-gold">{item.kind}</p>
+            </li>
+          ))}
+          {!chronicle.length ? <li className="text-bark">Nothing yet happened here.</li> : null}
+        </ul>
+      </section>
       <p className="mt-8 font-sans text-sm">
         <Link href="/places" className="text-seal">All places</Link>
         {" · "}
