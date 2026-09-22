@@ -522,6 +522,89 @@ async function ensureHartArchive() {
     },
     update: {},
   });
+
+  if (wei) {
+    await prisma.lifeEvent.upsert({
+      where: { id: "event-wei-naturalization" },
+      create: {
+        id: "event-wei-naturalization",
+        familyId: family.id,
+        personId: wei.id,
+        placeId: iowaCity.id,
+        kind: EventKind.naturalization,
+        title: "Wei Chen naturalized in Iowa City",
+        happenedOn: new Date("1979-05-12"),
+      },
+      update: {},
+    });
+  }
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-samuel-probate" },
+    create: {
+      id: "event-samuel-probate",
+      familyId: family.id,
+      personId: samuel.id,
+      placeId: cedar.id,
+      kind: EventKind.probate,
+      title: "Samuel Hart’s estate entered probate",
+      happenedOn: new Date("2018-03-02"),
+    },
+    update: {},
+  });
+
+  await prisma.document.upsert({
+    where: { id: "doc-eleanor-obit" },
+    create: {
+      id: "doc-eleanor-obit",
+      familyId: family.id,
+      title: "Eleanor Hart of Cedar Falls",
+      kind: DocKind.obituary,
+      transcript: "Eleanor Hart, who danced at the Grange hall in 1947, died at home in Cedar Falls. She is remembered for Sunday rolls and the cedar chest in the upstairs hall.",
+      writtenAt: new Date("2015-06-05"),
+      people: { create: [{ personId: eleanor.id }, { personId: samuel.id }] },
+    },
+    update: { title: "Eleanor Hart of Cedar Falls" },
+  });
+  await prisma.document.upsert({
+    where: { id: "doc-samuel-will" },
+    create: {
+      id: "doc-samuel-will",
+      familyId: family.id,
+      title: "Samuel Hart’s will",
+      kind: DocKind.will,
+      transcript: "The north farm and the bee yard stay with the children. The navy hatband goes to whoever still keeps Sunday rolls.",
+      writtenAt: new Date("2010-11-02"),
+      people: { create: [{ personId: samuel.id }, { personId: eleanor.id }] },
+    },
+    update: { title: "Samuel Hart’s will" },
+  });
+  await prisma.tradition.upsert({
+    where: { id: "tradition-sunday-rolls" },
+    create: {
+      id: "tradition-sunday-rolls",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "Sunday rolls after church",
+      summary: "Warm milk, a cake of yeast, and the navy-blue bowl.",
+      season: "Sundays",
+    },
+    update: { title: "Sunday rolls after church" },
+  });
+  const demo = await prisma.user.findUnique({ where: { id: "user-demo" } });
+  if (demo) {
+    await prisma.researchTask.upsert({
+      where: { id: "task-ask-lily-hatband" },
+      create: {
+        id: "task-ask-lily-hatband",
+        familyId: family.id,
+        personId: eleanor.id,
+        title: "Ask Lily who kept the navy hatband",
+        body: "Margaret mentioned it in the cedar chest note.",
+        createdById: demo.id,
+      },
+      update: { title: "Ask Lily who kept the navy hatband" },
+    });
+  }
 }
 
 async function writeHartMedia() {

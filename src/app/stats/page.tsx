@@ -42,6 +42,14 @@ export default async function StatsPage() {
           <dd className="font-display text-3xl">{stats.recipes}</dd>
         </div>
         <div className="paper-card p-5">
+          <dt className="font-sans text-sm text-gold">Obituaries · wills</dt>
+          <dd className="font-display text-3xl">{stats.obituaries} · {stats.wills}</dd>
+        </div>
+        <div className="paper-card p-5">
+          <dt className="font-sans text-sm text-gold">Traditions · tasks · places</dt>
+          <dd className="font-display text-3xl">{stats.traditions} · {stats.tasks} · {stats.places}</dd>
+        </div>
+        <div className="paper-card p-5">
           <dt className="font-sans text-sm text-gold">Photographs</dt>
           <dd className="font-display text-3xl">{stats.photos}</dd>
         </div>

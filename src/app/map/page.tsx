@@ -69,7 +69,9 @@ export default async function MapPage() {
       <ul className="mt-10 space-y-4" data-testid="map-places">
         {visible.map((place) => (
           <li key={place.id} className="paper-card p-5">
-            <h2 className="font-display text-2xl">{placeLabel(place)}</h2>
+            <h2 className="font-display text-2xl">
+              <Link href={`/places/${place.id}`} className="text-seal">{placeLabel(place)}</Link>
+            </h2>
             {place.latitude != null && place.longitude != null ? (
               <p className="font-sans text-sm text-bark">
                 {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}

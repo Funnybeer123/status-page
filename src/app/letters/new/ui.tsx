@@ -60,6 +60,8 @@ export function LetterForm({ people }: { people: { id: string; displayName: stri
             <option value="note">Note</option>
             <option value="clipping">Newspaper clipping</option>
             <option value="recipe">Recipe</option>
+            <option value="obituary">Obituary</option>
+            <option value="will">Will</option>
           </select>
         </label>
       </div>

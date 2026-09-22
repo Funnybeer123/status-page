@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { CommentThread } from "@/components/CommentThread";
+import { PhotoTagForm } from "@/app/archive/tag";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -10,10 +11,13 @@ import Link from "next/link";
 export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const asset = await prisma.asset.findFirst({
-    where: { id, familyId: ctx.family.id },
-    include: { tags: { include: { person: true } }, comments: { include: { author: true } } },
-  });
+  const [asset, people] = await Promise.all([
+    prisma.asset.findFirst({
+      where: { id, familyId: ctx.family.id },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } } },
+    }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
+  ]);
   if (!asset) notFound();
   return (
     <AppShell>
@@ -36,6 +40,13 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
       <p className="mt-4 font-sans text-sm">
         <Link href="/archive" className="text-seal">Back to the archive</Link>
       </p>
+      {canWrite(ctx.role) ? (
+        <PhotoTagForm
+          assetId={asset.id}
+          people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+          taggedIds={asset.tags.map((tag) => tag.personId)}
+        />
+      ) : null}
       <CommentThread
         comments={asset.comments}
         assetId={asset.id}

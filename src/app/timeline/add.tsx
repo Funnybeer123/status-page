@@ -85,6 +85,8 @@ export function TimelineAddEvent({
             <option value="military">Military</option>
             <option value="census">Census</option>
             <option value="burial">Burial</option>
+            <option value="naturalization">Naturalization</option>
+            <option value="probate">Probate</option>
             <option value="other">Other</option>
           </select>
         </label>

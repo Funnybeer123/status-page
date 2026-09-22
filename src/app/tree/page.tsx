@@ -45,8 +45,10 @@ export default async function TreePage({
         ) : null}
       </div>
       <div className="mt-6 flex flex-wrap gap-2 font-sans text-sm">
-        <Link href="/tree" className={`rounded-full px-3 py-1 ${params.view !== "pedigree" ? "bg-seal text-cream" : "border border-bark/15"}`}>Generations</Link>
+        <Link href="/tree" className={`rounded-full px-3 py-1 ${!params.view ? "bg-seal text-cream" : "border border-bark/15"}`}>Generations</Link>
         <Link href="/tree?view=pedigree" className={`rounded-full px-3 py-1 ${params.view === "pedigree" ? "bg-seal text-cream" : "border border-bark/15"}`}>Ancestor chart</Link>
+        <Link href="/surnames" className="rounded-full border border-bark/15 px-3 py-1">Surnames</Link>
+        <Link href="/places" className="rounded-full border border-bark/15 px-3 py-1">Places</Link>
       </div>
       <div className="mt-10">
         {params.view === "pedigree" ? (

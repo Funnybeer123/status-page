@@ -7,7 +7,7 @@ import { exportGedcom } from "@/lib/gedcom";
 export async function exportFamilyArchive(familyId: string, includeMedia = false) {
   const family = await prisma.family.findFirst({ where: { id: familyId } });
   if (!family) return null;
-  const [people, relationships, places, names, residences, events, documents, assets, stories, albums, comments, heirlooms] =
+  const [people, relationships, places, names, residences, events, documents, assets, stories, albums, comments, heirlooms, traditions, tasks] =
     await Promise.all([
       prisma.person.findMany({ where: { familyId }, orderBy: { displayName: "asc" } }),
       prisma.relationship.findMany({ where: { familyId } }),
@@ -21,6 +21,8 @@ export async function exportFamilyArchive(familyId: string, includeMedia = false
       prisma.album.findMany({ where: { familyId }, include: { items: true } }),
       prisma.comment.findMany({ where: { familyId }, include: { author: { select: { name: true } } } }),
       prisma.heirloom.findMany({ where: { familyId } }),
+      prisma.tradition.findMany({ where: { familyId } }),
+      prisma.researchTask.findMany({ where: { familyId } }),
     ]);
 
   const files: { title: string | null; mimeType: string; storagePath: string; dataBase64?: string }[] = [];
@@ -100,6 +102,14 @@ export async function exportFamilyArchive(familyId: string, includeMedia = false
       storyId: comment.storyId,
     })),
     heirlooms,
+    traditions,
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      body: task.body,
+      personId: task.personId,
+      doneAt: task.doneAt,
+    })),
     files,
     gedcom,
   };

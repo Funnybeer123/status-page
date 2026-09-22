@@ -11,7 +11,10 @@ export default async function ResearchPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="research-heading">Still to ask</h1>
-      <p className="mt-3 max-w-2xl text-bark">Blank births, undated marriages, and letters without a day — things a relative can still fill in.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Blank births, undated marriages, and letters without a day — things a relative can still fill in.
+        Written questions live on <Link href="/tasks" className="text-seal">Research tasks</Link>.
+      </p>
       <ul className="mt-10 space-y-3" data-testid="research-list">
         {missing.map((item) => (
           <li key={item.id} className="paper-card p-5">

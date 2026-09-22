@@ -110,8 +110,12 @@ export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
     burial: "Burial",
     religion: "Religion",
     reunion: "Reunion",
+    naturalization: "Naturalization",
+    probate: "Probate",
     clipping: "Newspaper",
     recipe: "Recipe",
+    obituary: "Obituary",
+    will: "Will",
     audio: "Oral history",
     letter: "Letter",
     note: "Oral note",
@@ -297,7 +301,7 @@ export async function familyHistory(
       include: { person: true, otherPerson: true, place: true },
     }),
     prisma.document.findMany({
-      where: { familyId, kind: { in: ["letter", "note", "clipping", "recipe"] } },
+      where: { familyId, kind: { in: ["letter", "note", "clipping", "recipe", "obituary", "will"] } },
       include: { people: { include: { person: true } }, asset: true },
     }),
     prisma.asset.findMany({

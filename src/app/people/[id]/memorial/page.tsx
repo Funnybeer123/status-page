@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { formatDate, lifespan } from "@/lib/dates";
+import { ageLabel, formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { isLiving } from "@/lib/privacy";
 
@@ -38,7 +38,10 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">In memory</p>
       <h1 className="mt-2 font-display text-5xl" data-testid="memorial-heading">{person.displayName}</h1>
       <p className="mt-3 text-xl text-bark">{lifespan(person.birthDate, person.deathDate)}</p>
-      <p className="mt-2 font-sans text-sm text-gold">Died {formatDate(person.deathDate)}</p>
+      <p className="mt-2 font-sans text-sm text-gold">
+        Died {formatDate(person.deathDate)}
+        {ageLabel(person.birthDate, person.deathDate) ? ` · ${ageLabel(person.birthDate, person.deathDate)}` : ""}
+      </p>
       {burial.length ? (
         <ul className="mt-8 space-y-2">
           {burial.map((event) => (

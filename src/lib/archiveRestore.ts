@@ -25,6 +25,8 @@ export async function restoreFamilyArchive(input: {
   const stories = Array.isArray(input.archive.stories) ? input.archive.stories : [];
   const albums = Array.isArray(input.archive.albums) ? input.archive.albums : [];
   const heirlooms = Array.isArray(input.archive.heirlooms) ? input.archive.heirlooms : [];
+  const traditions = Array.isArray(input.archive.traditions) ? input.archive.traditions : [];
+  const tasks = Array.isArray(input.archive.tasks) ? input.archive.tasks : [];
 
   const personIds = new Map<string, string>();
   const placeIds = new Map<string, string>();
@@ -209,6 +211,35 @@ export async function restoreFamilyArchive(input: {
         title: asString(row.title),
         summary: asString(row.summary) || null,
         acquiredAt: parseDate(asString(row.acquiredAt)),
+      },
+    });
+  }
+
+  for (const raw of traditions) {
+    const row = raw as Record<string, unknown>;
+    if (!asString(row.title)) continue;
+    await prisma.tradition.create({
+      data: {
+        familyId: input.familyId,
+        personId: personIds.get(asId(row.personId)) || null,
+        title: asString(row.title),
+        summary: asString(row.summary) || null,
+        season: asString(row.season) || null,
+      },
+    });
+  }
+
+  for (const raw of tasks) {
+    const row = raw as Record<string, unknown>;
+    if (!asString(row.title)) continue;
+    await prisma.researchTask.create({
+      data: {
+        familyId: input.familyId,
+        personId: personIds.get(asId(row.personId)) || null,
+        title: asString(row.title),
+        body: asString(row.body) || null,
+        doneAt: parseDate(asString(row.doneAt)),
+        createdById: input.createdById,
       },
     });
   }

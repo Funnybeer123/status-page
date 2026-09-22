@@ -49,8 +49,12 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (!entityId) return "/activity";
   if (entityType === "person") return `/people/${entityId}`;
   if (entityType === "asset") return `/archive/${entityId}`;
-  if (entityType === "document" || entityType === "clipping") return `/letters/${entityId}`;
+  if (entityType === "document" || entityType === "clipping" || entityType === "obituary" || entityType === "will") {
+    return `/letters/${entityId}`;
+  }
   if (entityType === "recipe") return `/recipes`;
+  if (entityType === "tradition") return "/traditions";
+  if (entityType === "task") return "/tasks";
   if (entityType === "story") return `/stories/${entityId}`;
   if (entityType === "album") return `/albums/${entityId}`;
   if (entityType === "event") return `/timeline#event-${entityId}`;

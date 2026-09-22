@@ -3,6 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { buildReminders, remindersThisWeek, upcomingReminders } from "@/lib/reminders";
+import { monthGrid, monthTitle } from "@/lib/calendarMonth";
 
 function ReminderList({
   items,
@@ -78,6 +79,20 @@ export default async function DatesPage() {
     ctx.role,
   );
 
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  const grid = monthGrid(
+    year,
+    month,
+    reminders.map((item) => ({
+      id: item.id,
+      title: item.title,
+      personId: item.personId,
+      happenedOn: item.nextOn,
+    })),
+  );
+
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
@@ -88,6 +103,29 @@ export default async function DatesPage() {
       <a href="/api/dates/ics" className="mt-4 inline-block rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" data-testid="ics-download">
         Download calendar (.ics)
       </a>
+      <section className="mt-10" data-testid="month-calendar">
+        <h2 className="font-display text-2xl">{monthTitle(year, month)}</h2>
+        <div className="mt-4 grid grid-cols-7 gap-1 font-sans text-xs text-gold">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+            <div key={day} className="px-1">{day}</div>
+          ))}
+        </div>
+        <div className="mt-1 grid grid-cols-7 gap-1">
+          {grid.map((cell) => (
+            <div
+              key={cell.date}
+              className={`min-h-20 rounded-lg border border-bark/10 p-1 ${cell.inMonth ? "bg-paper" : "opacity-40"}`}
+            >
+              <p className="font-sans text-xs text-gold">{cell.day}</p>
+              {cell.items.slice(0, 2).map((item) => (
+                <Link key={item.id} href={`/people/${item.personId}`} className="mt-1 block truncate text-xs text-seal">
+                  {item.title}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      </section>
       <section className="mt-10">
         <h2 className="font-display text-2xl">This week</h2>
         <ReminderList items={remindersThisWeek(reminders)} />

@@ -56,7 +56,7 @@ export async function loadOnThisDaySources(familyId: string) {
   const [people, events, documents, assets, stories] = await Promise.all([
     prisma.person.findMany({ where: { familyId } }),
     prisma.lifeEvent.findMany({ where: { familyId } }),
-    prisma.document.findMany({ where: { familyId, kind: { in: ["letter", "note", "clipping"] } } }),
+    prisma.document.findMany({ where: { familyId, kind: { in: ["letter", "note", "clipping", "obituary"] } } }),
     prisma.asset.findMany({ where: { familyId } }),
     prisma.story.findMany({ where: { familyId } }),
   ]);

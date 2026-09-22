@@ -87,7 +87,16 @@ export async function saveFamilyDocument(input: {
     familyId: input.familyId,
     actorId: input.actorId,
     verb: "saved",
-    entityType: input.kind === DocKind.recipe ? "recipe" : input.kind === DocKind.clipping ? "clipping" : "document",
+    entityType:
+      input.kind === DocKind.recipe
+        ? "recipe"
+        : input.kind === DocKind.clipping
+          ? "clipping"
+          : input.kind === DocKind.obituary
+            ? "obituary"
+            : input.kind === DocKind.will
+              ? "will"
+              : "document",
     entityId: document.id,
     title: input.title,
     summary: pages > 1 ? `${input.kind} · ${pages} pages` : input.kind,

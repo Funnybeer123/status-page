@@ -48,7 +48,8 @@ export function hideEventFromViewer(
     event.kind === "occupation" ||
     event.kind === "education" ||
     event.kind === "religion" ||
-    event.kind === "census"
+    event.kind === "census" ||
+    event.kind === "naturalization"
   );
 }
 

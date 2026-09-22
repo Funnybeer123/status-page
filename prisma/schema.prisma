@@ -31,6 +31,8 @@ enum DocKind {
   story
   clipping
   recipe
+  obituary
+  will
 }
 
 enum NameKind {
@@ -53,6 +55,8 @@ enum EventKind {
   burial
   religion
   reunion
+  naturalization
+  probate
   other
 }
 
@@ -69,6 +73,7 @@ model User {
   albums         Album[]      @relation("AlbumCreator")
   notifications  Notification[] @relation("Notified")
   noticesSent    Notification[] @relation("Notifier")
+  researchTasks  ResearchTask[]
 }
 
 model Family {
@@ -93,6 +98,8 @@ model Family {
   comments      Comment[]
   notifications Notification[]
   heirlooms     Heirloom[]
+  traditions    Tradition[]
+  researchTasks ResearchTask[]
 }
 
 model Membership {
@@ -142,6 +149,8 @@ model Person {
   storyLinks     StoryPerson[]
   citations      Citation[]
   heirlooms      Heirloom[]
+  traditions     Tradition[]
+  researchTasks  ResearchTask[]
 }
 
 model Relationship {
@@ -439,4 +448,34 @@ model Heirloom {
   person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
+}
+
+model Tradition {
+  id        String   @id @default(cuid())
+  familyId  String
+  personId  String?
+  title     String
+  summary   String?
+  season    String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model ResearchTask {
+  id          String    @id @default(cuid())
+  familyId    String
+  personId    String?
+  title       String
+  body        String?
+  doneAt      DateTime?
+  createdAt   DateTime  @default(now())
+  createdById String
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person      Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([familyId, doneAt])
 }

@@ -5,7 +5,7 @@ import { PersonArchiveForms } from "@/app/people/[id]/archive";
 import { MergeForm } from "@/app/people/[id]/merge";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { formatDate, lifespan } from "@/lib/dates";
+import { ageLabel, formatDate, lifespan } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
 import { hideEventFromViewer, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
 import { placeLabel } from "@/lib/places";
@@ -103,6 +103,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/tree?personId=${person.id}&view=pedigree`} className="mt-2 block font-sans text-sm text-seal">
               Ancestor chart
             </Link>
+            <Link href={`/people/${person.id}/descendants`} className="mt-2 block font-sans text-sm text-seal">
+              Descendants and ahnentafel
+            </Link>
+            <Link href={`/shared?from=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Shared ancestors
+            </Link>
             {!living ? (
               <Link href={`/people/${person.id}/memorial`} className="mt-2 block font-sans text-sm text-seal">
                 Memorial page
@@ -135,7 +141,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <ul className="mt-3 space-y-2" data-testid="person-residences">
               {residences.map((item) => (
                 <li key={item.id}>
-                  {placeLabel(item.place)}
+                  <Link href={`/places/${item.placeId}`} className="text-seal">{placeLabel(item.place)}</Link>
                   <span className="ml-2 font-sans text-sm text-bark">
                     {formatDate(item.startedAt, "")}
                     {item.endedAt ? ` – ${formatDate(item.endedAt)}` : item.startedAt ? " – " : ""}
@@ -157,6 +163,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                   <span className="ml-2">{event.title}</span>
                   <span className="ml-2 font-sans text-sm text-bark">
                     {formatDate(event.happenedOn, "Date unknown")}
+                    {ageLabel(person.birthDate, event.happenedOn) ? ` · ${ageLabel(person.birthDate, event.happenedOn)}` : ""}
                     {event.place ? ` · ${event.place.name}` : ""}
                     {"otherPerson" in event && event.otherPerson ? ` · ${event.otherPerson.displayName}` : ""}
                     {"person" in event && event.person && event.personId !== person.id ? ` · ${event.person.displayName}` : ""}
