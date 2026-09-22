@@ -207,6 +207,10 @@ model Family {
   restores      PhotoRestore[]
   noticeMutes   NoticeMute[]
   reunionBrings ReunionBring[]
+  hunts         Hunt[]
+  placePins     PlacePin[]
+  newsletterDrafts NewsletterDraft[]
+  researchChecks ResearchChecklistItem[]
 }
 
 model Membership {
@@ -381,6 +385,7 @@ model Asset {
   restoreCleaned  PhotoRestore[] @relation("RestoreCleaned")
   biblePages     BibleRecord[]
   reunionBrings  ReunionBring[]
+  huntClues      HuntClue[]
 }
 
 model PersonTag {
@@ -432,6 +437,8 @@ model Document {
   transcribedBy User?           @relation("TranscriptCredit", fields: [transcribedById], references: [id], onDelete: SetNull)
   memorialPersonId String?
   memorialPerson Person?        @relation("MemorialObituary", fields: [memorialPersonId], references: [id], onDelete: SetNull)
+  huntClues      HuntClue[]
+  placePins      PlacePin[]
 }
 
 model DocumentPerson {
@@ -473,6 +480,8 @@ model Place {
   events     LifeEvent[]
   homes      FamilyHome[]
   photos     Asset[]
+  huntClues  HuntClue[]
+  placePins  PlacePin[]
 
   @@index([familyId])
   @@index([parentId])
@@ -553,6 +562,7 @@ model Story {
   journals       JournalEntry[]
   keepOutOfAsk   Boolean       @default(false)
   askConversation AskConversation?
+  placePins      PlacePin[]
 
   @@index([familyId])
 }
@@ -1083,12 +1093,13 @@ model BibleRecord {
 }
 
 model FamilyMotto {
-  id       String  @id @default(cuid())
-  familyId String
-  text     String
-  language String?
-  notes    String?
-  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  familyId  String
+  text      String
+  language  String?
+  notes     String?
+  preferred Boolean @default(false)
+  family    Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }
@@ -1928,4 +1939,78 @@ model NoticeMute {
   family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@id([userId, familyId, category])
+}
+
+model Hunt {
+  id        String     @id @default(cuid())
+  familyId  String
+  title     String
+  notes     String?
+  createdAt DateTime   @default(now())
+  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  clues     HuntClue[]
+
+  @@index([familyId, createdAt])
+}
+
+model HuntClue {
+  id         String    @id @default(cuid())
+  familyId   String
+  huntId     String
+  clue       String
+  targetKind String
+  answer     String
+  citation   String?
+  documentId String?
+  assetId    String?
+  placeId    String?
+  sortOrder  Int       @default(0)
+  hunt       Hunt      @relation(fields: [huntId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  place      Place?    @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, huntId])
+}
+
+model PlacePin {
+  id         String    @id @default(cuid())
+  familyId   String
+  placeId    String
+  title      String
+  documentId String?
+  storyId    String?
+  createdAt  DateTime  @default(now())
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  place      Place     @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  story      Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, placeId])
+}
+
+model NewsletterDraft {
+  id          String    @id @default(cuid())
+  familyId    String
+  month       String
+  body        String
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, month])
+}
+
+model ResearchChecklistItem {
+  id        String    @id @default(cuid())
+  familyId  String
+  kind      String
+  title     String
+  doneAt    DateTime?
+  createdAt DateTime  @default(now())
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, kind])
+  @@index([familyId])
 }

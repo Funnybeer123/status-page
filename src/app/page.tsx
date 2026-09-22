@@ -20,6 +20,7 @@ import { pickTodayQuestion, todayQuestionHeading, unansweredQuestionsHeading } f
 import { PromptAnswer } from "@/app/prompts/ui";
 import { hideMinorDetails } from "@/lib/privacy";
 import { filterBirthdayReminders, loadMutedCategories } from "@/lib/noticeMute";
+import { homeMottoHeading, pickHomeMotto } from "@/lib/homeMotto";
 
 export default async function HomePage() {
   const session = await auth();
@@ -58,7 +59,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits, mottos] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -114,6 +115,7 @@ export default async function HomePage() {
       orderBy: { openedAt: "desc" },
       take: 6,
     }),
+    prisma.familyMotto.findMany({ where: { familyId: ctx.family.id }, orderBy: { id: "asc" } }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
@@ -132,6 +134,7 @@ export default async function HomePage() {
   const todayQuestion = pickTodayQuestion(prompts);
   const unanswered = prompts.filter((prompt) => !prompt.answers.length);
   const recentPeople = visits.filter((visit) => !hideMinorDetails(ctx.role, visit.person));
+  const homeMotto = pickHomeMotto(mottos);
   const thisWeek = compileThisWeek(
     weekActivities.map((item) => ({
       id: item.id,
@@ -153,6 +156,13 @@ export default async function HomePage() {
         </aside>
       ) : null}
       <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
+      {homeMotto ? (
+        <aside className="mt-4 paper-card p-5" data-testid="home-motto">
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{homeMottoHeading()}</p>
+          <p className="mt-2 font-display text-3xl">{homeMotto.text}</p>
+          {homeMotto.notes ? <p className="mt-2 text-bark">{homeMotto.notes}</p> : null}
+        </aside>
+      ) : null}
       <p className="mt-3 max-w-2xl text-bark">
         Upcoming dates, what happened on this day, and who added what.{" "}
         <Link href="/year" className="text-seal">This year in the family</Link>.

@@ -21,6 +21,7 @@ export default async function MapPage({
     include: {
       residences: { include: { person: true } },
       events: true,
+      placePins: { include: { document: true, story: true } },
     },
     orderBy: { name: "asc" },
   });
@@ -70,7 +71,9 @@ export default async function MapPage({
             : "Every named place on the archive, with the people who lived or marked an event there."}{" "}
         <Link href="/map/photos" className="text-seal">Where photographs were taken</Link>
         {" · "}
-        <Link href="/map/voyages" className="text-seal">Voyage routes</Link>.
+        <Link href="/map/voyages" className="text-seal">Voyage routes</Link>
+        {" · "}
+        <Link href="/map/pins" className="text-seal">Letters and stories on the map</Link>.
       </p>
       {bounds ? (
         <div className="paper-card mt-8 overflow-hidden" data-testid="family-map">
@@ -192,6 +195,17 @@ export default async function MapPage({
                 {place.residences.map((item) => item.person.displayName).join(", ") || "No residences recorded."}
               </p>
               <p className="mt-1 font-sans text-sm text-gold">{place.events.length} dated events</p>
+              {place.placePins.length ? (
+                <ul className="mt-2 space-y-1" data-testid={`map-pins-${place.id}`}>
+                  {place.placePins.map((pin) => (
+                    <li key={pin.id} className="font-sans text-sm">
+                      <Link href={pin.storyId ? `/stories/${pin.storyId}` : pin.documentId ? `/letters/${pin.documentId}` : `/places/${place.id}`} className="text-seal">
+                        {pin.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {place.residences[0] ? (
                 <Link href={`/people/${place.residences[0].personId}`} className="mt-2 inline-block font-sans text-sm text-seal">
                   Open a person who lived here

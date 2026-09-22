@@ -14,6 +14,8 @@ export default async function ResearchPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Blank births, undated marriages, and letters without a day — things a relative can still fill in.
         Written questions live on <Link href="/tasks" className="text-seal">Research tasks</Link>.
+        The usual document types open on the{" "}
+        <Link href="/research/checklist" className="text-seal">research checklist</Link>.
       </p>
       <ul className="mt-10 space-y-3" data-testid="research-list">
         {missing.map((item) => (

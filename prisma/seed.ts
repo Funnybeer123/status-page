@@ -1284,8 +1284,9 @@ async function ensureHartArchive() {
       text: "Courtesy to the trees",
       language: "English",
       notes: "Sam said it of the cottonwoods.",
+      preferred: true,
     },
-    update: { text: "Courtesy to the trees" },
+    update: { text: "Courtesy to the trees", preferred: true },
   });
 
   const harvest = await prisma.document.findUnique({ where: { id: "doc-harvest" } });
@@ -2947,6 +2948,139 @@ async function ensureHartArchive() {
     },
     update: { title: "Cottonwoods this summer", recordedAt: new Date("2026-07-04") },
   });
+
+  await prisma.residence.upsert({
+    where: { id: "res-eleanor-farm" },
+    create: {
+      id: "res-eleanor-farm",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: northFarm.id,
+      startedAt: new Date("1948-06-14"),
+      endedAt: new Date("2015-06-03"),
+      notes: "After the wedding she lived on the north farm with Sam.",
+    },
+    update: { notes: "After the wedding she lived on the north farm with Sam." },
+  });
+
+  const harvestForHunt = await prisma.document.findUnique({ where: { id: "doc-harvest" } });
+  const picnicForHunt = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Hart picnic, 1961" },
+  });
+  const hunt = await prisma.hunt.upsert({
+    where: { id: "hunt-harvest" },
+    create: {
+      id: "hunt-harvest",
+      familyId: family.id,
+      title: "Harvest scavenger hunt",
+      notes: "Clues that point to the letter, the picnic, and the north farm.",
+    },
+    update: { title: "Harvest scavenger hunt" },
+  });
+  if (harvestForHunt) {
+    await prisma.huntClue.upsert({
+      where: { id: "clue-harvest-letter" },
+      create: {
+        id: "clue-harvest-letter",
+        familyId: family.id,
+        huntId: hunt.id,
+        clue: "Six days after the dance she wrote to Ruth.",
+        targetKind: "letter",
+        answer: "The harvest letter",
+        citation: harvestForHunt.title,
+        documentId: harvestForHunt.id,
+        sortOrder: 0,
+      },
+      update: { documentId: harvestForHunt.id, citation: harvestForHunt.title },
+    });
+    await prisma.placePin.upsert({
+      where: { id: "pin-harvest-grange" },
+      create: {
+        id: "pin-harvest-grange",
+        familyId: family.id,
+        placeId: grange.id,
+        title: "The harvest letter at the Grange",
+        documentId: harvestForHunt.id,
+      },
+      update: { title: "The harvest letter at the Grange", documentId: harvestForHunt.id },
+    });
+  }
+  if (picnicForHunt) {
+    await prisma.huntClue.upsert({
+      where: { id: "clue-picnic-photo" },
+      create: {
+        id: "clue-picnic-photo",
+        familyId: family.id,
+        huntId: hunt.id,
+        clue: "Sunday rolls under the cottonwoods, 1961.",
+        targetKind: "photo",
+        answer: "Hart picnic, 1961",
+        citation: picnicForHunt.title,
+        assetId: picnicForHunt.id,
+        sortOrder: 1,
+      },
+      update: { assetId: picnicForHunt.id, citation: picnicForHunt.title },
+    });
+  }
+  await prisma.huntClue.upsert({
+    where: { id: "clue-north-farm" },
+    create: {
+      id: "clue-north-farm",
+      familyId: family.id,
+      huntId: hunt.id,
+      clue: "The north forty after they married.",
+      targetKind: "place",
+      answer: "North farm",
+      citation: northFarm.name,
+      placeId: northFarm.id,
+      sortOrder: 2,
+    },
+    update: { placeId: northFarm.id, citation: northFarm.name },
+  });
+  await prisma.placePin.upsert({
+    where: { id: "pin-cottonwoods-farm" },
+    create: {
+      id: "pin-cottonwoods-farm",
+      familyId: family.id,
+      placeId: northFarm.id,
+      title: "Cottonwoods this summer",
+      storyId: "story-cottonwoods-2026",
+    },
+    update: { title: "Cottonwoods this summer", storyId: "story-cottonwoods-2026" },
+  });
+  await prisma.newsletterDraft.upsert({
+    where: { familyId_month: { familyId: family.id, month: "2026-09" } },
+    create: {
+      id: "draft-2026-09",
+      familyId: family.id,
+      month: "2026-09",
+      body: "Dear family — this month we pinned the harvest letter to the Grange and lined Margaret and Robert up by birth. Edit this before it goes out.",
+    },
+    update: {
+      body: "Dear family — this month we pinned the harvest letter to the Grange and lined Margaret and Robert up by birth. Edit this before it goes out.",
+    },
+  });
+  for (const item of [
+    { kind: "birth", title: "Birth certificate" },
+    { kind: "marriage", title: "Marriage record" },
+    { kind: "death", title: "Death certificate" },
+    { kind: "census", title: "Census" },
+    { kind: "obituary", title: "Obituary" },
+    { kind: "will", title: "Will" },
+    { kind: "letter", title: "Letter" },
+    { kind: "photo", title: "Photograph" },
+  ]) {
+    await prisma.researchChecklistItem.upsert({
+      where: { familyId_kind: { familyId: family.id, kind: item.kind } },
+      create: {
+        familyId: family.id,
+        kind: item.kind,
+        title: item.title,
+        doneAt: item.kind === "letter" || item.kind === "photo" ? new Date("2026-09-01") : null,
+      },
+      update: { title: item.title },
+    });
+  }
 }
 
 async function writeHartMedia() {

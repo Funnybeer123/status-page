@@ -3,6 +3,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { activityHref } from "@/lib/activity";
 import { compileNewsletter, monthKey } from "@/lib/newsletter";
+import { withDraft } from "@/lib/newsletterDraft";
 
 export async function GET(req: Request) {
   const ctx = await apiFamily();
@@ -20,5 +21,9 @@ export async function GET(req: Request) {
     when: item.createdAt,
     kind: item.entityType,
   }));
-  return NextResponse.json(compileNewsletter(items, month));
+  const compiled = compileNewsletter(items, month);
+  const draft = await prisma.newsletterDraft.findUnique({
+    where: { familyId_month: { familyId: ctx.family.id, month } },
+  });
+  return NextResponse.json(withDraft(compiled, draft));
 }

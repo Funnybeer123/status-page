@@ -26,6 +26,9 @@ export default async function WeddingsPage() {
               {event.place ? ` · ${event.place.name}` : ""}
               {event.otherPerson ? ` · ${event.otherPerson.displayName}` : ""}
             </p>
+            <p className="mt-2 font-sans text-sm">
+              <Link href={`/weddings/${event.id}`} className="text-seal">Wedding party</Link>
+            </p>
           </li>
         ))}
         {!weddings.length ? <li className="text-bark">No marriages recorded.</li> : null}

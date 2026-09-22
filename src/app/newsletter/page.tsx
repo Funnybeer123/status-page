@@ -35,7 +35,8 @@ export default async function NewsletterPage({
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="newsletter-heading">{compiled.heading}</h1>
       <p className="mt-3 max-w-2xl text-bark">
-        Assembled from what relatives added this month: {compiled.counts.people} people, {compiled.counts.letters} letters, {compiled.counts.photos} photographs.
+        Assembled from what relatives added this month: {compiled.counts.people} people, {compiled.counts.letters} letters, {compiled.counts.photos} photographs.{" "}
+        <Link href={`/newsletter/draft?month=${month}`} className="text-seal">Edit the draft before it goes out</Link>.
       </p>
       <ul className="mt-10 space-y-3" data-testid="newsletter-list">
         {compiled.items.map((item) => (

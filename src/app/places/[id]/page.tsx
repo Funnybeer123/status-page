@@ -265,6 +265,10 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         <Link href="/map" className="text-seal">Map</Link>
         {" · "}
         <Link href="/map/photos" className="text-seal">Photo map</Link>
+        {" · "}
+        <Link href={`/places/${place.id}/together`} className="text-seal">Who lived here at the same time</Link>
+        {" · "}
+        <Link href="/map/pins" className="text-seal">Pinned letters and stories</Link>
       </p>
     </AppShell>
   );

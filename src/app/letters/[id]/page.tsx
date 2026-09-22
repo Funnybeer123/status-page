@@ -53,6 +53,10 @@ export default async function LetterPage({
         <Link href={`/letters/${letter.id}/room`} className="text-seal" data-testid="reading-room-link">
           Open the reading room
         </Link>
+        {" · "}
+        <Link href={`/letters/${letter.id}/aloud`} className="text-seal" data-testid="read-aloud-link">
+          Read aloud
+        </Link>
       </p>
       {letter.replyTo ? (
         <p className="mt-2 font-sans text-sm" data-testid="letter-reply-to">

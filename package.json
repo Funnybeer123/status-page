@@ -31,7 +31,8 @@
     "test:ui:follow": "tsx tests/ui-follow-layer.ts",
     "test:ui:box": "tsx tests/ui-box-layer.ts",
     "test:ui:memorial": "tsx tests/ui-memorial-layer.ts",
-    "test:ui:ask-save": "tsx tests/ui-ask-save-layer.ts"
+    "test:ui:ask-save": "tsx tests/ui-ask-save-layer.ts",
+    "test:ui:hunt": "tsx tests/ui-hunt-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

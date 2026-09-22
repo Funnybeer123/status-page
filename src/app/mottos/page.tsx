@@ -3,6 +3,7 @@ import { RecordForm } from "@/app/records/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
+import { PreferMottoButton } from "@/app/hunt/ui";
 
 export default async function MottosPage() {
   const ctx = await requireFamily();
@@ -29,6 +30,7 @@ export default async function MottosPage() {
           <li key={row.id} className="paper-card p-5">
             <p className="font-display text-2xl">{row.text}</p>
             <p className="text-bark">{[row.language, row.notes].filter(Boolean).join(" · ")}</p>
+            {canWrite(ctx.role) ? <PreferMottoButton mottoId={row.id} /> : null}
           </li>
         ))}
         {!records.length ? <li className="text-bark">No mottos yet.</li> : null}

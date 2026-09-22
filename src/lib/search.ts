@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { shouldHideLivingFacts } from "@/lib/privacy";
 import { phoneticPeople } from "@/lib/phonetic";
 import { letterSearchHref } from "@/lib/searchHighlight";
+import { nameSearchExcerpt } from "@/lib/nameSearch";
 
 export type SearchHit = {
   kind: "person" | "name" | "place" | "story" | "document" | "asset" | "event";
@@ -90,6 +91,8 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
     });
   }
 
+  const personIds = new Set(hits.filter((hit) => hit.kind === "person").map((hit) => hit.id));
+
   for (const name of names) {
     hits.push({
       kind: "name",
@@ -98,6 +101,16 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
       excerpt: `Also used by ${name.person.displayName}`,
       href: `/people/${name.personId}`,
     });
+    if (personIds.has(name.person.id)) continue;
+    const hide = shouldHideLivingFacts(role, name.person);
+    hits.push({
+      kind: "person",
+      id: name.person.id,
+      title: name.person.displayName,
+      excerpt: hide ? "A living relative in this family." : nameSearchExcerpt(name.person.displayName, name.name),
+      href: `/people/${name.person.id}`,
+    });
+    personIds.add(name.person.id);
   }
 
   for (const place of places) {
