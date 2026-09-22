@@ -35,6 +35,11 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
       <h1 className="mt-2 font-display text-4xl" data-testid="album-title">{album.title}</h1>
       {album.summary ? <p className="mt-3 max-w-2xl text-bark">{album.summary}</p> : null}
       <AlbumSlideshow slides={slides} />
+      <p className="mt-4 font-sans text-sm">
+        <a href={`/api/albums/${album.id}/zip`} className="text-seal" data-testid="album-zip-link">
+          Download photographs as a ZIP
+        </a>
+      </p>
       {canWrite(ctx.role) ? <ShareLinkButton kind="album" entityId={album.id} /> : null}
       {canWrite(ctx.role) ? (
         <AlbumAddForm

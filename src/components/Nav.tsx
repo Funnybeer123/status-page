@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import { FamilySwitcher } from "@/components/FamilySwitcher";
 import { SearchBox } from "@/components/SearchBox";
 import { SignOut } from "@/components/SignOut";
+import { quietNavLinks } from "@/lib/quietMode";
 
 const links = [
   { href: "/", label: "Home" },
@@ -22,6 +23,15 @@ const links = [
   { href: "/archive/uploaders", label: "By uploader" },
   { href: "/life-drafts", label: "Life drafts" },
   { href: "/dictionary", label: "Family dictionary" },
+  { href: "/cards", label: "Index cards" },
+  { href: "/oral/playlist", label: "Oral playlist" },
+  { href: "/map/compare", label: "Residence compare" },
+  { href: "/thanks", label: "Thank-you note" },
+  { href: "/proof", label: "Proof boards" },
+  { href: "/generations", label: "Generation chart" },
+  { href: "/quiet", label: "Quiet mode" },
+  { href: "/letters/fragile", label: "Fragile originals" },
+  { href: "/filmstrips/family", label: "Family filmstrip" },
   { href: "/siblings", label: "Birth order" },
   { href: "/contemporaries", label: "Lived together" },
   { href: "/research/checklist", label: "Research checklist" },
@@ -231,29 +241,34 @@ export function Nav({
   activeFamilyId,
   userName,
   unread = 0,
+  quiet = false,
 }: {
   families: FamilyOption[];
   activeFamilyId?: string;
   userName?: string | null;
   unread?: number;
+  quiet?: boolean;
 }) {
+  const shown = quiet ? quietNavLinks() : links;
   return (
     <header className="border-b border-bark/10 bg-cream/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="font-display text-xl tracking-tight">
           Family Lineage
         </Link>
-        <nav className="flex flex-wrap items-center gap-3 text-sm font-sans text-bark">
-          {links.map((link) => (
+        <nav className="flex flex-wrap items-center gap-3 text-sm font-sans text-bark" data-testid={quiet ? "quiet-nav" : "family-nav"}>
+          {shown.map((link) => (
             <Link key={link.href} href={link.href} className="hover:text-seal">
               {link.label}
             </Link>
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
-          <Link href="/notifications" className="hover:text-seal" data-testid="nav-notifications">
-            Notices{unread ? ` (${unread})` : ""}
-          </Link>
+          {quiet ? null : (
+            <Link href="/notifications" className="hover:text-seal" data-testid="nav-notifications">
+              Notices{unread ? ` (${unread})` : ""}
+            </Link>
+          )}
           <SearchBox />
           <FamilySwitcher families={families} activeFamilyId={activeFamilyId} />
           <span className="hidden text-bark/70 sm:inline">{userName}</span>

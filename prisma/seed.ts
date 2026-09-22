@@ -3156,6 +3156,10 @@ async function ensureHartArchive() {
       update: { tableName: "North farm table", seat: 1 },
     });
   }
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: { fragileOriginal: true },
+  });
   await prisma.lifeDraft.upsert({
     where: { familyId_personId: { familyId: family.id, personId: eleanor.id } },
     create: {

@@ -14,6 +14,7 @@ const schema = z.object({
   needsReview: z.boolean().optional(),
   replyToId: z.string().optional().nullable(),
   lock: z.boolean().optional(),
+  fragileOriginal: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -59,6 +60,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         transcriptChanged || lock === true ? ctx.session.user.id : existing.transcribedById,
       transcriptLockedAt:
         lock === true ? new Date() : lock === false ? null : existing.transcriptLockedAt,
+      fragileOriginal: body.data.fragileOriginal ?? existing.fragileOriginal,
     },
     include: { transcribedBy: { select: { name: true } } },
   });

@@ -18,9 +18,12 @@ import { boxHeading } from "@/lib/box";
 import { recentsHeading, recentLine } from "@/lib/recents";
 import { pickTodayQuestion, todayQuestionHeading, unansweredQuestionsHeading } from "@/lib/todayQuestion";
 import { PromptAnswer } from "@/app/prompts/ui";
-import { hideMinorDetails } from "@/lib/privacy";
+import { hideMinorDetails, redactPeople } from "@/lib/privacy";
 import { filterBirthdayReminders, loadMutedCategories } from "@/lib/noticeMute";
 import { homeMottoHeading, pickHomeMotto } from "@/lib/homeMotto";
+import { AskBox } from "@/components/AskBox";
+import { TreeView } from "@/components/TreeView";
+import { quietHomeHeading } from "@/lib/quietMode";
 
 export default async function HomePage() {
   const session = await auth();
@@ -59,7 +62,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits, mottos] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits, mottos, quietUser, treePeople] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -116,6 +119,8 @@ export default async function HomePage() {
       take: 6,
     }),
     prisma.familyMotto.findMany({ where: { familyId: ctx.family.id }, orderBy: { id: "asc" } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { quietMode: true } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive } }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
@@ -135,6 +140,29 @@ export default async function HomePage() {
   const unanswered = prompts.filter((prompt) => !prompt.answers.length);
   const recentPeople = visits.filter((visit) => !hideMinorDetails(ctx.role, visit.person));
   const homeMotto = pickHomeMotto(mottos);
+  if (quietUser?.quietMode) {
+    return (
+      <AppShell>
+        <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
+        <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
+        <h2 className="mt-6 font-display text-3xl" data-testid="quiet-home-heading">{quietHomeHeading()}</h2>
+        <p className="mt-3 max-w-2xl text-bark">Activity counts stay hidden. The tree and Ask are still here.</p>
+        <section className="mt-8" data-testid="quiet-tree">
+          <TreeView
+            people={redactPeople(treePeople, ctx.role).map((person) => ({ ...person, profileUrl: null }))}
+            relationships={relationships}
+          />
+        </section>
+        <section className="mt-10" data-testid="quiet-ask">
+          <h2 className="font-display text-2xl">Ask</h2>
+          <div className="mt-4">
+            <AskBox suggested="How did grandma meet grandpa?" />
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
+
   const thisWeek = compileThisWeek(
     weekActivities.map((item) => ({
       id: item.id,

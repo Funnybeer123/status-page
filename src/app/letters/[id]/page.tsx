@@ -9,6 +9,8 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
 import { KeepOutToggle } from "@/app/follow/ui";
+import { FragileToggle } from "@/app/card/ui";
+import { fragileOriginalLabel } from "@/lib/fragileLetter";
 import { clippingPageHeading } from "@/lib/clippingPage";
 import { isTranscriptLocked, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
 import { compareHeading, compareSideLabel, hasEdits, latestRevision } from "@/lib/transcriptCompare";
@@ -43,6 +45,11 @@ export default async function LetterPage({
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{letter.kind}</p>
       <h1 className="mt-2 font-display text-4xl">{letter.title}</h1>
+      {letter.fragileOriginal ? (
+        <p className="mt-2 font-sans text-sm uppercase tracking-[0.2em] text-gold" data-testid="fragile-original">
+          {fragileOriginalLabel()}
+        </p>
+      ) : null}
       <p className="mt-2 text-bark">
         {formatDate(letter.writtenAt, "Undated")}
         {letter.people.length ? ` · ${letter.people.map((item) => item.person.displayName).join(", ")}` : ""}
@@ -173,6 +180,7 @@ export default async function LetterPage({
           </ul>
         </section>
       ) : null}
+      {canWrite(ctx.role) ? <FragileToggle letterId={letter.id} fragile={letter.fragileOriginal} /> : null}
       {canWrite(ctx.role) ? <KeepOutToggle kind="letter" id={letter.id} keepOut={letter.keepOutOfAsk} /> : null}
       {canWrite(ctx.role) ? <TrashRestore type="letter" id={letter.id} /> : null}
       <CommentThread comments={letter.comments} documentId={letter.id} canWrite={canWrite(ctx.role)} />
