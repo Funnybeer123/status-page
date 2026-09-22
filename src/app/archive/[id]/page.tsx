@@ -5,7 +5,9 @@ import { PhotoLocateForm, PhotoTagForm } from "@/app/archive/tag";
 import { PhotoPlaceForm } from "@/app/archive/place";
 import { TranscribeForm } from "@/app/oral/ui";
 import { FilmMomentForm } from "@/app/films/ui";
+import { PhotoNoteForm } from "@/app/path/ui";
 import { filmMomentLine, sortFilmMoments } from "@/lib/filmMoments";
+import { photoNoteStyle } from "@/lib/photoNotes";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -21,7 +23,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
   const [asset, people, places] = await Promise.all([
     prisma.asset.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
-      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true, photoNotes: true },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
@@ -65,6 +67,16 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
                 {mark.name}
               </span>
             ))}
+            {asset.photoNotes.map((note) => (
+              <span
+                key={note.id}
+                className="absolute max-w-[12rem] -translate-x-1/2 rounded-md bg-[#f6e27a] px-2 py-1 font-sans text-xs text-ink shadow"
+                style={photoNoteStyle(note)}
+                data-testid="photo-note"
+              >
+                {note.text}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -93,6 +105,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
       {canWrite(ctx.role) && asset.kind === "photo" ? (
         <PhotoPlaceForm assetId={asset.id} places={places.map((place) => ({ id: place.id, name: place.name }))} />
       ) : null}
+      {canWrite(ctx.role) && asset.kind === "photo" ? <PhotoNoteForm assetId={asset.id} /> : null}
       {asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
         <p className="mt-6 text-bark" data-testid="oral-transcript">{asset.document.transcript}</p>
       ) : null}

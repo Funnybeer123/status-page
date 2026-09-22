@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { hidePhotoFromAudience } from "@/lib/privacy";
+import { grantedConsentIds } from "@/lib/consent";
 
 export default async function SharedPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -56,13 +57,19 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
     include: { items: { include: { asset: { include: { tags: { include: { person: true } } } }, document: true, story: true } } },
   });
   if (!album) notFound();
+  const consented = grantedConsentIds(
+    await prisma.shareConsent.findMany({
+      where: { familyId: link.familyId },
+      select: { personId: true, granted: true },
+    }),
+  );
   return (
     <main className="mx-auto max-w-4xl px-6 py-12">
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Family album</p>
       <h1 className="mt-2 font-display text-5xl" data-testid="share-album">{album.title}</h1>
       {album.summary ? <p className="mt-3 text-bark">{album.summary}</p> : null}
       <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-        {album.items.filter((item) => !item.asset || !hidePhotoFromAudience("share", item.asset.tags.map((tag) => tag.person))).map((item) => (
+        {album.items.filter((item) => !item.asset || !hidePhotoFromAudience("share", item.asset.tags.map((tag) => tag.person), consented)).map((item) => (
           <li key={item.id} className="paper-card overflow-hidden p-4">
             {item.asset ? (
               item.asset.mimeType.startsWith("image/") ? (

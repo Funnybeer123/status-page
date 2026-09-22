@@ -27,7 +27,7 @@ export default async function VoyagesPage() {
       <ul className="mt-10 space-y-3" data-testid="voyages-list">
         {voyages.map((voyage) => (
           <li key={voyage.id} className="paper-card p-5">
-            <p className="font-display text-2xl">{voyage.ship}</p>
+            <Link href={`/voyages/${voyage.id}`} className="font-display text-2xl text-seal">{voyage.ship}</Link>
             <p className="text-bark">
               {voyage.departedFrom} → {voyage.arrivedAt}
               {voyage.departedOn ? ` · ${formatDate(voyage.departedOn)}` : ""}
@@ -37,9 +37,16 @@ export default async function VoyagesPage() {
               {voyage.people.map((item) => (
                 <span key={item.personId}>
                   <Link href={`/people/${item.personId}`} className="text-seal">{item.person.displayName}</Link>
+                  {item.age != null ? ` (${item.age})` : ""}
                   {" "}
                 </span>
               ))}
+              {voyage.people.length ? (
+                <>
+                  {" · "}
+                  <Link href={`/voyages/${voyage.id}`} className="text-seal">Passenger list</Link>
+                </>
+              ) : null}
             </p>
             {voyage.notes ? <p className="mt-2 text-bark">{voyage.notes}</p> : null}
           </li>

@@ -102,6 +102,7 @@ model User {
   promptAnswers  StoryPromptAnswer[]
   personChanges  PersonChange[]
   askConversations AskConversation[]
+  savedSearches  SavedSearch[]
 }
 
 model Family {
@@ -174,6 +175,12 @@ model Family {
   militaryUnits MilitaryUnit[]
   hymns         FamilyHymn[]
   farms         FamilyFarm[]
+  censusHouseholds CensusHousehold[]
+  churchRegisters ChurchRegister[]
+  taxLists      TaxList[]
+  savedSearches SavedSearch[]
+  photoNotes    PhotoNote[]
+  shareConsents ShareConsent[]
 }
 
 model Membership {
@@ -272,6 +279,11 @@ model Person {
   guestbook      Comment[]
   potluckDishes  ReunionDish[]
   lifeChapters   LifeChapter[]
+  censusRows     CensusHouseholdPerson[]
+  registerLines  ChurchRegisterLine[] @relation("RegisterSubject")
+  registerOther  ChurchRegisterLine[] @relation("RegisterOther")
+  taxNames       TaxListName[]
+  shareConsents  ShareConsent[]
 }
 
 model Relationship {
@@ -320,6 +332,7 @@ model Asset {
   promptAnswers  StoryPromptAnswer[]
   researchTasks  ResearchTask[]
   filmMoments    FilmMoment[]
+  photoNotes     PhotoNote[]
 }
 
 model PersonTag {
@@ -846,6 +859,9 @@ model Voyage {
 model VoyagePerson {
   voyageId String
   personId String
+  age      Int?
+  role     String?
+  notes    String?
   voyage   Voyage @relation(fields: [voyageId], references: [id], onDelete: Cascade)
   person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
@@ -1444,5 +1460,133 @@ model FamilyFarm {
   family    Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   home      FamilyHome? @relation(fields: [homeId], references: [id], onDelete: SetNull)
 
+  @@index([familyId])
+}
+
+model CensusHousehold {
+  id        String                   @id @default(cuid())
+  familyId  String
+  year      Int
+  place     String
+  street    String?
+  groupKey  String
+  notes     String?
+  createdAt DateTime                 @default(now())
+  family    Family                   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  people    CensusHouseholdPerson[]
+
+  @@index([familyId, groupKey])
+}
+
+model CensusHouseholdPerson {
+  householdId String
+  personId    String
+  role        String?
+  age         Int?
+  occupation  String?
+  notes       String?
+  household   CensusHousehold @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  person      Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([householdId, personId])
+}
+
+model ChurchRegister {
+  id        String               @id @default(cuid())
+  familyId  String
+  church    String
+  place     String?
+  startedOn DateTime?            @db.Date
+  endedOn   DateTime?            @db.Date
+  notes     String?
+  createdAt DateTime             @default(now())
+  family    Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  lines     ChurchRegisterLine[]
+
+  @@index([familyId])
+}
+
+model ChurchRegisterLine {
+  id            String         @id @default(cuid())
+  registerId    String
+  kind          String
+  happenedOn    DateTime?      @db.Date
+  text          String
+  personId      String?
+  otherPersonId String?
+  notes         String?
+  register      ChurchRegister @relation(fields: [registerId], references: [id], onDelete: Cascade)
+  person        Person?        @relation("RegisterSubject", fields: [personId], references: [id], onDelete: SetNull)
+  otherPerson   Person?        @relation("RegisterOther", fields: [otherPersonId], references: [id], onDelete: SetNull)
+
+  @@index([registerId])
+}
+
+model TaxList {
+  id        String        @id @default(cuid())
+  familyId  String
+  place     String
+  year      Int
+  notes     String?
+  createdAt DateTime      @default(now())
+  family    Family        @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  names     TaxListName[]
+
+  @@index([familyId, year])
+}
+
+model TaxListName {
+  id       String   @id @default(cuid())
+  listId   String
+  personId String?
+  name     String
+  amount   String?
+  notes    String?
+  list     TaxList  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  person   Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([listId])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  familyId  String
+  userId    String
+  title     String
+  query     String
+  href      String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, userId])
+}
+
+model PhotoNote {
+  id        String   @id @default(cuid())
+  familyId  String
+  assetId   String
+  text      String
+  x         Float?
+  y         Float?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  asset     Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, assetId])
+}
+
+model ShareConsent {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  granted   Boolean   @default(false)
+  grantedOn DateTime?
+  notes     String?
+  createdAt DateTime  @default(now())
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, personId])
   @@index([familyId])
 }

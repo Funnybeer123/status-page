@@ -5,6 +5,13 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { recordActivity } from "@/lib/activity";
 
+const passengerSchema = z.object({
+  personId: z.string(),
+  age: z.union([z.number(), z.string()]).optional(),
+  role: z.string().max(80).optional(),
+  notes: z.string().max(400).optional(),
+});
+
 const schema = z.object({
   ship: z.string().min(1).max(160),
   departedFrom: z.string().min(1).max(160),
@@ -13,7 +20,14 @@ const schema = z.object({
   arrivedOn: z.string().optional(),
   notes: z.string().max(800).optional(),
   personIds: z.array(z.string()).optional(),
+  passengers: z.array(passengerSchema).optional(),
 });
+
+function asAge(value?: number | string) {
+  if (value == null || value === "") return null;
+  const age = typeof value === "number" ? value : Number.parseInt(value, 10);
+  return Number.isFinite(age) ? age : null;
+}
 
 export async function GET() {
   const ctx = await apiFamily();
@@ -31,10 +45,15 @@ export async function POST(req: Request) {
   if ("error" in ctx) return ctx.error;
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "A voyage needs a ship and both ports." }, { status: 400 });
-  const personIds = [...new Set(body.data.personIds ?? [])];
+  const incoming: { personId: string; age?: number | string; role?: string; notes?: string }[] = [
+    ...(body.data.passengers ?? []),
+    ...(body.data.personIds ?? []).map((personId) => ({ personId })),
+  ];
+  const unique = new Map(incoming.map((row) => [row.personId, row]));
   const people = await prisma.person.findMany({
-    where: { familyId: ctx.family.id, id: { in: personIds }, deletedAt: null },
+    where: { familyId: ctx.family.id, id: { in: [...unique.keys()] }, deletedAt: null },
   });
+  const known = new Set(people.map((person) => person.id));
   const voyage = await prisma.voyage.create({
     data: {
       familyId: ctx.family.id,
@@ -44,7 +63,18 @@ export async function POST(req: Request) {
       departedOn: body.data.departedOn ? new Date(body.data.departedOn) : null,
       arrivedOn: body.data.arrivedOn ? new Date(body.data.arrivedOn) : null,
       notes: body.data.notes?.trim() || null,
-      people: people.length ? { create: people.map((person) => ({ personId: person.id })) } : undefined,
+      people: known.size
+        ? {
+            create: [...unique.values()]
+              .filter((row) => known.has(row.personId))
+              .map((row) => ({
+                personId: row.personId,
+                age: asAge(row.age),
+                role: row.role?.trim() || "passenger",
+                notes: row.notes?.trim() || null,
+              })),
+          }
+        : undefined,
     },
     include: { people: { include: { person: true } } },
   });

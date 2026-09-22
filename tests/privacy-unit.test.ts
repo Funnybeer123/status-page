@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Role } from "@prisma/client";
-import { isLiving, isLivingMinor, hideMinorDetails, hidePhotoFromAudience, redactPerson, shouldHideLivingFacts, hideResidenceForViewer } from "../src/lib/privacy";
+import { isLiving, isLivingMinor, hideMinorDetails, hidePhotoFromAudience, hideAdultWithoutConsent, redactPerson, shouldHideLivingFacts, hideResidenceForViewer } from "../src/lib/privacy";
 
 test("living people are those without a death date", () => {
   assert.equal(isLiving({ deathDate: null }), true);
@@ -33,4 +33,6 @@ test("living minors are hidden from viewers and share links, not from contributo
   assert.equal(hideMinorDetails("share", child), true);
   assert.equal(hidePhotoFromAudience(Role.viewer, [adult, child]), true);
   assert.equal(hidePhotoFromAudience(Role.contributor, [adult, child]), false);
+  assert.equal(hideAdultWithoutConsent("share", { ...adult, id: "lily" }, []), true);
+  assert.equal(hidePhotoFromAudience("share", [{ ...adult, id: "lily" }], ["lily"]), false);
 });

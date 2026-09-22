@@ -23,7 +23,10 @@ export default async function CensusPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="census-heading">Census households</h1>
-      <p className="mt-3 max-w-2xl text-bark">Who was enumerated, grouped by the year the enumerator came.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Who was enumerated, grouped by the year the enumerator came.{" "}
+        <Link href="/households" className="text-seal">Compare the same household across years</Link>.
+      </p>
       <div className="mt-10 space-y-8" data-testid="census-list">
         {[...groups.entries()].map(([year, rows]) => (
           <section key={year}>

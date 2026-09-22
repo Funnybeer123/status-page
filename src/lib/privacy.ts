@@ -26,17 +26,42 @@ export function hideMinorDetails(
   return !canSeeLivingFacts(audience);
 }
 
+export type SharePerson = {
+  id?: string;
+  deathDate?: Date | string | null;
+  birthDate?: Date | string | null;
+};
+
+export function isLivingAdult(person?: SharePerson | null, on = new Date()) {
+  return isLiving(person) && !isLivingMinor(person, on);
+}
+
+export function hideAdultWithoutConsent(
+  audience: Audience,
+  person?: SharePerson | null,
+  consentedIds: Iterable<string> = [],
+) {
+  if (audience !== "share") return false;
+  if (!isLivingAdult(person)) return false;
+  if (!person?.id) return true;
+  const granted = consentedIds instanceof Set ? consentedIds : new Set(consentedIds);
+  return !granted.has(person.id);
+}
+
 export function hidePhotoFromAudience(
   audience: Audience,
-  tagged: { deathDate?: Date | string | null; birthDate?: Date | string | null }[],
+  tagged: SharePerson[],
+  consentedIds: Iterable<string> = [],
 ) {
-  return tagged.some((person) => hideMinorDetails(audience, person));
+  return tagged.some(
+    (person) => hideMinorDetails(audience, person) || hideAdultWithoutConsent(audience, person, consentedIds),
+  );
 }
 
 export function filterAssetsForAudience<
-  T extends { tags: { person: { deathDate?: Date | string | null; birthDate?: Date | string | null } }[] },
->(assets: T[], audience: Audience) {
-  return assets.filter((asset) => !hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person)));
+  T extends { tags: { person: SharePerson }[] },
+>(assets: T[], audience: Audience, consentedIds: Iterable<string> = []) {
+  return assets.filter((asset) => !hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person), consentedIds));
 }
 
 export function canSeeLivingFacts(role: Role) {

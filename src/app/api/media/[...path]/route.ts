@@ -6,6 +6,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { absoluteMediaPath } from "@/lib/media";
 import { hidePhotoFromAudience, type Audience } from "@/lib/privacy";
+import { grantedConsentIds } from "@/lib/consent";
 
 const tagPeople = { tags: { include: { person: true } } } as const;
 
@@ -46,7 +47,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
     if ("error" in ctx) return ctx.error;
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
-  if (hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person))) {
+  const consented =
+    audience === "share"
+      ? grantedConsentIds(
+          await prisma.shareConsent.findMany({
+            where: { familyId: asset.familyId },
+            select: { personId: true, granted: true },
+          }),
+        )
+      : [];
+  if (hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person), consented)) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
   const full = absoluteMediaPath(asset.storagePath);

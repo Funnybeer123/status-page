@@ -81,7 +81,10 @@ export default async function PersonChaptersPage({ params }: { params: Promise<{
         <Link href={`/people/${person.id}`} className="text-seal">{person.displayName}</Link>
       </p>
       <h1 className="mt-2 font-display text-4xl" data-testid="chapters-heading">Life chapters</h1>
-      <p className="mt-3 max-w-2xl text-bark">Childhood, work, and later years, grouping this person’s stories, photographs, and letters.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Childhood, work, and later years, grouping this person’s stories, photographs, and letters.{" "}
+        <Link href={`/people/${person.id}/read`} className="text-seal">Read this life in order</Link>.
+      </p>
       <PersonSearchForm personId={person.id} />
       {canWrite(ctx.role) && !hidden ? <ChapterForm personId={person.id} /> : null}
       <div className="mt-10 space-y-8" data-testid="chapters-list">

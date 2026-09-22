@@ -23,7 +23,8 @@
     "test:ui:print": "tsx tests/ui-print-layer.ts",
     "test:ui:quiz": "tsx tests/ui-quiz-layer.ts",
     "test:ui:packet": "tsx tests/ui-packet-layer.ts",
-    "test:ui:chapters": "tsx tests/ui-chapters-layer.ts"
+    "test:ui:chapters": "tsx tests/ui-chapters-layer.ts",
+    "test:ui:path": "tsx tests/ui-path-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

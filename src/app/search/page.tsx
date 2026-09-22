@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { SearchBox } from "@/components/SearchBox";
+import { SavedSearchForm } from "@/app/path/ui";
 import { requireFamily } from "@/lib/family";
 import { searchArchive } from "@/lib/search";
+import { canWrite } from "@/lib/roles";
 
 export default async function SearchPage({
   searchParams,
@@ -23,6 +25,10 @@ export default async function SearchPage({
       <div className="mt-6">
         <SearchBox defaultQuery={q} />
       </div>
+      {canWrite(ctx.role) && q.trim() ? <SavedSearchForm query={q} /> : null}
+      <p className="mt-4 font-sans text-sm">
+        <Link href="/searches" className="text-seal">Saved searches</Link>
+      </p>
       <ul className="mt-10 space-y-4" data-testid="search-results">
         {results.hits.map((hit) => (
           <li key={`${hit.kind}-${hit.id}`} className="paper-card p-5">

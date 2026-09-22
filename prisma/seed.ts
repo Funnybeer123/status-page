@@ -1918,6 +1918,176 @@ async function ensureHartArchive() {
       });
     }
   }
+
+  const household1940 = await prisma.censusHousehold.upsert({
+    where: { id: "household-hart-1940" },
+    create: {
+      id: "household-hart-1940",
+      familyId: family.id,
+      year: 1940,
+      place: "Cedar Falls",
+      street: "Whitaker house",
+      groupKey: "hart-cedar-falls",
+      notes: "Eleanor still at home before the harvest dance.",
+    },
+    update: { place: "Cedar Falls", street: "Whitaker house" },
+  });
+  const household1950 = await prisma.censusHousehold.upsert({
+    where: { id: "household-hart-1950" },
+    create: {
+      id: "household-hart-1950",
+      familyId: family.id,
+      year: 1950,
+      place: "Cedar Falls",
+      street: "North farm",
+      groupKey: "hart-cedar-falls",
+      notes: "The same family after Ellie married Sam.",
+    },
+    update: { place: "Cedar Falls", street: "North farm" },
+  });
+  await prisma.censusHouseholdPerson.upsert({
+    where: { householdId_personId: { householdId: household1940.id, personId: eleanor.id } },
+    create: { householdId: household1940.id, personId: eleanor.id, role: "daughter", age: 12 },
+    update: { role: "daughter", age: 12 },
+  });
+  await prisma.censusHouseholdPerson.upsert({
+    where: { householdId_personId: { householdId: household1950.id, personId: eleanor.id } },
+    create: { householdId: household1950.id, personId: eleanor.id, role: "wife", age: 22, occupation: "keeping house" },
+    update: { role: "wife", age: 22, occupation: "keeping house" },
+  });
+  await prisma.censusHouseholdPerson.upsert({
+    where: { householdId_personId: { householdId: household1950.id, personId: samuel.id } },
+    create: { householdId: household1950.id, personId: samuel.id, role: "head", age: 23, occupation: "farmer" },
+    update: { role: "head", age: 23, occupation: "farmer" },
+  });
+
+  const register = await prisma.churchRegister.upsert({
+    where: { id: "register-st-johns" },
+    create: {
+      id: "register-st-johns",
+      familyId: family.id,
+      church: "St. John's",
+      place: "Cedar Falls, Iowa",
+      startedOn: new Date("1920-01-01"),
+      endedOn: new Date("2016-01-01"),
+      notes: "Parish book used for Hart baptisms, marriages, and burials.",
+    },
+    update: { church: "St. John's" },
+  });
+  await prisma.churchRegisterLine.upsert({
+    where: { id: "register-eleanor-baptism" },
+    create: {
+      id: "register-eleanor-baptism",
+      registerId: register.id,
+      kind: "baptism",
+      happenedOn: new Date("1928-04-12"),
+      text: "Eleanor Whitaker, daughter of the house, baptised at St. John's.",
+      personId: eleanor.id,
+    },
+    update: { text: "Eleanor Whitaker, daughter of the house, baptised at St. John's." },
+  });
+  await prisma.churchRegisterLine.upsert({
+    where: { id: "register-hart-marriage" },
+    create: {
+      id: "register-hart-marriage",
+      registerId: register.id,
+      kind: "marriage",
+      happenedOn: new Date("1948-06-14"),
+      text: "Samuel Hart and Eleanor Whitaker married, then cold chicken under the cottonwoods.",
+      personId: eleanor.id,
+      otherPersonId: samuel.id,
+    },
+    update: { text: "Samuel Hart and Eleanor Whitaker married, then cold chicken under the cottonwoods." },
+  });
+  await prisma.churchRegisterLine.upsert({
+    where: { id: "register-eleanor-burial" },
+    create: {
+      id: "register-eleanor-burial",
+      registerId: register.id,
+      kind: "burial",
+      happenedOn: new Date("2015-06-06"),
+      text: "Eleanor Hart buried at Fairview, plot near the cedar.",
+      personId: eleanor.id,
+    },
+    update: { text: "Eleanor Hart buried at Fairview, plot near the cedar." },
+  });
+
+  const tax1950 = await prisma.taxList.upsert({
+    where: { id: "tax-cedar-falls-1950" },
+    create: {
+      id: "tax-cedar-falls-1950",
+      familyId: family.id,
+      place: "Cedar Falls",
+      year: 1950,
+      notes: "County assessor, north of town.",
+    },
+    update: { place: "Cedar Falls", year: 1950 },
+  });
+  const existingTax = await prisma.taxListName.findFirst({
+    where: { listId: tax1950.id, name: "Samuel Hart" },
+  });
+  if (!existingTax) {
+    await prisma.taxListName.create({
+      data: { id: "tax-samuel-1950", listId: tax1950.id, personId: samuel.id, name: "Samuel Hart", amount: "$42.00", notes: "North farm" },
+    });
+  }
+
+  if (wei) {
+    await prisma.voyagePerson.updateMany({
+      where: { voyageId: "voyage-wei-pacific", personId: wei.id },
+      data: { age: 21, role: "passenger", notes: "Boarding card kept with the naturalization papers." },
+    });
+  }
+
+  if (demoUser) {
+    await prisma.savedSearch.upsert({
+      where: { id: "search-harvest-dance" },
+      create: {
+        id: "search-harvest-dance",
+        familyId: family.id,
+        userId: demoUser.id,
+        title: "harvest dance",
+        query: "harvest dance",
+        href: "/search?q=harvest+dance",
+      },
+      update: { query: "harvest dance" },
+    });
+  }
+
+  const picnicForNote = picnicPhoto || (await prisma.asset.findFirst({ where: { familyId: family.id, title: "Hart picnic, 1961" } }));
+  if (picnicForNote) {
+    const existingNote = await prisma.photoNote.findFirst({
+      where: { assetId: picnicForNote.id, text: "Mother cuts the Sunday rolls" },
+    });
+    if (!existingNote) {
+      await prisma.photoNote.create({
+        data: {
+          id: "note-sunday-rolls",
+          familyId: family.id,
+          assetId: picnicForNote.id,
+          text: "Mother cuts the Sunday rolls",
+          x: 42,
+          y: 28,
+        },
+      });
+    }
+  }
+
+  const livingAdults = [margaret, people.find((person) => person.id === "person-lily"), people.find((person) => person.id === "person-wei")]
+    .filter((person): person is NonNullable<typeof person> => Boolean(person));
+  for (const person of livingAdults) {
+    await prisma.shareConsent.upsert({
+      where: { familyId_personId: { familyId: family.id, personId: person.id } },
+      create: {
+        familyId: family.id,
+        personId: person.id,
+        granted: true,
+        grantedOn: new Date("2026-03-12"),
+        notes: "They said the picnic and the cedar chest may be shared.",
+      },
+      update: { granted: true },
+    });
+  }
 }
 
 async function writeHartMedia() {

@@ -207,6 +207,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               </Link>
             ) : null}
             {!hideChild ? (
+              <Link href={`/people/${person.id}/read`} className="mt-2 block font-sans text-sm text-seal" data-testid="life-reading-link">
+                Read this life
+              </Link>
+            ) : null}
+            {!hideChild ? (
               <Link href={`/people/${person.id}/search`} className="mt-2 block font-sans text-sm text-seal" data-testid="person-search-link">
                 Search this life
               </Link>

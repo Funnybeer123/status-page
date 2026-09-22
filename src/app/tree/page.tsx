@@ -56,6 +56,9 @@ export default async function TreePage({
           >
             Download the tree as SVG
           </a>
+          <Link href="/tree/poster" className="rounded-full border border-bark/20 px-5 py-2 font-sans text-sm" data-testid="tree-poster-link">
+            Large-print poster
+          </Link>
           {canWrite(ctx.role) ? (
             <Link href="/people/new" className="rounded-full bg-seal px-5 py-2 font-sans text-sm text-cream">
               Add a person
