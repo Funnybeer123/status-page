@@ -7,12 +7,14 @@ import { formatDate } from "@/lib/dates";
 import { placeLabel } from "@/lib/places";
 import { hideEventFromViewer, hideResidenceForViewer } from "@/lib/privacy";
 import { ancestorChain, descendantIds, placeBreadcrumb, placeKindLabel } from "@/lib/placeTree";
-import { chronicleHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
+import { chronicleHeading, chroniclePhotosHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
+import { PlacePhotoForm } from "@/app/ask-save/ui";
+import { canWrite } from "@/lib/roles";
 
 export default async function PlacePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [place, places, homes, households, voyages, letters, stories] = await Promise.all([
+  const [place, places, homes, households, voyages, letters, stories, loosePhotos] = await Promise.all([
     prisma.place.findFirst({
       where: { id, familyId: ctx.family.id },
       include: {
@@ -37,6 +39,10 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
       where: { familyId: ctx.family.id, deletedAt: null, kind: { in: ["letter", "note"] } },
     }),
     prisma.story.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.asset.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null, kind: "photo", placeId: null },
+      orderBy: { title: "asc" },
+    }),
   ]);
   if (!place) notFound();
   const nodes = places.map((row) => ({ id: row.id, name: row.name, kind: row.kind, parentId: row.parentId }));
@@ -214,18 +220,29 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
           {!events.length ? <li className="text-bark">None yet.</li> : null}
         </ul>
       </section>
-      {place.photos.length ? (
-        <section className="mt-10">
-          <h2 className="font-display text-2xl">Photographs taken here</h2>
-          <ul className="mt-4 space-y-3" data-testid="place-photos">
-            {place.photos.map((photo) => (
-              <li key={photo.id} className="paper-card p-4">
-                <Link href={`/archive/${photo.id}`} className="font-display text-xl text-seal">{photo.title || "A photograph"}</Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <section className="mt-10">
+        <h2 className="font-display text-2xl" data-testid="chronicle-photos-heading">
+          {chroniclePhotosHeading(place.name, place.photos.length)}
+        </h2>
+        {canWrite(ctx.role) ? (
+          <PlacePhotoForm
+            placeId={place.id}
+            assets={loosePhotos.map((asset) => ({ id: asset.id, title: asset.title }))}
+          />
+        ) : null}
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2" data-testid="place-photos">
+          {place.photos.map((photo) => (
+            <li key={photo.id} className="paper-card overflow-hidden">
+              <Link href={`/archive/${photo.id}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${photo.storagePath}`} alt={photo.title || ""} className="aspect-video w-full object-cover" />
+                <p className="p-4 font-display text-xl">{photo.title || "A photograph"}</p>
+              </Link>
+            </li>
+          ))}
+          {!place.photos.length ? <li className="text-bark">No photographs on this chronicle yet.</li> : null}
+        </ul>
+      </section>
       <section className="mt-10">
         <h2 className="font-display text-2xl" data-testid="place-chronicle-heading">
           {chronicleHeading(place.name, chronicle.length)}

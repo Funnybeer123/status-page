@@ -20,6 +20,7 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
       residences: { include: { place: true } },
       events: { include: { place: true } },
       documents: { include: { document: true } },
+      memorialObituaries: true,
       storiesTold: true,
       storyLinks: { include: { story: true } },
       tags: { include: { asset: true } },
@@ -48,6 +49,18 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
         Died {formatDate(person.deathDate)}
         {ageLabel(person.birthDate, person.deathDate) ? ` · ${ageLabel(person.birthDate, person.deathDate)}` : ""}
       </p>
+      {person.memorialObituaries.length ? (
+        <section className="mt-8" data-testid="memorial-obituaries">
+          <h2 className="font-display text-2xl">Obituaries</h2>
+          <ul className="mt-3 space-y-2">
+            {person.memorialObituaries.map((item) => (
+              <li key={item.id}>
+                <Link href={`/letters/${item.id}`} className="text-seal">{item.title}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {burial.length ? (
         <ul className="mt-8 space-y-2">
           {burial.map((event) => (

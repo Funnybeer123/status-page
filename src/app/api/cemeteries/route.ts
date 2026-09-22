@@ -20,6 +20,8 @@ const plotSchema = z.object({
   personId: z.string(),
   plot: z.string().max(160).optional(),
   notes: z.string().max(800).optional(),
+  x: z.union([z.number(), z.string()]).optional(),
+  y: z.union([z.number(), z.string()]).optional(),
 });
 
 export async function GET() {
@@ -46,12 +48,16 @@ export async function POST(req: Request) {
       where: { id: plot.data.personId, familyId: ctx.family.id, deletedAt: null },
     });
     if (!cemetery || !person) return NextResponse.json({ error: "Cemetery or person not found." }, { status: 404 });
+    const x = plot.data.x === undefined || plot.data.x === "" ? null : Number(plot.data.x);
+    const y = plot.data.y === undefined || plot.data.y === "" ? null : Number(plot.data.y);
     const created = await prisma.cemeteryPlot.create({
       data: {
         cemeteryId: cemetery.id,
         personId: person.id,
         plot: plot.data.plot?.trim() || null,
         notes: plot.data.notes?.trim() || null,
+        x: Number.isFinite(x) ? x : null,
+        y: Number.isFinite(y) ? y : null,
       },
       include: { person: true, cemetery: true },
     });

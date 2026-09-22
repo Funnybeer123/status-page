@@ -6,7 +6,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
 import { canWrite } from "@/lib/roles";
-import { occupationLine, occupationTimelineHeading, sortOccupations } from "@/lib/occupations";
+import { occupationLine, occupationTimelineHeading, overlapHeading, overlappingPairs, sortOccupations } from "@/lib/occupations";
 
 export default async function PersonOccupationsPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -16,6 +16,7 @@ export default async function PersonOccupationsPage({ params }: { params: Promis
   const records = sortOccupations(
     await prisma.occupationRecord.findMany({ where: { familyId: ctx.family.id, personId: person.id } }),
   );
+  const overlaps = overlappingPairs(records);
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
@@ -26,8 +27,22 @@ export default async function PersonOccupationsPage({ params }: { params: Promis
         Work {person.displayName} did, in order.{" "}
         <Link href={`/people/${person.id}`} className="text-seal">Back to the record</Link>
         {" · "}
-        <Link href="/occupations" className="text-seal">All occupations</Link>.
+        <Link href="/occupations" className="text-seal">All occupations</Link>
+        {" · "}
+        <Link href="/occupations/overlaps" className="text-seal">Overlapping jobs</Link>.
       </p>
+      {overlaps.length ? (
+        <aside className="mt-6 paper-card p-5" data-testid="occupation-overlaps">
+          <h2 className="font-display text-2xl">{overlapHeading(overlaps.length)}</h2>
+          <ul className="mt-3 space-y-2">
+            {overlaps.map((pair) => (
+              <li key={`${pair.a.title}-${pair.b.title}`} className="text-bark">{pair.line}</li>
+            ))}
+          </ul>
+        </aside>
+      ) : (
+        <p className="mt-6 font-sans text-sm text-gold" data-testid="occupation-overlaps">{overlapHeading(0)}</p>
+      )}
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="occupation"

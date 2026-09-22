@@ -12,10 +12,18 @@ import { KeepOutToggle } from "@/app/follow/ui";
 import { clippingPageHeading } from "@/lib/clippingPage";
 import { isTranscriptLocked, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
 import { compareHeading, compareSideLabel, hasEdits, latestRevision } from "@/lib/transcriptCompare";
+import { highlightHeading, highlightHitCount, highlightSearchWords } from "@/lib/searchHighlight";
 
-export default async function LetterPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LetterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ q?: string }>;
+}) {
   const ctx = await requireFamily();
   const { id } = await params;
+  const { q = "" } = await searchParams;
   const letter = await prisma.document.findFirst({
     where: { id, familyId: ctx.family.id, deletedAt: null },
     include: {
@@ -51,6 +59,16 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           In reply to{" "}
           <Link href={`/letters/${letter.replyTo.id}`} className="text-seal">{letter.replyTo.title}</Link>
         </p>
+      ) : null}
+      {q.trim() ? (
+        <section className="mt-8 paper-card p-5" data-testid="letter-highlight">
+          <h2 className="font-display text-2xl">{highlightHeading(q, highlightHitCount(letter.transcript, q))}</h2>
+          <p
+            className="mt-3 whitespace-pre-wrap text-lg leading-relaxed [&_mark]:bg-gold/30 [&_mark]:px-0.5"
+            data-testid="letter-highlight-body"
+            dangerouslySetInnerHTML={{ __html: highlightSearchWords(letter.transcript, q) }}
+          />
+        </section>
       ) : null}
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="paper-card overflow-hidden p-4">

@@ -4,6 +4,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { buildReminders, remindersThisWeek, upcomingReminders } from "@/lib/reminders";
 import { monthGrid, monthTitle } from "@/lib/calendarMonth";
+import { filterBirthdayReminders, loadMutedCategories } from "@/lib/noticeMute";
 
 function ReminderList({
   items,
@@ -78,6 +79,8 @@ export default async function DatesPage() {
     ],
     ctx.role,
   );
+  const muted = await loadMutedCategories(ctx.family.id, ctx.session.user.id);
+  const shown = filterBirthdayReminders(reminders, muted);
 
   const now = new Date();
   const year = now.getUTCFullYear();
@@ -85,7 +88,7 @@ export default async function DatesPage() {
   const grid = monthGrid(
     year,
     month,
-    reminders.map((item) => ({
+    shown.map((item) => ({
       id: item.id,
       title: item.title,
       personId: item.personId,
@@ -128,11 +131,11 @@ export default async function DatesPage() {
       </section>
       <section className="mt-10">
         <h2 className="font-display text-2xl">This week</h2>
-        <ReminderList items={remindersThisWeek(reminders)} />
+        <ReminderList items={remindersThisWeek(shown)} />
       </section>
       <section className="mt-10">
         <h2 className="font-display text-2xl">Coming up</h2>
-        <ReminderList items={upcomingReminders(reminders, 90)} />
+        <ReminderList items={upcomingReminders(shown, 90)} />
       </section>
     </AppShell>
   );

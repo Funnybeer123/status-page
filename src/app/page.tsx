@@ -19,6 +19,7 @@ import { recentsHeading, recentLine } from "@/lib/recents";
 import { pickTodayQuestion, todayQuestionHeading, unansweredQuestionsHeading } from "@/lib/todayQuestion";
 import { PromptAnswer } from "@/app/prompts/ui";
 import { hideMinorDetails } from "@/lib/privacy";
+import { filterBirthdayReminders, loadMutedCategories } from "@/lib/noticeMute";
 
 export default async function HomePage() {
   const session = await auth();
@@ -123,9 +124,11 @@ export default async function HomePage() {
         .filter((item) => item.found)
         .slice(0, 5)
     : [];
+  const muted = await loadMutedCategories(ctx.family.id, session.user.id);
   const today = collectOnThisDay({ ...sources, role: ctx.role });
-  const week = remindersThisWeek(reminders);
-  const tomorrow = remindersTomorrow(reminders);
+  const week = filterBirthdayReminders(remindersThisWeek(reminders), muted);
+  const tomorrow = filterBirthdayReminders(remindersTomorrow(reminders), muted);
+  const upcomingDates = filterBirthdayReminders(upcoming, muted);
   const todayQuestion = pickTodayQuestion(prompts);
   const unanswered = prompts.filter((prompt) => !prompt.answers.length);
   const recentPeople = visits.filter((visit) => !hideMinorDetails(ctx.role, visit.person));
@@ -277,7 +280,7 @@ export default async function HomePage() {
           <Link href="/dates" className="font-sans text-sm text-seal">All dates</Link>
         </div>
         <ul className="mt-4 space-y-3">
-          {upcoming.slice(0, 6).map((item) => (
+          {upcomingDates.slice(0, 6).map((item) => (
             <li key={item.id} className="paper-card flex flex-wrap items-baseline justify-between gap-3 p-4">
               <Link href={`/people/${item.personId}`} className="font-display text-xl text-seal">{item.title}</Link>
               <span className="font-sans text-sm text-gold">
@@ -285,7 +288,7 @@ export default async function HomePage() {
               </span>
             </li>
           ))}
-          {!upcoming.length ? <li className="text-bark">No dated events in the next 90 days.</li> : null}
+          {!upcomingDates.length ? <li className="text-bark">No dated events in the next 90 days.</li> : null}
         </ul>
         {week.length ? (
           <p className="mt-3 font-sans text-sm text-bark">{week.length} this week.</p>

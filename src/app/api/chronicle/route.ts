@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { chronicleHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
+import { chronicleHeading, chroniclePhotosHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
 import { hideEventFromViewer, hideResidenceForViewer } from "@/lib/privacy";
 import { descendantIds } from "@/lib/placeTree";
 
@@ -110,9 +110,17 @@ export async function GET(req: Request) {
         date: row.recordedAt,
       })),
   ]);
+  const photos = place.photos.map((photo) => ({
+    id: photo.id,
+    title: photo.title || "A photograph",
+    href: `/archive/${photo.id}`,
+    date: photo.capturedAt,
+  }));
   return NextResponse.json({
     place: { id: place.id, name: place.name },
     items,
     heading: chronicleHeading(place.name, items.length),
+    photos,
+    photosHeading: chroniclePhotosHeading(place.name, photos.length),
   });
 }

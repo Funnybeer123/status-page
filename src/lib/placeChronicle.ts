@@ -20,3 +20,10 @@ export function placeMatch(placeName: string, value?: string | null) {
   if (!value) return false;
   return value.toLowerCase().includes(placeName.toLowerCase()) || placeName.toLowerCase().includes(value.toLowerCase());
 }
+
+export function chroniclePhotosHeading(place: string, count: number) {
+  const where = place.trim() || "this place";
+  if (!count) return `No photographs on the chronicle for ${where}`;
+  if (count === 1) return `1 photograph on the chronicle for ${where}`;
+  return `${count} photographs on the chronicle for ${where}`;
+}

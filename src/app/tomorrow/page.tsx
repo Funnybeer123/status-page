@@ -3,11 +3,13 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { loadFamilyReminders } from "@/lib/familyDates";
 import { remindersTomorrow, tomorrowHeading } from "@/lib/reminders";
+import { filterBirthdayReminders, loadMutedCategories } from "@/lib/noticeMute";
 
 export default async function TomorrowPage() {
   const ctx = await requireFamily();
   const { reminders } = await loadFamilyReminders(ctx.family.id, ctx.role);
-  const tomorrow = remindersTomorrow(reminders);
+  const muted = await loadMutedCategories(ctx.family.id, ctx.session.user.id);
+  const tomorrow = filterBirthdayReminders(remindersTomorrow(reminders), muted);
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>

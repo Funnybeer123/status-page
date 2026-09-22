@@ -2,6 +2,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { shouldHideLivingFacts } from "@/lib/privacy";
 import { phoneticPeople } from "@/lib/phonetic";
+import { letterSearchHref } from "@/lib/searchHighlight";
 
 export type SearchHit = {
   kind: "person" | "name" | "place" | "story" | "document" | "asset" | "event";
@@ -125,7 +126,7 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
       id: document.id,
       title: document.title,
       excerpt: excerpt(document.transcript, query),
-      href: document.kind === "story" ? `/stories` : `/letters/${document.id}`,
+      href: document.kind === "story" ? `/stories` : letterSearchHref(document.id, query),
     });
   }
 

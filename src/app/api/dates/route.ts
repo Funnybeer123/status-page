@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { buildReminders, remindersThisWeek, upcomingReminders } from "@/lib/reminders";
+import { filterBirthdayReminders } from "@/lib/noticeMute";
 
 export async function GET() {
   const ctx = await apiFamily();
@@ -48,7 +49,14 @@ export async function GET() {
         happenedOn: event.happenedOn!,
       })),
   ];
-  const reminders = buildReminders(items, ctx.role);
+  const mutes = await prisma.noticeMute.findMany({
+    where: { familyId: ctx.family.id, userId: ctx.session.user.id },
+    select: { category: true },
+  });
+  const reminders = filterBirthdayReminders(
+    buildReminders(items, ctx.role),
+    mutes.map((row) => row.category),
+  );
   return NextResponse.json({
     reminders,
     thisWeek: remindersThisWeek(reminders),

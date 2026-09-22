@@ -27,6 +27,7 @@ export default async function AskPage({
           suggested="How did grandma meet grandpa?"
           conversationId={conversation?.id}
           saved={conversation?.saved}
+          storyHref={conversation?.storyId ? `/stories/${conversation.storyId}` : undefined}
           initialMessages={
             conversation?.turns.map((turn) => ({
               role: turn.role as "user" | "assistant",

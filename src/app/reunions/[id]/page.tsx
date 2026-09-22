@@ -3,6 +3,8 @@ import { AppShell } from "@/components/AppShell";
 import Link from "next/link";
 import { PotluckForm, RsvpButton, ReunionPhotoForm } from "@/app/reunions/ui";
 import { compilePotluck } from "@/lib/potluck";
+import { bringListHeading, compileBringList } from "@/lib/reunionBring";
+import { BringForm } from "@/app/ask-save/ui";
 import { DocKind } from "@prisma/client";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
@@ -12,13 +14,14 @@ import { formatDate } from "@/lib/dates";
 export default async function ReunionPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [reunion, assets, recipes, people] = await Promise.all([
+  const [reunion, assets, recipes, people, heirlooms] = await Promise.all([
     prisma.reunionGathering.findFirst({
       where: { id, familyId: ctx.family.id },
       include: {
         guests: { include: { person: true } },
         photos: { include: { asset: true } },
         dishes: { include: { person: true, recipe: true }, orderBy: { title: "asc" } },
+        brings: { include: { person: true, asset: true, heirloom: true, dish: true } },
       },
     }),
     prisma.asset.findMany({
@@ -30,9 +33,25 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
       orderBy: { title: "asc" },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
+    prisma.heirloom.findMany({ where: { familyId: ctx.family.id }, orderBy: { title: "asc" } }),
   ]);
   if (!reunion) notFound();
   const coming = reunion.guests.filter((guest) => guest.coming);
+  const bringItems = compileBringList({
+    brings: reunion.brings.map((item) => ({
+      id: item.id,
+      kind: item.kind as "photo" | "heirloom" | "dish",
+      title: item.title,
+      personName: item.person.displayName,
+      notes: item.notes,
+    })),
+    dishes: reunion.dishes.map((dish) => ({
+      id: dish.id,
+      title: dish.title,
+      personName: dish.person?.displayName ?? null,
+      notes: dish.notes,
+    })),
+  });
   const notComing = reunion.guests.filter((guest) => !guest.coming);
   return (
     <AppShell>
@@ -58,7 +77,33 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
         <Link href={`/reunions/${reunion.id}/living`} className="text-seal" data-testid="reunion-living-link">
           Living guests
         </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/bring`} className="text-seal" data-testid="reunion-bring-link">
+          Bring-list
+        </Link>
       </p>
+      <section className="mt-10" data-testid="reunion-bring">
+        <h2 className="font-display text-3xl">{bringListHeading(bringItems.length)}</h2>
+        <p className="mt-2 text-bark">Photographs, heirlooms, and dishes, and who is bringing each.</p>
+        {canWrite(ctx.role) ? (
+          <BringForm
+            reunionId={reunion.id}
+            people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+            assets={assets.map((asset) => ({ id: asset.id, title: asset.title }))}
+            heirlooms={heirlooms.map((item) => ({ id: item.id, title: item.title }))}
+          />
+        ) : null}
+        <ul className="mt-4 space-y-2" data-testid="bring-list">
+          {bringItems.map((item) => (
+            <li key={item.id} className="paper-card p-4">
+              <p className="font-sans text-xs uppercase tracking-[0.18em] text-gold">{item.kindLabel}</p>
+              <p className="font-display text-xl">{item.title}</p>
+              <p className="text-bark">{item.line}</p>
+            </li>
+          ))}
+          {!bringItems.length ? <li className="text-bark">No one has claimed a photograph, heirloom, or dish yet.</li> : null}
+        </ul>
+      </section>
       <section className="mt-10">
         <h2 className="font-display text-3xl">Who’s coming</h2>
         <ul className="mt-4 space-y-2" data-testid="reunion-coming">

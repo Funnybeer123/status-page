@@ -2549,6 +2549,181 @@ async function ensureHartArchive() {
     });
   }
 
+  const eleanorPlot = await prisma.cemeteryPlot.findFirst({
+    where: { cemeteryId: "cemetery-fairview", personId: eleanor.id },
+  });
+  if (eleanorPlot) {
+    await prisma.cemeteryPlot.update({
+      where: { id: eleanorPlot.id },
+      data: { x: 42, y: 38, plot: "Lot 14" },
+    });
+  }
+  const samuelPlot = await prisma.cemeteryPlot.findFirst({
+    where: { cemeteryId: "cemetery-fairview", personId: samuel.id },
+  });
+  if (!samuelPlot) {
+    await prisma.cemeteryPlot.create({
+      data: {
+        cemeteryId: "cemetery-fairview",
+        personId: samuel.id,
+        plot: "Lot 15",
+        notes: "Beside Eleanor, facing the cottonwoods.",
+        x: 58,
+        y: 38,
+      },
+    });
+  } else {
+    await prisma.cemeteryPlot.update({
+      where: { id: samuelPlot.id },
+      data: { x: 58, y: 38, plot: "Lot 15" },
+    });
+  }
+
+  if (samuel) {
+    await prisma.occupationRecord.upsert({
+      where: { id: "occ-sam-fair-judge" },
+      create: {
+        id: "occ-sam-fair-judge",
+        familyId: family.id,
+        personId: samuel.id,
+        title: "County fair judge",
+        employer: "Black Hawk County fair",
+        place: "Cedar Falls",
+        startedOn: new Date("1985-08-01"),
+        endedOn: new Date("1992-08-15"),
+      },
+      update: { title: "County fair judge" },
+    });
+  }
+
+  const picnicBring = picnicForNote || (await prisma.asset.findFirst({ where: { familyId: family.id, title: "Hart picnic, 1961" } }));
+  const lilyBring = people.find((person) => person.id === "person-lily");
+  if (picnicBring && lilyBring) {
+    await prisma.reunionBring.upsert({
+      where: { id: "bring-picnic-photo" },
+      create: {
+        id: "bring-picnic-photo",
+        familyId: family.id,
+        reunionId: "reunion-hart-2026",
+        personId: lilyBring.id,
+        kind: "photo",
+        title: "Hart picnic, 1961",
+        assetId: picnicBring.id,
+        notes: "The reel still has Mother cutting Sunday rolls.",
+      },
+      update: { title: "Hart picnic, 1961", assetId: picnicBring.id },
+    });
+  }
+  if (margaret) {
+    await prisma.reunionBring.upsert({
+      where: { id: "bring-cedar-chest" },
+      create: {
+        id: "bring-cedar-chest",
+        familyId: family.id,
+        reunionId: "reunion-hart-2026",
+        personId: margaret.id,
+        kind: "heirloom",
+        title: "Ellie's cedar chest",
+        heirloomId: "heirloom-cedar-chest",
+        notes: "The harvest-dance letter is still in the tray.",
+      },
+      update: { title: "Ellie's cedar chest" },
+    });
+  }
+
+  if (demoUser) {
+    let biblePage = await prisma.asset.findFirst({ where: { id: "asset-bible-hart-page" } });
+    if (!biblePage) {
+      const path = writeMedia(
+        family.id,
+        "bible-page.svg",
+        svgScene("Hart family Bible", "Married this morning at St. John's", "14 June 1948", "#5c3a2a"),
+      );
+      biblePage = await prisma.asset.create({
+        data: {
+          id: "asset-bible-hart-page",
+          familyId: family.id,
+          kind: AssetKind.photo,
+          title: "Hart family Bible flyleaf",
+          mimeType: "image/svg+xml",
+          storagePath: path,
+          capturedAt: new Date("1948-06-14"),
+          uploadedById: demoUser.id,
+        },
+      });
+    }
+    await prisma.bibleRecord.update({
+      where: { id: "bible-hart" },
+      data: { assetId: biblePage.id },
+    });
+  }
+
+  await prisma.document.update({
+    where: { id: "doc-eleanor-obit" },
+    data: { memorialPersonId: eleanor.id },
+  });
+
+  if (demoUser && harvest) {
+    const askStory = await prisma.story.upsert({
+      where: { id: "story-ask-harvest" },
+      create: {
+        id: "story-ask-harvest",
+        familyId: family.id,
+        title: "How did grandma meet grandpa?",
+        body: "Eleanor Whitaker met Samuel Hart at the Grange hall harvest dance in Cedar Falls, Iowa, on a Saturday in October 1947. She wrote to her sister Ruth six days later.",
+        recordedAt: new Date("2026-09-22"),
+        people: { create: [{ personId: eleanor.id }, { personId: samuel.id }] },
+      },
+      update: { title: "How did grandma meet grandpa?" },
+    });
+    const existingCite = await prisma.citation.findFirst({
+      where: { storyId: askStory.id, documentId: harvest.id },
+    });
+    if (!existingCite) {
+      await prisma.citation.create({
+        data: {
+          familyId: family.id,
+          storyId: askStory.id,
+          documentId: harvest.id,
+          claim: "They danced three times, the cider was too sweet, and he asked to walk her home past the cottonwoods.",
+          pageNote: harvest.title,
+          kind: "ask",
+          quality: "copy",
+        },
+      });
+    }
+    await prisma.askConversation.upsert({
+      where: { id: "ask-harvest-story" },
+      create: {
+        id: "ask-harvest-story",
+        familyId: family.id,
+        userId: demoUser.id,
+        title: "How did grandma meet grandpa?",
+        saved: true,
+        storyId: askStory.id,
+        turns: {
+          create: [
+            { role: "user", text: "How did grandma meet grandpa?" },
+            {
+              role: "assistant",
+              text: askStory.body,
+              sourcesJson: JSON.stringify([
+                {
+                  documentId: harvest.id,
+                  title: harvest.title,
+                  writtenAt: "18 October 1947",
+                  kind: "letter",
+                  excerpt: "I danced three times with Samuel Hart from the north farm.",
+                },
+              ]),
+            },
+          ],
+        },
+      },
+      update: { storyId: askStory.id, saved: true },
+    });
+  }
+
   const livingAdults = [margaret, people.find((person) => person.id === "person-lily"), people.find((person) => person.id === "person-wei")]
     .filter((person): person is NonNullable<typeof person> => Boolean(person));
   for (const person of livingAdults) {

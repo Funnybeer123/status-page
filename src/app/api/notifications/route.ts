@@ -1,16 +1,27 @@
 import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
+import { filterMutedNotifications } from "@/lib/noticeMute";
 
 export async function GET() {
   const ctx = await apiFamily();
   if ("error" in ctx) return ctx.error;
-  const notifications = await prisma.notification.findMany({
-    where: { familyId: ctx.family.id, userId: ctx.session.user.id },
-    include: { actor: { select: { name: true } } },
-    orderBy: { createdAt: "desc" },
-    take: 80,
-  });
+  const [all, mutes] = await Promise.all([
+    prisma.notification.findMany({
+      where: { familyId: ctx.family.id, userId: ctx.session.user.id },
+      include: { actor: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 80,
+    }),
+    prisma.noticeMute.findMany({
+      where: { familyId: ctx.family.id, userId: ctx.session.user.id },
+      select: { category: true },
+    }),
+  ]);
+  const notifications = filterMutedNotifications(
+    all,
+    mutes.map((row) => row.category),
+  );
   return NextResponse.json({
     notifications,
     unread: notifications.filter((item) => !item.readAt).length,

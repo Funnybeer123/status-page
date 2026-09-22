@@ -27,6 +27,7 @@ export function AskBox({
   saved = false,
   action = "/api/ask",
   persist = true,
+  storyHref: initialStoryHref,
 }: {
   suggested: string;
   conversationId?: string;
@@ -34,12 +35,14 @@ export function AskBox({
   saved?: boolean;
   action?: string;
   persist?: boolean;
+  storyHref?: string;
 }) {
   const router = useRouter();
   const [question, setQuestion] = useState(initialMessages.length ? "" : suggested);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [conversationId, setConversationId] = useState(initialId || "");
   const [kept, setKept] = useState(saved);
+  const [storyHref, setStoryHref] = useState(initialStoryHref || "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -87,6 +90,30 @@ export function AskBox({
     }
   }
 
+  async function saveAsStory() {
+    if (!conversationId) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/ask/story", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Could not save that story.");
+      if (payload.story?.id) {
+        setStoryHref(`/stories/${payload.story.id}`);
+        router.push(`/stories/${payload.story.id}`);
+      }
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save that story.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-3 font-sans text-sm">
@@ -96,6 +123,17 @@ export function AskBox({
           <button type="button" onClick={saveConversation} className="text-seal" data-testid="ask-save">
             {kept ? "Saved" : "Save this question"}
           </button>
+        ) : null}
+        {conversationId && persist ? (
+          storyHref ? (
+            <Link href={storyHref} className="text-seal" data-testid="ask-story-link">
+              Open the family story
+            </Link>
+          ) : (
+            <button type="button" onClick={saveAsStory} className="text-seal" data-testid="ask-save-story">
+              Save as a family story
+            </button>
+          )
         ) : null}
       </div>
       <div className="space-y-4" data-testid="ask-thread">

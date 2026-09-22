@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { activityCategory } from "@/lib/noticeMute";
 
 export async function recordActivity(input: {
   familyId: string;
@@ -27,16 +28,29 @@ export async function recordActivity(input: {
       select: { userId: true },
     });
     if (members.length) {
-      await prisma.notification.createMany({
-        data: members.map((member) => ({
+      const category = activityCategory(input.entityType);
+      const mutes = await prisma.noticeMute.findMany({
+        where: {
+          familyId: input.familyId,
+          userId: { in: members.map((member) => member.userId) },
+          category: { in: [category] },
+        },
+        select: { userId: true },
+      });
+      const skipped = new Set(mutes.map((mute) => mute.userId));
+      const rows = members
+        .filter((member) => !skipped.has(member.userId))
+        .map((member) => ({
           familyId: input.familyId,
           userId: member.userId,
           actorId: input.actorId,
           title: `${input.verb} ${input.title}`,
           body: input.summary ?? null,
           href,
-        })),
-      });
+        }));
+      if (rows.length) {
+        await prisma.notification.createMany({ data: rows });
+      }
     }
     return activity;
   } catch (error) {

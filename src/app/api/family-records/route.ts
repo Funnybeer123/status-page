@@ -126,7 +126,7 @@ export async function GET(req: Request) {
   }
   if (kind === "bible") {
     return NextResponse.json({
-      records: await prisma.bibleRecord.findMany({ where: { familyId }, include: { holder: true }, orderBy: { title: "asc" } }),
+      records: await prisma.bibleRecord.findMany({ where: { familyId }, include: { holder: true, page: true }, orderBy: { title: "asc" } }),
     });
   }
   if (kind === "motto") {

@@ -65,9 +65,21 @@ export async function notifyFollowers(input: {
     include: { person: { select: { displayName: true } } },
   });
   if (!follows.length) return 0;
+  const { followKindCategory } = await import("@/lib/noticeMute");
+  const kindCategory = followKindCategory(input.kind);
+  const mutes = await prisma.noticeMute.findMany({
+    where: {
+      familyId: input.familyId,
+      userId: { in: follows.map((follow) => follow.userId) },
+      category: { in: ["follow", kindCategory] },
+    },
+    select: { userId: true },
+  });
+  const skipped = new Set(mutes.map((mute) => mute.userId));
   const seen = new Set<string>();
   const rows = follows
     .filter((follow) => {
+      if (skipped.has(follow.userId)) return false;
       const key = `${follow.userId}:${follow.personId}`;
       if (seen.has(key)) return false;
       seen.add(key);

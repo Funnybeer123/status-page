@@ -8,6 +8,8 @@ import { CommentThread } from "@/components/CommentThread";
 import { canWrite } from "@/lib/roles";
 import { KeepOutToggle } from "@/app/follow/ui";
 import { keepOutLine } from "@/lib/keepOut";
+import { StoryEditForm } from "@/app/ask-save/ui";
+import { askCitationLine } from "@/lib/askStory";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -38,7 +40,31 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
           </>
         ) : null}
       </p>
-      <article className="paper-card mt-8 whitespace-pre-wrap p-6 text-lg leading-relaxed">{story.body}</article>
+      <article className="paper-card mt-8 whitespace-pre-wrap p-6 text-lg leading-relaxed" data-testid="story-body">{story.body}</article>
+      {canWrite(ctx.role) ? <StoryEditForm storyId={story.id} title={story.title} body={story.body} /> : null}
+      {story.citations.length ? (
+        <section className="mt-8" data-testid="story-citations">
+          <h2 className="font-display text-2xl">Citations kept</h2>
+          <ul className="mt-3 space-y-2">
+            {story.citations.map((citation) => (
+              <li key={citation.id} className="paper-card p-4">
+                {citation.documentId ? (
+                  <Link href={`/letters/${citation.documentId}`} className="text-seal">
+                    {askCitationLine(citation.document?.title || citation.pageNote || citation.claim)}
+                  </Link>
+                ) : citation.assetId ? (
+                  <Link href={`/archive/${citation.assetId}`} className="text-seal">
+                    {askCitationLine(citation.asset?.title || citation.pageNote || citation.claim)}
+                  </Link>
+                ) : (
+                  <p className="text-bark">{askCitationLine(citation.claim)}</p>
+                )}
+                {citation.claim ? <p className="mt-2 text-bark">{citation.claim}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {story.promptAnswers[0]?.asset ? (
         <audio
           controls

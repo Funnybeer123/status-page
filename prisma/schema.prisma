@@ -112,6 +112,7 @@ model User {
   transcripts    Document[]      @relation("TranscriptCredit")
   meetings       FamilyMeeting[]
   visits         PersonVisit[]
+  noticeMutes    NoticeMute[]
 }
 
 model Family {
@@ -204,6 +205,8 @@ model Family {
   meetings      FamilyMeeting[]
   visits        PersonVisit[]
   restores      PhotoRestore[]
+  noticeMutes   NoticeMute[]
+  reunionBrings ReunionBring[]
 }
 
 model Membership {
@@ -319,6 +322,8 @@ model Person {
   heirloomHolds  HeirloomHold[]
   meetings       FamilyMeetingPerson[]
   visits         PersonVisit[]
+  reunionBrings  ReunionBring[]
+  memorialObituaries Document[] @relation("MemorialObituary")
 }
 
 model Relationship {
@@ -374,6 +379,8 @@ model Asset {
   landDeeds      LandRecord[]
   restoreOriginal PhotoRestore[] @relation("RestoreOriginal")
   restoreCleaned  PhotoRestore[] @relation("RestoreCleaned")
+  biblePages     BibleRecord[]
+  reunionBrings  ReunionBring[]
 }
 
 model PersonTag {
@@ -423,6 +430,8 @@ model Document {
   transcribedById String?
   transcriptLockedAt DateTime?
   transcribedBy User?           @relation("TranscriptCredit", fields: [transcribedById], references: [id], onDelete: SetNull)
+  memorialPersonId String?
+  memorialPerson Person?        @relation("MemorialObituary", fields: [memorialPersonId], references: [id], onDelete: SetNull)
 }
 
 model DocumentPerson {
@@ -543,6 +552,7 @@ model Story {
   pinnedMemories PinnedMemory[]
   journals       JournalEntry[]
   keepOutOfAsk   Boolean       @default(false)
+  askConversation AskConversation?
 
   @@index([familyId])
 }
@@ -677,6 +687,7 @@ model Heirloom {
   person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
   loans      HeirloomLoan[]
   holds      HeirloomHold[]
+  reunionBrings ReunionBring[]
 
   @@index([familyId])
 }
@@ -882,6 +893,8 @@ model CemeteryPlot {
   createdAt  DateTime @default(now())
   cemetery   Cemetery @relation(fields: [cemeteryId], references: [id], onDelete: Cascade)
   person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  x          Float?
+  y          Float?
 
   @@index([cemeteryId])
 }
@@ -958,6 +971,7 @@ model ReunionGathering {
   guests     ReunionGuest[]
   photos     ReunionPhoto[]
   dishes     ReunionDish[]
+  brings     ReunionBring[]
 
   @@index([familyId, happenedOn])
 }
@@ -1062,6 +1076,8 @@ model BibleRecord {
   recordedAt DateTime? @db.Date
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   holder     Person?   @relation(fields: [holderId], references: [id], onDelete: SetNull)
+  assetId    String?
+  page       Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
 }
@@ -1102,6 +1118,8 @@ model AskConversation {
   family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   turns     AskTurn[]
+  storyId   String?   @unique
+  story     Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
 
   @@index([familyId, userId, updatedAt])
 }
@@ -1457,6 +1475,7 @@ model ReunionDish {
   reunion   ReunionGathering  @relation(fields: [reunionId], references: [id], onDelete: Cascade)
   person    Person?           @relation(fields: [personId], references: [id], onDelete: SetNull)
   recipe    Document?         @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  brings    ReunionBring[]
 
   @@index([familyId, reunionId])
 }
@@ -1876,4 +1895,37 @@ model PhotoRestore {
   cleaned    Asset    @relation("RestoreCleaned", fields: [cleanedId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
+}
+
+model ReunionBring {
+  id         String           @id @default(cuid())
+  familyId   String
+  reunionId  String
+  personId   String
+  kind       String
+  title      String
+  assetId    String?
+  heirloomId String?
+  dishId     String?
+  notes      String?
+  createdAt  DateTime         @default(now())
+  family     Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion    ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  person     Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+  asset      Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  heirloom   Heirloom?        @relation(fields: [heirloomId], references: [id], onDelete: SetNull)
+  dish       ReunionDish?     @relation(fields: [dishId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, reunionId])
+}
+
+model NoticeMute {
+  userId    String
+  familyId  String
+  category  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, familyId, category])
 }

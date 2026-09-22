@@ -67,6 +67,8 @@ export function PlotForm({ cemeteryId, people }: { cemeteryId: string; people: P
         personId: data.get("personId"),
         plot: data.get("plot"),
         notes: data.get("notes"),
+        x: data.get("x") || undefined,
+        y: data.get("y") || undefined,
       }),
     });
     const payload = await response.json();
@@ -86,6 +88,10 @@ export function PlotForm({ cemeteryId, people }: { cemeteryId: string; people: P
         ))}
       </select>
       <input name="plot" placeholder="Lot 14, row 3" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input name="x" placeholder="Map left % (0–100)" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+        <input name="y" placeholder="Map top % (0–100)" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      </div>
       <input name="notes" placeholder="Notes" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
       <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
