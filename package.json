@@ -36,7 +36,8 @@
     "test:ui:funeral": "tsx tests/ui-funeral-layer.ts",
     "test:ui:card": "tsx tests/ui-card-layer.ts",
     "test:ui:firsts": "tsx tests/ui-firsts-layer.ts",
-    "test:ui:then-now": "tsx tests/ui-then-now-layer.ts"
+    "test:ui:then-now": "tsx tests/ui-then-now-layer.ts",
+    "test:ui:memory-lane": "tsx tests/ui-memory-lane-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

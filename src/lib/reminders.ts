@@ -94,6 +94,10 @@ export function remindersTomorrow(reminders: Reminder[]) {
   return reminders.filter((item) => item.daysUntil === 1);
 }
 
+export function remindersToday(reminders: Reminder[]) {
+  return reminders.filter((item) => item.daysUntil === 0);
+}
+
 export function tomorrowHeading(count: number) {
   if (!count) return "No family date tomorrow";
   if (count === 1) return "Tomorrow’s family date";

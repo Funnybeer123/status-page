@@ -6,6 +6,9 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { journalHeading, journalLine } from "@/lib/journal";
 import { KeepOutToggle } from "@/app/follow/ui";
+import { SecretUntilForm } from "@/app/memory-lane/ui";
+import { hiddenSecretBody, isSecretLocked, secretUntilLine } from "@/lib/secretUntil";
+import { canWrite } from "@/lib/roles";
 
 export default async function JournalPage() {
   const ctx = await requireFamily();
@@ -43,12 +46,27 @@ export default async function JournalPage() {
           <li key={entry.id} className="paper-card p-5">
             <p className="font-display text-2xl">{entry.title}</p>
             <p className="text-bark">{journalLine(entry.title, Boolean(entry.storyId))}</p>
-            <p className="mt-2 whitespace-pre-wrap text-bark">{entry.body}</p>
+            {entry.secretUntil ? (
+              <p className="mt-1 font-sans text-sm text-gold" data-testid="journal-secret-until">
+                {secretUntilLine(entry.secretUntil)}
+              </p>
+            ) : null}
+            <p className="mt-2 whitespace-pre-wrap text-bark">
+              {isSecretLocked(entry.secretUntil) ? hiddenSecretBody() : entry.body}
+            </p>
             <KeepOutToggle kind="journal" id={entry.id} keepOut={entry.keepOutOfAsk} />
+            {canWrite(ctx.role) ? (
+              <SecretUntilForm
+                journalId={entry.id}
+                until={entry.secretUntil ? entry.secretUntil.toISOString().slice(0, 10) : ""}
+              />
+            ) : null}
             {entry.storyId ? (
               <p className="mt-3 font-sans text-sm">
                 <Link href={`/stories/${entry.storyId}`} className="text-seal">Open the story</Link>
               </p>
+            ) : isSecretLocked(entry.secretUntil) ? (
+              <p className="mt-3 font-sans text-sm text-gold">Share it after the secret date.</p>
             ) : (
               <ShareJournal id={entry.id} />
             )}

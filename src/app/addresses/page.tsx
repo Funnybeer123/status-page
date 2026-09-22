@@ -17,7 +17,10 @@ export default async function AddressesPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="addresses-heading">Street addresses</h1>
-      <p className="mt-3 max-w-2xl text-bark">The house number a relative would write on an envelope.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        The house number a relative would write on an envelope.{" "}
+        <Link href="/addresses/book" className="text-seal">Printable address book</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="address"

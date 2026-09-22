@@ -5,6 +5,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { isLiving } from "@/lib/privacy";
 import { compileGrandchildQuiz } from "@/lib/grandchildQuiz";
+import { isSecretLocked } from "@/lib/secretUntil";
 
 export default async function QuizPage() {
   const ctx = await requireFamily();
@@ -22,7 +23,7 @@ export default async function QuizPage() {
   ]);
   const questions = compileGrandchildQuiz([
     ...letters
-      .filter((letter) => !letter.people.length || letter.people.some((item) => !living.has(item.personId)))
+      .filter((letter) => !isSecretLocked(letter.secretUntil) && (!letter.people.length || letter.people.some((item) => !living.has(item.personId))))
       .map((letter) => ({
         id: letter.id,
         title: letter.title,
@@ -59,6 +60,8 @@ export default async function QuizPage() {
       </ol>
       <p className="mt-8 font-sans text-sm">
         <Link href="/ask/grandchild" className="text-seal">Ask simply</Link>
+        {" · "}
+        <Link href="/crossword" className="text-seal">Family crossword</Link>
       </p>
     </AppShell>
   );

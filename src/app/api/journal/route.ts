@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { recordActivity } from "@/lib/activity";
 import { createStoryRecord } from "@/lib/stories";
 import { journalHeading, journalLine, journalSharedHeading } from "@/lib/journal";
+import { isSecretLocked } from "@/lib/secretUntil";
 
 const schema = z.object({
   id: z.string().optional(),
@@ -13,6 +14,7 @@ const schema = z.object({
   body: z.string().max(8000).optional(),
   recordedAt: z.string().optional(),
   keepOut: z.boolean().optional(),
+  secretUntil: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -47,6 +49,9 @@ export async function POST(req: Request) {
       where: { id: body.data.id, familyId: ctx.family.id, authorId: ctx.session.user.id },
     });
     if (!existing) return NextResponse.json({ error: "Journal entry not found." }, { status: 404 });
+    if (isSecretLocked(existing.secretUntil)) {
+      return NextResponse.json({ error: "This journal stays closed until the secret date." }, { status: 400 });
+    }
     if (existing.storyId) {
       const story = await prisma.story.findFirst({ where: { id: existing.storyId, familyId: ctx.family.id } });
       return NextResponse.json({ entry: { ...existing, story }, story });
@@ -85,6 +90,7 @@ export async function POST(req: Request) {
       body: body.data.body.trim(),
       recordedAt: body.data.recordedAt ? new Date(body.data.recordedAt) : null,
       keepOutOfAsk: Boolean(body.data.keepOut),
+      secretUntil: body.data.secretUntil ? new Date(body.data.secretUntil) : null,
     },
   });
   return NextResponse.json({ entry, heading: journalLine(entry.title, false) });

@@ -14,7 +14,10 @@ export default async function TomorrowPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="tomorrow-heading">{tomorrowHeading(tomorrow.length)}</h1>
-      <p className="mt-3 max-w-2xl text-bark">A reminder the day before a family date.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        A reminder the day before a family date.{" "}
+        <Link href="/digest" className="text-seal">Start of the day</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="tomorrow-list">
         {tomorrow.map((item) => (
           <li key={item.id} className="paper-card flex flex-wrap items-baseline justify-between gap-3 p-5">

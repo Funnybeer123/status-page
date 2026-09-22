@@ -5,6 +5,8 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
+import { ocrConfidenceLine } from "@/lib/ocrConfidence";
+import { OcrConfidenceForm } from "@/app/memory-lane/ui";
 
 export default async function OcrQueuePage() {
   const ctx = await requireFamily();
@@ -17,14 +19,23 @@ export default async function OcrQueuePage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="ocr-heading">OCR review</h1>
-      <p className="mt-3 max-w-2xl text-bark">Pages that need a human to check the transcript.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Pages that need a human to check the transcript.{" "}
+        <Link href="/ocr/confidence" className="text-seal">OCR confidence</Link>
+      </p>
       <ul className="mt-10 space-y-4" data-testid="ocr-list">
         {documents.map((document) => (
           <li key={document.id} className="paper-card p-5">
             <Link href={`/letters/${document.id}`} className="font-display text-2xl text-seal">{document.title}</Link>
             <p className="font-sans text-sm text-gold">{formatDate(document.writtenAt, "Undated")}</p>
             <p className="mt-2 line-clamp-4 text-bark">{document.transcript}</p>
+            {document.ocrConfidence != null || document.needsReview ? (
+              <p className="mt-2 font-sans text-sm text-gold" data-testid="ocr-confidence">
+                {ocrConfidenceLine(document.ocrConfidence)}
+              </p>
+            ) : null}
             {canWrite(ctx.role) ? <OcrReviewForm documentId={document.id} transcript={document.transcript} /> : null}
+            {canWrite(ctx.role) ? <OcrConfidenceForm documentId={document.id} score={document.ocrConfidence} /> : null}
           </li>
         ))}
         {!documents.length ? <li className="text-bark">Nothing waiting for a human pass.</li> : null}

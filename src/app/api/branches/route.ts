@@ -4,11 +4,13 @@ import { z } from "zod";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { recordActivity } from "@/lib/activity";
+import { normalizeBranchColor } from "@/lib/branchColor";
 
 const schema = z.object({
   name: z.string().min(1).max(160),
   summary: z.string().max(800).optional(),
   personIds: z.array(z.string()).optional(),
+  color: z.string().max(40).optional(),
 });
 
 export async function GET() {
@@ -36,6 +38,7 @@ export async function POST(req: Request) {
       familyId: ctx.family.id,
       name: body.data.name.trim(),
       summary: body.data.summary?.trim() || null,
+      color: normalizeBranchColor(body.data.color),
       members: people.length ? { create: people.map((person) => ({ personId: person.id })) } : undefined,
     },
     include: { members: { include: { person: true } } },

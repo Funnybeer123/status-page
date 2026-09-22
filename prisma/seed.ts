@@ -3412,6 +3412,137 @@ async function ensureHartArchive() {
       update: { body: "Lily Chen visited from Cedar Falls and left Sunday rolls on the table." },
     });
   }
+
+  const eleanorPortrait = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Eleanor Hart, about 1948" },
+  });
+  if (eleanorPortrait) {
+    await prisma.asset.update({ where: { id: eleanorPortrait.id }, data: { placeId: cedar.id } });
+  }
+  const danceForWeather = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Harvest dance, Grange hall" },
+  });
+  if (danceForWeather) {
+    await prisma.asset.update({
+      where: { id: danceForWeather.id },
+      data: { weather: "A hard frost, then a clear night for the fiddle." },
+    });
+  }
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: {
+      weather: "The family remembered a hard frost the morning after the dance.",
+      secretUntil: new Date("1948-10-18"),
+    },
+  });
+  const picnicForBorrow = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Hart picnic, 1961" },
+  });
+  if (picnicForBorrow) {
+    await prisma.asset.update({
+      where: { id: picnicForBorrow.id },
+      data: { borrowedFromAlbumId: "album-harvest" },
+    });
+  }
+  const picnicFilmForCaptions = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Picnic home movie, 1961" },
+  });
+  const spokenForCaptions = await prisma.asset.findFirst({
+    where: { id: "asset-eleanor-spoken" },
+  });
+  if (picnicFilmForCaptions) {
+    await prisma.filmCaption.upsert({
+      where: { id: "caption-sunday-rolls" },
+      create: {
+        id: "caption-sunday-rolls",
+        familyId: family.id,
+        filmId: picnicFilmForCaptions.id,
+        oralAssetId: spokenForCaptions?.id || null,
+        seconds: 12,
+        text: "Mother is cutting Sunday rolls under the cottonwoods.",
+      },
+      update: { text: "Mother is cutting Sunday rolls under the cottonwoods.", seconds: 12 },
+    });
+    await prisma.filmCaption.upsert({
+      where: { id: "caption-how-they-met" },
+      create: {
+        id: "caption-how-they-met",
+        familyId: family.id,
+        filmId: picnicFilmForCaptions.id,
+        oralAssetId: spokenForCaptions?.id || null,
+        seconds: 83,
+        text: "The children ask how Grandma met Grandpa.",
+      },
+      update: { seconds: 83 },
+    });
+  }
+  if (lilyLiving) {
+    await prisma.familyAddress.upsert({
+      where: { id: "addr-lily-market" },
+      create: {
+        id: "addr-lily-market",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        label: "Lily on Market Street",
+        line: "14 Market Street",
+        locality: "Cedar Falls",
+        region: "Iowa",
+        country: "United States",
+        startedOn: new Date("2006-08-01"),
+      },
+      update: { line: "14 Market Street", endedOn: null },
+    });
+  }
+  await prisma.document.upsert({
+    where: { id: "doc-secret-lily" },
+    create: {
+      id: "doc-secret-lily",
+      familyId: family.id,
+      title: "For Lily, not yet",
+      kind: DocKind.letter,
+      transcript: "I still have the hatband in the drawer. Open this when you are ready.",
+      writtenAt: new Date("1948-10-18"),
+      secretUntil: new Date("2030-01-01"),
+      people: lilyLiving ? { create: [{ personId: lilyLiving.id }] } : undefined,
+    },
+    update: { secretUntil: new Date("2030-01-01") },
+  });
+  await prisma.familyBranch.updateMany({
+    where: { id: "branch-cedar-falls-harts" },
+    data: { color: "#4d5b3c" },
+  });
+  await prisma.document.updateMany({
+    where: { id: "doc-ruth-reply" },
+    data: { ocrConfidence: 62, needsReview: true },
+  });
+  if (demoUser) {
+    await prisma.journalEntry.upsert({
+      where: { id: "journal-secret-lily" },
+      create: {
+        id: "journal-secret-lily",
+        familyId: family.id,
+        authorId: demoUser.id,
+        title: "What I have not said yet",
+        body: "The hatband is still in the cedar drawer.",
+        recordedAt: new Date("2016-03-12"),
+        secretUntil: new Date("2030-01-01"),
+      },
+      update: { secretUntil: new Date("2030-01-01") },
+    });
+    await prisma.journalEntry.upsert({
+      where: { id: "journal-opened-rolls" },
+      create: {
+        id: "journal-opened-rolls",
+        familyId: family.id,
+        authorId: demoUser.id,
+        title: "Sunday rolls after the picnic",
+        body: "We opened this the summer after the harvest-dance anniversary.",
+        recordedAt: new Date("1962-07-04"),
+        secretUntil: new Date("1963-01-01"),
+      },
+      update: { secretUntil: new Date("1963-01-01") },
+    });
+  }
 }
 
 async function writeHartMedia() {

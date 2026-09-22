@@ -16,17 +16,22 @@ import { hidePhotoFromAudience } from "@/lib/privacy";
 import { placedOnPhoto } from "@/lib/whoWhere";
 import Link from "next/link";
 import { TrashRestore } from "@/app/trash/ui";
+import { BorrowedForm, WeatherForm } from "@/app/memory-lane/ui";
+import { borrowedFromLine, hasBorrowedCredit } from "@/lib/borrowedFrom";
+import { hasWeather, weatherNoteLine, weatherOnDayHeading } from "@/lib/weatherNote";
+import { filmCaptionLine, sortFilmCaptions } from "@/lib/filmCaptions";
 
 export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [asset, people, places] = await Promise.all([
+  const [asset, people, places, albums] = await Promise.all([
     prisma.asset.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
-      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true, photoNotes: true },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true, photoNotes: true, borrowedFromAlbum: true, filmCaptions: true },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
+    prisma.album.findMany({ where: { familyId: ctx.family.id }, orderBy: { title: "asc" } }),
   ]);
   if (!asset) notFound();
   if (hidePhotoFromAudience(ctx.role, asset.tags.map((tag) => tag.person))) notFound();
@@ -47,7 +52,18 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
         {formatDate(asset.capturedAt, "Undated")}
         {asset.tags.length ? ` · ${asset.tags.map((tag) => tag.person.displayName).join(", ")}` : ""}
         {asset.place ? ` · Taken at ${asset.place.name}` : ""}
+        {hasWeather(asset) ? ` · ${weatherNoteLine(asset.weather, asset.capturedAt)}` : ""}
       </p>
+      {hasBorrowedCredit(asset) ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="borrowed-from">
+          {borrowedFromLine(asset.borrowedFromAlbum?.title)}
+        </p>
+      ) : null}
+      {hasWeather(asset) ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="asset-weather">
+          {weatherOnDayHeading(asset.title)} · {weatherNoteLine(asset.weather, asset.capturedAt)}
+        </p>
+      ) : null}
       <div className="paper-card mt-8 overflow-hidden p-4">
         {asset.mimeType.startsWith("video/") ? (
           <video controls src={`/api/media/${asset.storagePath}`} className="w-full" />
@@ -106,6 +122,14 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
         <PhotoPlaceForm assetId={asset.id} places={places.map((place) => ({ id: place.id, name: place.name }))} />
       ) : null}
       {canWrite(ctx.role) && asset.kind === "photo" ? <PhotoNoteForm assetId={asset.id} /> : null}
+      {canWrite(ctx.role) ? <WeatherForm assetId={asset.id} weather={asset.weather} /> : null}
+      {canWrite(ctx.role) ? (
+        <BorrowedForm
+          assetId={asset.id}
+          albums={albums.map((album) => ({ id: album.id, title: album.title }))}
+          albumId={asset.borrowedFromAlbumId}
+        />
+      ) : null}
       {asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
         <p className="mt-6 text-bark" data-testid="oral-transcript">{asset.document.transcript}</p>
       ) : null}
@@ -119,6 +143,20 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
             {!asset.filmMoments.length ? <li className="text-bark">No moments marked yet.</li> : null}
           </ul>
           {canWrite(ctx.role) ? <FilmMomentForm assetId={asset.id} /> : null}
+        </section>
+      ) : null}
+      {asset.kind === "video" || asset.mimeType.startsWith("video/") ? (
+        <section className="mt-8" data-testid="film-caption-track">
+          <h2 className="font-display text-2xl">Silent captions</h2>
+          <ul className="mt-4 space-y-2">
+            {sortFilmCaptions(asset.filmCaptions).map((caption) => (
+              <li key={caption.id} className="paper-card p-4">{filmCaptionLine(caption.seconds, caption.text)}</li>
+            ))}
+            {!asset.filmCaptions.length ? <li className="text-bark">No captions on this film yet.</li> : null}
+          </ul>
+          <p className="mt-3 font-sans text-sm">
+            <Link href={`/films/${asset.id}/captions`} className="text-seal">Open the caption track</Link>
+          </p>
         </section>
       ) : null}
       {canWrite(ctx.role) && !asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (

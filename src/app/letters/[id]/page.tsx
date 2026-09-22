@@ -18,6 +18,10 @@ import { highlightHeading, highlightHitCount, highlightSearchWords } from "@/lib
 import { CiteBlock } from "@/components/CiteBlock";
 import { PostmarkForm } from "@/app/then-now/ui";
 import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
+import { SecretUntilForm, WeatherForm, OcrConfidenceForm } from "@/app/memory-lane/ui";
+import { hiddenSecretBody, isSecretLocked, secretUntilLine } from "@/lib/secretUntil";
+import { hasWeather, weatherNoteLine, weatherOnDayHeading } from "@/lib/weatherNote";
+import { ocrConfidenceLine } from "@/lib/ocrConfidence";
 
 export default async function LetterPage({
   params,
@@ -43,6 +47,8 @@ export default async function LetterPage({
     },
   });
   if (!letter) notFound();
+  const locked = isSecretLocked(letter.secretUntil);
+  const shownTranscript = locked ? hiddenSecretBody() : letter.transcript;
 
   return (
     <AppShell>
@@ -58,7 +64,18 @@ export default async function LetterPage({
         {letter.people.length ? ` · ${letter.people.map((item) => item.person.displayName).join(", ")}` : ""}
         {letter.needsReview ? " · Needs a transcript check" : ""}
         {isTranscriptLocked(letter) ? ` · ${transcriptLockHeading(true)}` : ""}
+        {letter.secretUntil ? ` · ${secretUntilLine(letter.secretUntil)}` : ""}
       </p>
+      {letter.secretUntil ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="letter-secret-until">
+          {secretUntilLine(letter.secretUntil)}
+        </p>
+      ) : null}
+      {letter.needsReview ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="letter-ocr-confidence">
+          {ocrConfidenceLine(letter.ocrConfidence)}
+        </p>
+      ) : null}
       <p className="mt-3 font-sans text-sm">
         <Link href={`/letters/${letter.id}/room`} className="text-seal" data-testid="reading-room-link">
           Open the reading room
@@ -96,7 +113,7 @@ export default async function LetterPage({
           <p
             className="mt-3 whitespace-pre-wrap text-lg leading-relaxed [&_mark]:bg-gold/30 [&_mark]:px-0.5"
             data-testid="letter-highlight-body"
-            dangerouslySetInnerHTML={{ __html: highlightSearchWords(letter.transcript, q) }}
+            dangerouslySetInnerHTML={{ __html: highlightSearchWords(shownTranscript, q) }}
           />
         </section>
       ) : null}
@@ -117,16 +134,16 @@ export default async function LetterPage({
         <LetterEditor
           id={letter.id}
           title={letter.title}
-          transcript={letter.transcript}
-          translation={letter.translation || ""}
+          transcript={shownTranscript}
+          translation={locked ? "" : letter.translation || ""}
           writtenAt={letter.writtenAt ? letter.writtenAt.toISOString().slice(0, 10) : ""}
           needsReview={letter.needsReview}
-          canEdit={canWrite(ctx.role)}
-          locked={isTranscriptLocked(letter)}
+          canEdit={canWrite(ctx.role) && !locked}
+          locked={isTranscriptLocked(letter) || locked}
           credit={transcriptCreditLine(letter.transcribedBy?.name)}
         />
       </div>
-      {letter.translation ? (
+      {letter.translation && !locked ? (
         <section className="mt-8 paper-card p-5" data-testid="letter-translation-view">
           <h2 className="font-display text-2xl">Translation</h2>
           <p className="mt-2 whitespace-pre-wrap text-bark">{letter.translation}</p>
@@ -145,7 +162,7 @@ export default async function LetterPage({
           </ul>
         </section>
       ) : null}
-      {hasEdits(letter.revisions) ? (
+      {hasEdits(letter.revisions) && !locked ? (
         <section className="mt-10" data-testid="transcript-compare">
           <h2 className="font-display text-2xl">{compareHeading()}</h2>
           <p className="mt-2 font-sans text-sm">
@@ -158,12 +175,12 @@ export default async function LetterPage({
             </article>
             <article className="paper-card p-4">
               <h3 className="font-display text-xl">{compareSideLabel("current")}</h3>
-              <p className="mt-2 whitespace-pre-wrap text-bark">{letter.transcript}</p>
+              <p className="mt-2 whitespace-pre-wrap text-bark">{shownTranscript}</p>
             </article>
           </div>
         </section>
       ) : null}
-      {letter.revisions.length ? (
+      {letter.revisions.length && !locked ? (
         <section className="mt-10" data-testid="transcript-history">
           <h2 className="font-display text-2xl">Earlier transcripts</h2>
           <ol className="mt-4 space-y-3">
@@ -190,6 +207,25 @@ export default async function LetterPage({
             ))}
           </ul>
         </section>
+      ) : null}
+      {hasWeather(letter) || canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-weather">
+          <h2 className="font-display text-2xl">{weatherOnDayHeading(letter.title)}</h2>
+          <p className="mt-2 text-bark">{weatherNoteLine(letter.weather, letter.writtenAt)}</p>
+          {canWrite(ctx.role) ? <WeatherForm documentId={letter.id} weather={letter.weather} /> : null}
+        </section>
+      ) : null}
+      {canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-secret">
+          <h2 className="font-display text-2xl">Kept secret until</h2>
+          <SecretUntilForm
+            documentId={letter.id}
+            until={letter.secretUntil ? letter.secretUntil.toISOString().slice(0, 10) : ""}
+          />
+        </section>
+      ) : null}
+      {letter.needsReview && canWrite(ctx.role) ? (
+        <OcrConfidenceForm documentId={letter.id} score={letter.ocrConfidence} />
       ) : null}
       {hasPostmark(letter) || canWrite(ctx.role) ? (
         <section className="mt-10" data-testid="letter-postmark">

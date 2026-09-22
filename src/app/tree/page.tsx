@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { redactPeople } from "@/lib/privacy";
 import { memberIdsForBranch, peopleInBranch, relationshipsInBranch } from "@/lib/branches";
+import { normalizeBranchColor } from "@/lib/branchColor";
 
 export default async function TreePage({
   searchParams,
@@ -77,11 +78,15 @@ export default async function TreePage({
             key={branch.id}
             href={`/tree?branchId=${branch.id}${params.view ? `&view=${params.view}` : ""}`}
             className={`rounded-full px-3 py-1 ${params.branchId === branch.id ? "bg-seal text-cream" : "border border-bark/15"}`}
+            style={normalizeBranchColor(branch.color) ? { borderColor: normalizeBranchColor(branch.color) || undefined } : undefined}
             data-testid={`tree-branch-${branch.id}`}
           >
             {branch.name}
           </Link>
         ))}
+        <Link href="/branches/legend" className="rounded-full border border-bark/15 px-3 py-1">
+          Color legend
+        </Link>
       </div>
       <div className="mt-10">
         {params.view === "pedigree" ? (() => {

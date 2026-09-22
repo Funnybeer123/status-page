@@ -224,6 +224,7 @@ model Family {
   vaultNotes    FamilyVaultNote[]
   phoneContacts FamilyPhoneContact[]
   guestBookEntries HomeGuestBook[]
+  filmCaptions  FilmCaption[]
 }
 
 model Membership {
@@ -404,6 +405,11 @@ model Asset {
   reunionBrings  ReunionBring[]
   huntClues      HuntClue[]
   envelopeLetters Document[] @relation("EnvelopeScan")
+  weather        String?
+  borrowedFromAlbumId String?
+  borrowedFromAlbum Album? @relation("BorrowedFrom", fields: [borrowedFromAlbumId], references: [id], onDelete: SetNull)
+  filmCaptions   FilmCaption[] @relation("FilmCaptionFilm")
+  oralCaptions   FilmCaption[] @relation("FilmCaptionOral")
 }
 
 model PersonTag {
@@ -466,6 +472,9 @@ model Document {
   holiday        FamilyHoliday?   @relation(fields: [holidayId], references: [id], onDelete: SetNull)
   postmarkedAt   DateTime?        @db.Date
   stampText      String?
+  weather        String?
+  secretUntil    DateTime?        @db.Date
+  ocrConfidence  Int?
 }
 
 model DocumentPerson {
@@ -659,6 +668,7 @@ model Album {
   family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   createdBy   User        @relation("AlbumCreator", fields: [createdById], references: [id])
   items       AlbumItem[]
+  borrowedPhotos Asset[]  @relation("BorrowedFrom")
 
   @@index([familyId])
 }
@@ -892,6 +902,7 @@ model FamilyBranch {
   familyId  String
   name      String
   summary   String?
+  color     String?
   createdAt DateTime             @default(now())
   family    Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
   members   FamilyBranchPerson[]
@@ -1596,6 +1607,21 @@ model FilmMoment {
   @@index([familyId, assetId])
 }
 
+model FilmCaption {
+  id          String   @id @default(cuid())
+  familyId    String
+  filmId      String
+  oralAssetId String?
+  seconds     Int
+  text        String
+  createdAt   DateTime @default(now())
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  film        Asset    @relation("FilmCaptionFilm", fields: [filmId], references: [id], onDelete: Cascade)
+  oralAsset   Asset?   @relation("FilmCaptionOral", fields: [oralAssetId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, filmId])
+}
+
 model MilitaryUnit {
   id        String            @id @default(cuid())
   familyId  String
@@ -1876,6 +1902,7 @@ model JournalEntry {
   author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   story       Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
   keepOutOfAsk Boolean  @default(false)
+  secretUntil DateTime? @db.Date
 
   @@index([familyId, authorId])
 }
