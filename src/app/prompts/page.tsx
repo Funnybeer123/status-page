@@ -28,6 +28,7 @@ export default async function PromptsPage() {
                 <li key={answer.id}>
                   <Link href={`/stories/${answer.story.id}`} className="text-seal">{answer.story.title}</Link>
                   <span className="ml-2 font-sans text-sm text-bark">{answer.author.name}</span>
+                  {answer.story.body ? <p className="mt-1 text-bark">{answer.story.body}</p> : null}
                 </li>
               ))}
             </ul>
