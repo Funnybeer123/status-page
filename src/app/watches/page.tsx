@@ -37,6 +37,8 @@ export default async function WatchesPage() {
         <Link href="/funerals" className="text-seal">Funeral programs</Link>
         {" · "}
         <Link href="/watches/missing" className="text-seal">Funerals still needing a deathwatch</Link>
+        {" · "}
+        <Link href="/sick" className="text-seal">Sick-watch</Link>
       </p>
       {canWrite(ctx.role) ? (
         <WatchForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />

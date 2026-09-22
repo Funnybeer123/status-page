@@ -27,7 +27,10 @@ export default async function BaptismsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="baptisms-heading">Baptisms</h1>
-      <p className="mt-3 max-w-2xl text-bark">Christenings recorded on the archive.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Christenings recorded on the archive.{" "}
+        <Link href="/midwives" className="text-seal">Midwives</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="baptisms-list">
         {rows.map((row) => (
           <li key={row.id} className="paper-card p-5">

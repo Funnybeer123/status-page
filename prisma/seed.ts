@@ -4564,6 +4564,212 @@ async function ensureHartArchive() {
       update: { year: 1996, church: "St. John's" },
     });
   }
+
+  await prisma.fenceViewer.upsert({
+    where: { id: "fence-samuel-1949" },
+    create: {
+      id: "fence-samuel-1949",
+      familyId: family.id,
+      personId: samuel.id,
+      neighbors: "Whitaker and Chen",
+      walkedOn: new Date("1949-04-12"),
+      notes: "The north line after the new barn.",
+    },
+    update: { neighbors: "Whitaker and Chen", walkedOn: new Date("1949-04-12") },
+  });
+
+  await prisma.roadTax.upsert({
+    where: { id: "road-tax-samuel-1952" },
+    create: {
+      id: "road-tax-samuel-1952",
+      familyId: family.id,
+      personId: samuel.id,
+      road: "north township road",
+      days: 3,
+      year: 1952,
+      notes: "Worked out instead of cash.",
+    },
+    update: { road: "north township road", days: 3, year: 1952 },
+  });
+
+  await prisma.creameryCheck.upsert({
+    where: { id: "creamery-eleanor-1961" },
+    create: {
+      id: "creamery-eleanor-1961",
+      familyId: family.id,
+      personId: eleanor.id,
+      paidOn: new Date("1961-06-15"),
+      pounds: "40 pounds",
+      amount: "$8.20",
+      notes: "June cream from the north-farm cows.",
+    },
+    update: { pounds: "40 pounds", amount: "$8.20", paidOn: new Date("1961-06-15") },
+  });
+
+  await prisma.lightningRod.upsert({
+    where: { id: "rod-samuel-barn-1949" },
+    create: {
+      id: "rod-samuel-barn-1949",
+      familyId: family.id,
+      personId: samuel.id,
+      building: "north-farm barn",
+      year: 1949,
+      notes: "After the raising.",
+    },
+    update: { building: "north-farm barn", year: 1949 },
+  });
+
+  await prisma.mapleCamp.upsert({
+    where: { id: "maple-samuel-1951" },
+    create: {
+      id: "maple-samuel-1951",
+      familyId: family.id,
+      personId: samuel.id,
+      gallons: "12 gallons",
+      year: 1951,
+      place: "north-farm grove",
+    },
+    update: { gallons: "12 gallons", year: 1951, place: "north-farm grove" },
+  });
+
+  await prisma.huskingBee.upsert({
+    where: { id: "husking-samuel-1950" },
+    create: {
+      id: "husking-samuel-1950",
+      familyId: family.id,
+      ownerId: samuel.id,
+      heldOn: new Date("1950-10-20"),
+      place: "North farm",
+    },
+    update: { ownerId: samuel.id, heldOn: new Date("1950-10-20") },
+  });
+  for (const guest of [
+    ...(robertForBee ? [{ id: "husking-guest-robert", personId: robertForBee.id }] : []),
+    ...(weiForBee ? [{ id: "husking-guest-wei", personId: weiForBee.id }] : []),
+  ]) {
+    await prisma.huskingBeeGuest.upsert({
+      where: { id: guest.id },
+      create: {
+        id: guest.id,
+        familyId: family.id,
+        beeId: "husking-samuel-1950",
+        personId: guest.personId,
+      },
+      update: {},
+    });
+  }
+
+  if (margaretForBee && lilyForBee) {
+    await prisma.midwifeRecord.upsert({
+      where: { id: "midwife-eleanor-lily-1984" },
+      create: {
+        id: "midwife-eleanor-lily-1984",
+        familyId: family.id,
+        midwifeId: eleanor.id,
+        motherId: margaretForBee.id,
+        childId: lilyForBee.id,
+        attendedOn: new Date("1984-07-21"),
+        notes: "Eleanor sat with Margaret.",
+      },
+      update: { attendedOn: new Date("1984-07-21"), childId: lilyForBee.id },
+    });
+  }
+
+  if (robertForBee) {
+    await prisma.headstoneCarver.upsert({
+      where: { id: "carver-robert-eleanor" },
+      create: {
+        id: "carver-robert-eleanor",
+        familyId: family.id,
+        carverId: robertForBee.id,
+        personId: eleanor.id,
+        yard: "Fairview",
+        notes: "The cottonwood lot.",
+      },
+      update: { yard: "Fairview", carverId: robertForBee.id },
+    });
+  }
+
+  await prisma.charivari.upsert({
+    where: { id: "charivari-chen" },
+    create: {
+      id: "charivari-chen",
+      familyId: family.id,
+      title: "Chen wedding",
+      heldOn: new Date("1978-06-10"),
+    },
+    update: { title: "Chen wedding", heldOn: new Date("1978-06-10") },
+  });
+  for (const guest of [
+    ...(robertForBee ? [{ id: "charivari-robert", personId: robertForBee.id, noise: "a cowbell" }] : []),
+    { id: "charivari-samuel", personId: samuel.id, noise: "a tin pan" },
+  ]) {
+    await prisma.charivariGuest.upsert({
+      where: { id: guest.id },
+      create: {
+        id: guest.id,
+        familyId: family.id,
+        charivariId: "charivari-chen",
+        personId: guest.personId,
+        noise: guest.noise,
+      },
+      update: { noise: guest.noise },
+    });
+  }
+
+  await prisma.cattleBrand.upsert({
+    where: { id: "brand-samuel-hbar" },
+    create: {
+      id: "brand-samuel-hbar",
+      familyId: family.id,
+      personId: samuel.id,
+      mark: "H-bar",
+      startedOn: new Date("1949-01-01"),
+      endedOn: new Date("1978-12-31"),
+    },
+    update: { mark: "H-bar", startedOn: new Date("1949-01-01"), endedOn: new Date("1978-12-31") },
+  });
+
+  await prisma.sorghumBoil.upsert({
+    where: { id: "sorghum-samuel-1950" },
+    create: {
+      id: "sorghum-samuel-1950",
+      familyId: family.id,
+      personId: samuel.id,
+      gallons: "8 gallons",
+      year: 1950,
+      place: "north farm",
+    },
+    update: { gallons: "8 gallons", year: 1950, place: "north farm" },
+  });
+
+  if (margaretForBee) {
+    await prisma.sickWatch.upsert({
+      where: { id: "sick-margaret-eleanor" },
+      create: {
+        id: "sick-margaret-eleanor",
+        familyId: family.id,
+        sickId: eleanor.id,
+        personId: margaretForBee.id,
+        satOn: new Date("2015-05-28"),
+        notes: "The week before the deathwatch.",
+      },
+      update: { satOn: new Date("2015-05-28"), personId: margaretForBee.id },
+    });
+  }
+
+  await prisma.schoolBoardTerm.upsert({
+    where: { id: "board-samuel-1952" },
+    create: {
+      id: "board-samuel-1952",
+      familyId: family.id,
+      personId: samuel.id,
+      office: "director",
+      startedOn: new Date("1952-01-01"),
+      endedOn: new Date("1958-12-31"),
+    },
+    update: { office: "director", startedOn: new Date("1952-01-01"), endedOn: new Date("1958-12-31") },
+  });
 }
 
 async function writeHartMedia() {

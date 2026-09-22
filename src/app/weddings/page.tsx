@@ -16,7 +16,10 @@ export default async function WeddingsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="weddings-heading">Weddings</h1>
-      <p className="mt-3 max-w-2xl text-bark">Every recorded marriage, with the place if the archive knows it.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Every recorded marriage, with the place if the archive knows it.{" "}
+        <Link href="/charivari" className="text-seal">Charivari</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="weddings-list">
         {weddings.map((event) => (
           <li key={event.id} className="paper-card p-5">
