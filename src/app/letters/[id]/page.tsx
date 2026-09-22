@@ -57,6 +57,14 @@ export default async function LetterPage({
         <Link href={`/letters/${letter.id}/aloud`} className="text-seal" data-testid="read-aloud-link">
           Read aloud
         </Link>
+        {letter.people[0] ? (
+          <>
+            {" · "}
+            <Link href={`/letters/pair?personId=${letter.people[0].personId}`} className="text-seal">
+              Two letters by {letter.people[0].person.displayName}
+            </Link>
+          </>
+        ) : null}
       </p>
       {letter.replyTo ? (
         <p className="mt-2 font-sans text-sm" data-testid="letter-reply-to">

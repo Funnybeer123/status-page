@@ -38,6 +38,9 @@ export default async function ReunionsPage() {
         ))}
         {!reunions.length ? <li className="text-bark">No reunions yet.</li> : null}
       </ul>
+      <p className="mt-8 font-sans text-sm">
+        <Link href="/reunions/seating/missing" className="text-seal">Reunions without a seating chart</Link>
+      </p>
     </AppShell>
   );
 }

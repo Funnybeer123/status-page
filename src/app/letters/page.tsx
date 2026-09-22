@@ -25,7 +25,9 @@ export default async function LettersIndexPage() {
         Every letter in the family, oldest first.{" "}
         <Link href="/letters/new" className="text-seal">Write a letter</Link>
         {" · "}
-        <Link href="/letters/undated" className="text-seal">{undatedLettersHeading(undated.length)}</Link>.
+        <Link href="/letters/undated" className="text-seal">{undatedLettersHeading(undated.length)}</Link>
+        {" · "}
+        <Link href="/letters/pair/people" className="text-seal">Two letters side by side</Link>.
       </p>
       <ol className="mt-10 space-y-3" data-testid="letters-index">
         {letters.map((letter) => (

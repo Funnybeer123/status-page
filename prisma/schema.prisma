@@ -113,6 +113,8 @@ model User {
   meetings       FamilyMeeting[]
   visits         PersonVisit[]
   noticeMutes    NoticeMute[]
+  huntFinishes   HuntFinish[]
+  familyVisits   FamilyVisit[]
 }
 
 model Family {
@@ -211,6 +213,10 @@ model Family {
   placePins     PlacePin[]
   newsletterDrafts NewsletterDraft[]
   researchChecks ResearchChecklistItem[]
+  huntFinishes  HuntFinish[]
+  reunionSeats  ReunionSeat[]
+  familyVisits  FamilyVisit[]
+  lifeDrafts    LifeDraft[]
 }
 
 model Membership {
@@ -328,6 +334,8 @@ model Person {
   visits         PersonVisit[]
   reunionBrings  ReunionBring[]
   memorialObituaries Document[] @relation("MemorialObituary")
+  reunionSeats   ReunionSeat[]
+  lifeDrafts     LifeDraft[]
 }
 
 model Relationship {
@@ -473,6 +481,7 @@ model Place {
   longitude  Float?
   parentId   String?
   kind       String?
+  gps        String?
   family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   parent     Place?      @relation("PlaceTree", fields: [parentId], references: [id], onDelete: SetNull)
   children   Place[]     @relation("PlaceTree")
@@ -495,6 +504,7 @@ model PersonName {
   name       String
   startedAt  DateTime?  @db.Date
   endedAt    DateTime?  @db.Date
+  notes      String?
   family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
   citations  Citation[]
@@ -982,6 +992,7 @@ model ReunionGathering {
   photos     ReunionPhoto[]
   dishes     ReunionDish[]
   brings     ReunionBring[]
+  seats      ReunionSeat[]
 
   @@index([familyId, happenedOn])
 }
@@ -1949,6 +1960,7 @@ model Hunt {
   createdAt DateTime   @default(now())
   family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   clues     HuntClue[]
+  finishes  HuntFinish[]
 
   @@index([familyId, createdAt])
 }
@@ -2013,4 +2025,57 @@ model ResearchChecklistItem {
 
   @@unique([familyId, kind])
   @@index([familyId])
+}
+
+model HuntFinish {
+  huntId     String
+  userId     String
+  familyId   String
+  finishedAt DateTime @default(now())
+  hunt       Hunt     @relation(fields: [huntId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@id([huntId, userId])
+  @@index([familyId])
+}
+
+model ReunionSeat {
+  id        String           @id @default(cuid())
+  familyId  String
+  reunionId String
+  personId  String
+  tableName String
+  seat      Int?
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  person    Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([reunionId, personId])
+  @@index([familyId, reunionId])
+}
+
+model FamilyVisit {
+  userId     String
+  familyId   String
+  seenAt     DateTime  @default(now())
+  previousAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, familyId])
+}
+
+model LifeDraft {
+  id        String   @id @default(cuid())
+  familyId  String
+  personId  String
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, personId])
 }

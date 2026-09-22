@@ -165,7 +165,9 @@ export default async function HomePage() {
       ) : null}
       <p className="mt-3 max-w-2xl text-bark">
         Upcoming dates, what happened on this day, and who added what.{" "}
-        <Link href="/year" className="text-seal">This year in the family</Link>.
+        <Link href="/year" className="text-seal">This year in the family</Link>
+        {" · "}
+        <Link href="/since" className="text-seal" data-testid="home-since-visit">What changed since last visit</Link>.
         {me ? (
           <>
             {" "}You are <Link href={`/people/${me.id}`} className="text-seal" data-testid="home-me">{me.displayName}</Link>.

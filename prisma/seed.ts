@@ -3081,6 +3081,95 @@ async function ensureHartArchive() {
       update: { title: item.title },
     });
   }
+
+  await prisma.place.update({
+    where: { id: cedar.id },
+    data: { gps: "42.5278 N, 92.4453 W" },
+  });
+  await prisma.personName.updateMany({
+    where: { id: "name-eleanor-ellie" },
+    data: { notes: "What Sam called her at the dance and what the grandchildren still say at supper." },
+  });
+  await prisma.personName.updateMany({
+    where: { id: "name-margaret-meg" },
+    data: { notes: "The name on the cedar-chest notes, used when Ellie wrote home." },
+  });
+  if (demoUser) {
+    await prisma.huntFinish.upsert({
+      where: { huntId_userId: { huntId: hunt.id, userId: demoUser.id } },
+      create: { huntId: hunt.id, userId: demoUser.id, familyId: family.id, finishedAt: new Date("2026-09-12") },
+      update: { finishedAt: new Date("2026-09-12") },
+    });
+    await prisma.familyVisit.upsert({
+      where: { userId_familyId: { userId: demoUser.id, familyId: family.id } },
+      create: {
+        userId: demoUser.id,
+        familyId: family.id,
+        seenAt: new Date("2026-09-01"),
+        previousAt: new Date("2026-08-01"),
+      },
+      update: { seenAt: new Date("2026-09-01"), previousAt: new Date("2026-08-01") },
+    });
+  }
+  const lilySeat = people.find((person) => person.id === "person-lily");
+  const megSeat = people.find((person) => person.id === "person-margaret");
+  const robertSeat = people.find((person) => person.id === "person-robert");
+  if (lilySeat) {
+    await prisma.reunionSeat.upsert({
+      where: { reunionId_personId: { reunionId: reunion.id, personId: lilySeat.id } },
+      create: {
+        id: "seat-lily-cottonwood",
+        familyId: family.id,
+        reunionId: reunion.id,
+        personId: lilySeat.id,
+        tableName: "Cottonwood table",
+        seat: 1,
+      },
+      update: { tableName: "Cottonwood table", seat: 1 },
+    });
+  }
+  if (megSeat) {
+    await prisma.reunionSeat.upsert({
+      where: { reunionId_personId: { reunionId: reunion.id, personId: megSeat.id } },
+      create: {
+        id: "seat-meg-cottonwood",
+        familyId: family.id,
+        reunionId: reunion.id,
+        personId: megSeat.id,
+        tableName: "Cottonwood table",
+        seat: 2,
+      },
+      update: { tableName: "Cottonwood table", seat: 2 },
+    });
+  }
+  if (robertSeat) {
+    await prisma.reunionSeat.upsert({
+      where: { reunionId_personId: { reunionId: reunion.id, personId: robertSeat.id } },
+      create: {
+        id: "seat-robert-north",
+        familyId: family.id,
+        reunionId: reunion.id,
+        personId: robertSeat.id,
+        tableName: "North farm table",
+        seat: 1,
+      },
+      update: { tableName: "North farm table", seat: 1 },
+    });
+  }
+  await prisma.lifeDraft.upsert({
+    where: { familyId_personId: { familyId: family.id, personId: eleanor.id } },
+    create: {
+      id: "draft-eleanor",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "Draft life story for Eleanor Hart",
+      body: "From Letter: Eleanor to Ruth, 18 October 1947: I danced three times with Samuel Hart from the north farm.\n\nFrom Cottonwoods this summer: Lily said the cottonwoods still hold the walk home, the same way Ellie wrote it.",
+    },
+    update: {
+      title: "Draft life story for Eleanor Hart",
+      body: "From Letter: Eleanor to Ruth, 18 October 1947: I danced three times with Samuel Hart from the north farm.\n\nFrom Cottonwoods this summer: Lily said the cottonwoods still hold the walk home, the same way Ellie wrote it.",
+    },
+  });
 }
 
 async function writeHartMedia() {

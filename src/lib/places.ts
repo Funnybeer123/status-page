@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { lookupCoordinates, parseCoord } from "@/lib/geocode";
+import { parseGps } from "@/lib/placeGps";
 
 export async function findOrCreatePlace(input: {
   familyId: string;
@@ -12,6 +13,7 @@ export async function findOrCreatePlace(input: {
   longitude?: number | string | null;
   parentId?: string | null;
   kind?: string | null;
+  gps?: string | null;
 }) {
   if (input.placeId) {
     const existing = await prisma.place.findFirst({
@@ -29,17 +31,26 @@ export async function findOrCreatePlace(input: {
     where: { familyId: input.familyId, name, locality, region, country },
   });
   const guessed = lookupCoordinates({ name, locality, region, country });
-  const latitude = parseCoord(input.latitude) ?? guessed?.latitude ?? null;
-  const longitude = parseCoord(input.longitude) ?? guessed?.longitude ?? null;
+  const parsed = parseGps(input.gps);
+  const latitude = parsed?.latitude ?? parseCoord(input.latitude) ?? guessed?.latitude ?? null;
+  const longitude = parsed?.longitude ?? parseCoord(input.longitude) ?? guessed?.longitude ?? null;
+  const gps = input.gps?.trim() || null;
   const parent = input.parentId
     ? await prisma.place.findFirst({ where: { id: input.parentId, familyId: input.familyId } })
     : null;
   const kind = input.kind?.trim() || null;
   if (match) {
-    const data: { latitude?: number; longitude?: number; parentId?: string | null; kind?: string | null } = {};
+    const data: { latitude?: number; longitude?: number; parentId?: string | null; kind?: string | null; gps?: string | null } = {};
     if ((match.latitude == null || match.longitude == null) && latitude != null && longitude != null) {
       data.latitude = latitude;
       data.longitude = longitude;
+    }
+    if (gps && !match.gps) {
+      data.gps = gps;
+      if (parsed) {
+        data.latitude = parsed.latitude;
+        data.longitude = parsed.longitude;
+      }
     }
     if (parent && !match.parentId) data.parentId = parent.id;
     if (kind && !match.kind) data.kind = kind;
@@ -57,6 +68,7 @@ export async function findOrCreatePlace(input: {
       longitude,
       parentId: parent?.id ?? null,
       kind,
+      gps,
     },
   });
 }

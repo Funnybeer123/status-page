@@ -15,6 +15,7 @@ const schema = z.object({
   longitude: z.union([z.string(), z.number()]).optional(),
   parentId: z.string().optional(),
   kind: z.string().max(40).optional(),
+  gps: z.string().max(80).optional(),
 });
 
 export async function GET(req: Request) {
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
     longitude: body.data.longitude,
     parentId: body.data.parentId,
     kind: body.data.kind,
+    gps: body.data.gps,
   });
   return NextResponse.json({ place });
 }

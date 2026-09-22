@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ArchiveClient, BulkPhotoForm } from "@/app/archive/ui";
 import { requireFamily } from "@/lib/family";
@@ -39,7 +40,10 @@ export default async function ArchivePage({
         <div>
           <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
           <h1 className="mt-2 font-display text-4xl">Archive</h1>
-          <p className="mt-3 max-w-xl text-bark">Photographs, films, letter scans, and oral-history audio, each with a date when we know it.</p>
+          <p className="mt-3 max-w-xl text-bark">
+            Photographs, films, letter scans, and oral-history audio, each with a date when we know it.{" "}
+            <Link href="/archive/uploaders" className="text-seal">Sort by who uploaded</Link>.
+          </p>
         </div>
       </div>
       {canWrite(ctx.role) ? (

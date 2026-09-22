@@ -11,6 +11,7 @@ const schema = z.object({
   name: z.string().min(1).max(160),
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
+  notes: z.string().max(400).optional(),
 });
 
 export async function GET(req: Request) {
@@ -42,6 +43,7 @@ export async function POST(req: Request) {
       name: body.data.name.trim(),
       startedAt: parseDate(body.data.startedAt),
       endedAt: parseDate(body.data.endedAt),
+      notes: body.data.notes?.trim() || null,
     },
     include: { person: true },
   });

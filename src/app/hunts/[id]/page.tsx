@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { clueAnswerHref, clueCitationLine, huntHeading } from "@/lib/hunt";
 import { HuntClueForm } from "@/app/hunt/ui";
+import { huntBadgeLine, huntFinishersHeading } from "@/lib/huntBadge";
+import { HuntFinishButton } from "@/app/funeral/ui";
 
 export default async function HuntPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -13,7 +15,10 @@ export default async function HuntPage({ params }: { params: Promise<{ id: strin
   const [hunt, letters, photos, places] = await Promise.all([
     prisma.hunt.findFirst({
       where: { id, familyId: ctx.family.id },
-      include: { clues: { include: { document: true, asset: true, place: true }, orderBy: { sortOrder: "asc" } } },
+      include: {
+        clues: { include: { document: true, asset: true, place: true }, orderBy: { sortOrder: "asc" } },
+        finishes: { include: { user: { select: { name: true } } }, orderBy: { finishedAt: "asc" } },
+      },
     }),
     prisma.document.findMany({
       where: { familyId: ctx.family.id, deletedAt: null, kind: { in: ["letter", "note"] } },
@@ -64,8 +69,21 @@ export default async function HuntPage({ params }: { params: Promise<{ id: strin
         ))}
         {!hunt.clues.length ? <li className="text-bark">Add a clue that points to a letter, a photograph, or a place.</li> : null}
       </ol>
+      <HuntFinishButton huntId={hunt.id} />
+      <section className="mt-8" data-testid="hunt-finishers">
+        <h2 className="font-display text-2xl">{huntFinishersHeading(hunt.finishes.length)}</h2>
+        <ul className="mt-3 space-y-2">
+          {hunt.finishes.map((row) => (
+            <li key={`${row.huntId}-${row.userId}`} className="text-bark">
+              {huntBadgeLine(row.user.name || "A relative", hunt.title)}
+            </li>
+          ))}
+        </ul>
+      </section>
       <p className="mt-8 font-sans text-sm">
         <Link href="/hunts" className="text-seal">All hunts</Link>
+        {" · "}
+        <Link href="/hunts/badges" className="text-seal">Badges</Link>
       </p>
     </AppShell>
   );

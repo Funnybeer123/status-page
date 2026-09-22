@@ -99,6 +99,8 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
       <p className="mt-8 font-sans text-sm">
         <Link href={`/people/${person.id}`} className="text-seal">Back to the record</Link>
         {" · "}
+        <Link href={`/people/${person.id}/funeral`} className="text-seal" data-testid="funeral-program-link">Funeral program</Link>
+        {" · "}
         <Link href={`/book?personId=${person.id}`} className="text-seal">Printable life story</Link>
       </p>
     </AppShell>

@@ -10,6 +10,8 @@ import { ancestorChain, descendantIds, placeBreadcrumb, placeKindLabel } from "@
 import { chronicleHeading, chroniclePhotosHeading, compileChronicle, placeMatch } from "@/lib/placeChronicle";
 import { PlacePhotoForm } from "@/app/ask-save/ui";
 import { canWrite } from "@/lib/roles";
+import { parseGps, placeGpsHeading } from "@/lib/placeGps";
+import { PlaceGpsForm } from "@/app/funeral/ui";
 
 export default async function PlacePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -151,6 +153,13 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
           {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
         </p>
       ) : null}
+      {place.gps ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="place-gps">
+          {placeGpsHeading(place.name)} · {place.gps}
+          {parseGps(place.gps) ? ` · ${parseGps(place.gps)?.label}` : ""}
+        </p>
+      ) : null}
+      {canWrite(ctx.role) ? <PlaceGpsForm placeId={place.id} gps={place.gps} /> : null}
       {ancestorChain(nodes, place.id).length > 1 ? (
         <p className="mt-4 font-sans text-sm">
           {ancestorChain(nodes, place.id)
@@ -269,6 +278,8 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         <Link href={`/places/${place.id}/together`} className="text-seal">Who lived here at the same time</Link>
         {" · "}
         <Link href="/map/pins" className="text-seal">Pinned letters and stories</Link>
+        {" · "}
+        <Link href="/atlas" className="text-seal">Family atlas</Link>
       </p>
     </AppShell>
   );

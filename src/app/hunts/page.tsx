@@ -36,6 +36,10 @@ export default async function HuntsPage() {
         <Link href="/hunts/empty" className="text-seal">Hunts still missing a clue</Link>
         {" · "}
         <Link href="/hunts/uncited" className="text-seal">Clues without an archive citation</Link>
+        {" · "}
+        <Link href="/hunts/badges" className="text-seal">Who finished</Link>
+        {" · "}
+        <Link href="/hunts/unfinished" className="text-seal">Hunts without a badge</Link>
       </p>
     </AppShell>
   );

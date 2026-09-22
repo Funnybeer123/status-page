@@ -251,10 +251,18 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               </p>
             ) : null}
             {!living ? (
-              <Link href={`/people/${person.id}/memorial`} className="mt-2 block font-sans text-sm text-seal">
-                Memorial page
-              </Link>
+              <>
+                <Link href={`/people/${person.id}/memorial`} className="mt-2 block font-sans text-sm text-seal">
+                  Memorial page
+                </Link>
+                <Link href={`/people/${person.id}/funeral`} className="mt-2 block font-sans text-sm text-seal">
+                  Funeral program
+                </Link>
+              </>
             ) : null}
+            <Link href={`/life-drafts/${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Life story draft
+            </Link>
           </div>
         </aside>
         <section className="space-y-8">

@@ -8,6 +8,7 @@ import { hideResidenceForViewer } from "@/lib/privacy";
 import { mappedStops, migrationPath } from "@/lib/migration";
 import { formatDate } from "@/lib/dates";
 import { voyageRoute, voyageRouteHeading, voyageRoutePoints } from "@/lib/voyageRoute";
+import { placeMapPoint } from "@/lib/placeGps";
 
 export default async function MapPage({
   searchParams,
@@ -44,9 +45,11 @@ export default async function MapPage({
     ...place,
     residences: place.residences.filter((item) => !hideResidenceForViewer(ctx.role, item.person)),
   }));
-  const mapped = visible.filter((place) => place.latitude != null && place.longitude != null);
+  const mapped = visible
+    .map((place) => ({ ...place, point: placeMapPoint(place) }))
+    .filter((place): place is typeof place & { point: NonNullable<ReturnType<typeof placeMapPoint>> } => Boolean(place.point));
   const points = [
-    ...mapped.map((place) => ({ latitude: place.latitude!, longitude: place.longitude! })),
+    ...mapped.map((place) => ({ latitude: place.point.latitude, longitude: place.point.longitude })),
     ...stops.map((stop) => ({ latitude: stop.latitude, longitude: stop.longitude })),
     ...routePoints,
   ];
@@ -139,7 +142,7 @@ export default async function MapPage({
             ) : null}
             {mapped.map((place) => {
               const point = projectPoint(
-                { latitude: place.latitude!, longitude: place.longitude! },
+                { latitude: place.point.latitude, longitude: place.point.longitude },
                 bounds,
                 800,
                 360,
@@ -189,6 +192,11 @@ export default async function MapPage({
               {place.latitude != null && place.longitude != null ? (
                 <p className="font-sans text-sm text-bark">
                   {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
+                </p>
+              ) : null}
+              {place.gps ? (
+                <p className="font-sans text-sm text-gold" data-testid={`map-gps-${place.id}`}>
+                  GPS {place.gps}
                 </p>
               ) : null}
               <p className="mt-2 text-bark">
