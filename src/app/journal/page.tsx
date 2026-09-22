@@ -5,6 +5,7 @@ import { ShareJournal } from "@/app/attach/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { journalHeading, journalLine } from "@/lib/journal";
+import { KeepOutToggle } from "@/app/follow/ui";
 
 export default async function JournalPage() {
   const ctx = await requireFamily();
@@ -43,6 +44,7 @@ export default async function JournalPage() {
             <p className="font-display text-2xl">{entry.title}</p>
             <p className="text-bark">{journalLine(entry.title, Boolean(entry.storyId))}</p>
             <p className="mt-2 whitespace-pre-wrap text-bark">{entry.body}</p>
+            <KeepOutToggle kind="journal" id={entry.id} keepOut={entry.keepOutOfAsk} />
             {entry.storyId ? (
               <p className="mt-3 font-sans text-sm">
                 <Link href={`/stories/${entry.storyId}`} className="text-seal">Open the story</Link>

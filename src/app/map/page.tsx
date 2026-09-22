@@ -7,11 +7,12 @@ import { mapBounds, osmBrowseUrl, projectPoint } from "@/lib/geocode";
 import { hideResidenceForViewer } from "@/lib/privacy";
 import { mappedStops, migrationPath } from "@/lib/migration";
 import { formatDate } from "@/lib/dates";
+import { voyageRoute, voyageRouteHeading, voyageRoutePoints } from "@/lib/voyageRoute";
 
 export default async function MapPage({
   searchParams,
 }: {
-  searchParams: Promise<{ personId?: string }>;
+  searchParams: Promise<{ personId?: string; voyageId?: string }>;
 }) {
   const ctx = await requireFamily();
   const params = await searchParams;
@@ -29,8 +30,15 @@ export default async function MapPage({
         include: { residences: { include: { place: true } } },
       })
     : null;
+  const voyage = params.voyageId
+    ? await prisma.voyage.findFirst({
+        where: { id: params.voyageId, familyId: ctx.family.id },
+      })
+    : null;
+  const route = voyage ? voyageRoute(voyage) : null;
   const path = person && !hideResidenceForViewer(ctx.role, person) ? migrationPath(person.residences) : [];
   const stops = mappedStops(path);
+  const routePoints = route ? voyageRoutePoints(route) : [];
   const visible = places.map((place) => ({
     ...place,
     residences: place.residences.filter((item) => !hideResidenceForViewer(ctx.role, item.person)),
@@ -39,21 +47,30 @@ export default async function MapPage({
   const points = [
     ...mapped.map((place) => ({ latitude: place.latitude!, longitude: place.longitude! })),
     ...stops.map((stop) => ({ latitude: stop.latitude, longitude: stop.longitude })),
+    ...routePoints,
   ];
   const bounds = mapBounds(points);
-  const browse = osmBrowseUrl(stops.length ? stops : points);
+  const browse = osmBrowseUrl(routePoints.length ? routePoints : stops.length ? stops : points);
 
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="map-heading">
-        {person ? `${person.displayName}’s path` : "Places they lived"}
+        {voyage
+          ? voyageRouteHeading(voyage.ship, voyage.departedFrom, voyage.arrivedAt)
+          : person
+            ? `${person.displayName}’s path`
+            : "Places they lived"}
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
-        {person
-          ? "The towns this person lived in, in the order the family recorded them."
-          : "Every named place on the archive, with the people who lived or marked an event there."}{" "}
-        <Link href="/map/photos" className="text-seal">Where photographs were taken</Link>.
+        {voyage
+          ? "The voyage from the departure port to the arrival port."
+          : person
+            ? "The towns this person lived in, in the order the family recorded them."
+            : "Every named place on the archive, with the people who lived or marked an event there."}{" "}
+        <Link href="/map/photos" className="text-seal">Where photographs were taken</Link>
+        {" · "}
+        <Link href="/map/voyages" className="text-seal">Voyage routes</Link>.
       </p>
       {bounds ? (
         <div className="paper-card mt-8 overflow-hidden" data-testid="family-map">
@@ -61,6 +78,43 @@ export default async function MapPage({
             <text x="24" y="28" className="fill-bark" fontSize="12">
               {person ? "The path they walked" : "Iowa and the towns already on the archive"}
             </text>
+            {route && bounds ? (
+              <polyline
+                data-testid="voyage-route"
+                points={routePoints
+                  .map((stop) => {
+                    const point = projectPoint(
+                      { latitude: stop.latitude, longitude: stop.longitude },
+                      bounds,
+                      800,
+                      360,
+                    );
+                    return `${point.x},${point.y}`;
+                  })
+                  .join(" ")}
+                fill="none"
+                stroke="#2c4d6b"
+                strokeWidth="4"
+              />
+            ) : null}
+            {route && bounds
+              ? routePoints.map((stop) => {
+                  const point = projectPoint(
+                    { latitude: stop.latitude, longitude: stop.longitude },
+                    bounds,
+                    800,
+                    360,
+                  );
+                  return (
+                    <g key={`${stop.latitude}-${stop.longitude}`}>
+                      <circle cx={point.x} cy={point.y} r="9" className="fill-seal" />
+                      <text x={point.x + 12} y={point.y + 4} className="fill-ink" fontSize="14">
+                        {stop.name}
+                      </text>
+                    </g>
+                  );
+                })
+              : null}
             {stops.length > 1 ? (
               <polyline
                 data-testid="migration-path"

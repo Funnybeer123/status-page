@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { CommentThread } from "@/components/CommentThread";
 import { canWrite } from "@/lib/roles";
+import { KeepOutToggle } from "@/app/follow/ui";
+import { keepOutLine } from "@/lib/keepOut";
 
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -57,9 +59,12 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
       </div>
       {story.document ? (
         <p className="mt-6 font-sans text-sm text-bark">
-          Also kept as a note so Ask can find it. Search or ask about the words above.
+          {story.keepOutOfAsk
+            ? keepOutLine(story.title, true)
+            : "Also kept as a note so Ask can find it. Search or ask about the words above."}
         </p>
       ) : null}
+      {canWrite(ctx.role) ? <KeepOutToggle kind="story" id={story.id} keepOut={story.keepOutOfAsk} /> : null}
       <CommentThread comments={story.comments} storyId={story.id} canWrite={canWrite(ctx.role)} />
     </AppShell>
   );

@@ -140,7 +140,7 @@ export async function answerQuestion(
 
 async function loadDocumentSource(familyId: string, documentId: string): Promise<AskSource | null> {
   const doc = await prisma.document.findFirst({
-    where: { id: documentId, familyId },
+    where: { id: documentId, familyId, keepOutOfAsk: false },
   });
   if (!doc) return null;
   return {
@@ -163,7 +163,9 @@ async function retrieve(familyId: string, question: string): Promise<AskSource[]
         SELECT c."documentId", c.content, d.title, d."writtenAt", d.kind::text
         FROM "Chunk" c
         JOIN "Document" d ON d.id = c."documentId"
-        WHERE c."familyId" = ${familyId} AND c.embedding IS NOT NULL
+        WHERE c."familyId" = ${familyId}
+          AND c.embedding IS NOT NULL
+          AND d."keepOutOfAsk" = false
         ORDER BY c.embedding <=> ${JSON.stringify(embedding)}::vector
         LIMIT 6
       `;
@@ -182,7 +184,7 @@ async function retrieve(familyId: string, question: string): Promise<AskSource[]
   }
 
   const chunks = await prisma.chunk.findMany({
-    where: { familyId },
+    where: { familyId, document: { keepOutOfAsk: false } },
     include: { document: true },
   });
   return uniqueSources(

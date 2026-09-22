@@ -3,6 +3,7 @@ import { DocKind, Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { saveFamilyDocument } from "@/lib/documents";
+import { notifyFollowers } from "@/lib/follows";
 
 export async function GET() {
   const ctx = await apiFamily();
@@ -35,6 +36,14 @@ export async function POST(req: Request) {
     writtenAt: String(form.get("writtenAt") || ""),
     personIds,
     file: file instanceof File ? file : null,
+  });
+  await notifyFollowers({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    personIds,
+    kind: "letter",
+    title,
+    entityId: saved.document.id,
   });
   return NextResponse.json(saved);
 }

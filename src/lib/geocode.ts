@@ -6,6 +6,8 @@ const KNOWN: { test: RegExp; point: GeoPoint }[] = [
   { test: /iowa city/i, point: { latitude: 41.6611, longitude: -91.5302 } },
   { test: /cedar falls/i, point: { latitude: 42.5278, longitude: -92.4453 } },
   { test: /fairview/i, point: { latitude: 42.541, longitude: -92.448 } },
+  { test: /hong kong/i, point: { latitude: 22.3193, longitude: 114.1694 } },
+  { test: /san francisco/i, point: { latitude: 37.7749, longitude: -122.4194 } },
 ];
 
 export function lookupCoordinates(input: {

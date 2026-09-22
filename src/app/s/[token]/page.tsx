@@ -1,16 +1,28 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { hidePhotoFromAudience } from "@/lib/privacy";
 import { grantedConsentIds } from "@/lib/consent";
 import { watermarkLabel } from "@/lib/watermark";
+import { isShareRevoked } from "@/lib/shareRevoke";
 
 export default async function SharedPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const link = await prisma.shareLink.findUnique({ where: { token } });
-  if (!link) notFound();
+  if (!link || isShareRevoked(link)) notFound();
+  const session = await auth();
+  const hdrs = await headers();
+  await prisma.shareLinkOpen.create({
+    data: {
+      shareLinkId: link.id,
+      userAgent: hdrs.get("user-agent"),
+      userId: session?.user?.id ?? null,
+    },
+  });
 
   if (link.kind === "memorial") {
     const person = await prisma.person.findFirst({

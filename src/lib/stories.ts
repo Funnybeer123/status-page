@@ -9,6 +9,7 @@ export async function createStoryRecord(input: {
   recordedAt?: Date | null;
   tellerPersonId?: string | null;
   personIds?: string[];
+  keepOutOfAsk?: boolean;
 }) {
   const personIds = [...new Set(input.personIds?.filter(Boolean) ?? [])];
   const document = await prisma.document.create({
@@ -18,6 +19,7 @@ export async function createStoryRecord(input: {
       kind: DocKind.story,
       transcript: input.body,
       writtenAt: input.recordedAt ?? null,
+      keepOutOfAsk: Boolean(input.keepOutOfAsk),
       people: personIds.length ? { create: personIds.map((personId) => ({ personId })) } : undefined,
     },
   });
@@ -35,6 +37,7 @@ export async function createStoryRecord(input: {
       recordedAt: input.recordedAt ?? null,
       tellerPersonId: input.tellerPersonId ?? null,
       documentId: document.id,
+      keepOutOfAsk: Boolean(input.keepOutOfAsk),
       people: personIds.length ? { create: personIds.map((personId) => ({ personId })) } : undefined,
     },
     include: {

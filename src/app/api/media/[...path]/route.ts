@@ -20,6 +20,7 @@ async function sharedAsset(storagePath: string) {
   const personIds = asset.tags.map((tag) => tag.personId);
   const link = await prisma.shareLink.findFirst({
     where: {
+      revokedAt: null,
       OR: [
         albumIds.length ? { kind: "album", entityId: { in: albumIds } } : undefined,
         personIds.length ? { kind: "memorial", entityId: { in: personIds } } : undefined,

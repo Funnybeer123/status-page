@@ -6,6 +6,7 @@ import { MergeForm } from "@/app/people/[id]/merge";
 import { FamilyLinksForm } from "@/app/people/[id]/family";
 import { TrashRestore } from "@/app/trash/ui";
 import { ShareLinkButton } from "@/app/share/ui";
+import { BookmarkButton, FollowButton } from "@/app/follow/ui";
 import { childMarks, isPartnerRel } from "@/lib/rels";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
@@ -52,6 +53,14 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!person) notFound();
+  const [bookmarked, following] = await Promise.all([
+    prisma.personBookmark.findUnique({
+      where: { userId_personId: { userId: ctx.session.user.id, personId: person.id } },
+    }),
+    prisma.personFollow.findUnique({
+      where: { userId_personId: { userId: ctx.session.user.id, personId: person.id } },
+    }),
+  ]);
   const profile = person.profileAssetId
     ? await prisma.asset.findUnique({ where: { id: person.profileAssetId } })
     : null;
@@ -215,6 +224,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             {!hideChild ? (
               <Link href={`/people/${person.id}/search`} className="mt-2 block font-sans text-sm text-seal" data-testid="person-search-link">
                 Search this life
+              </Link>
+            ) : null}
+            {!hideChild ? (
+              <Link href={`/people/${person.id}/life`} className="mt-2 block font-sans text-sm text-seal" data-testid="life-pdf-link">
+                PDF of this life
               </Link>
             ) : null}
             <Link href="/handwriting" className="mt-2 block font-sans text-sm text-seal">
@@ -472,6 +486,8 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               ]}
             />
           ) : null}
+          <BookmarkButton personId={person.id} bookmarked={Boolean(bookmarked)} />
+          <FollowButton personId={person.id} following={Boolean(following)} />
           {canWrite(ctx.role) && !living ? <ShareLinkButton kind="memorial" entityId={person.id} /> : null}
           {canWrite(ctx.role) ? <TrashRestore type="person" id={person.id} /> : null}
           {canWrite(ctx.role) ? (

@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { saveUpload } from "@/lib/media";
 import { recordActivity } from "@/lib/activity";
 import { filterAssetsForAudience } from "@/lib/privacy";
+import { notifyFollowers } from "@/lib/follows";
 
 export async function GET(req: Request) {
   const ctx = await apiFamily();
@@ -103,5 +104,15 @@ export async function POST(req: Request) {
     title: title || (kind === "audio" ? "Oral history" : "Photograph"),
     summary: kind,
   });
+  if (kind === AssetKind.photo && tagIds.length) {
+    await notifyFollowers({
+      familyId: ctx.family.id,
+      actorId: ctx.session.user.id,
+      personIds: tagIds,
+      kind: "photo",
+      title: title || "A photograph",
+      entityId: asset.id,
+    });
+  }
   return NextResponse.json({ asset });
 }

@@ -13,6 +13,7 @@ import { canWrite } from "@/lib/roles";
 import { PinMemoryForm } from "@/app/homes/pin-form";
 import { compileThisWeek, thisWeekHeading, thisWeekSince } from "@/lib/thisWeek";
 import { BannerForm } from "@/app/banner/ui";
+import { bookmarkHomeHeading, bookmarkLine } from "@/lib/bookmarks";
 
 export default async function HomePage() {
   const session = await auth();
@@ -51,7 +52,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -87,6 +88,12 @@ export default async function HomePage() {
         orderBy: { title: "asc" },
       }),
     ]),
+    prisma.personBookmark.findMany({
+      where: { userId: session.user.id, person: { familyId: ctx.family.id, ...alive } },
+      include: { person: true },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
@@ -134,6 +141,23 @@ export default async function HomePage() {
           </>
         )}
       </p>
+      <section className="mt-8" data-testid="home-bookmarks">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{bookmarkHomeHeading(bookmarks.length)}</h2>
+          <Link href="/bookmarks" className="font-sans text-sm text-seal">All bookmarks</Link>
+        </div>
+        <ul className="mt-4 space-y-3" data-testid="bookmarks-list">
+          {bookmarks.map((item) => (
+            <li key={`${item.userId}-${item.personId}`} className="paper-card p-4">
+              <Link href={`/people/${item.person.id}`} className="font-display text-xl text-seal">
+                {bookmarkLine(item.person.displayName)}
+              </Link>
+            </li>
+          ))}
+          {!bookmarks.length ? <li className="text-bark">Bookmark a relative and they will stay on the family home.</li> : null}
+        </ul>
+      </section>
+
       <section className="mt-8" data-testid="home-pins">
         <h2 className="font-display text-2xl">Pinned memories</h2>
         <p className="mt-2 max-w-2xl text-bark">A letter, story, or photograph kept on the family home.</p>

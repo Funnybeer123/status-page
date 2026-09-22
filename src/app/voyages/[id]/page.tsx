@@ -46,6 +46,11 @@ export default async function VoyagePage({ params }: { params: Promise<{ id: str
         {voyage.departedFrom} → {voyage.arrivedAt}
         {voyage.departedOn ? ` · ${formatDate(voyage.departedOn)}` : ""}
       </p>
+      <p className="mt-3 font-sans text-sm">
+        <Link href={`/map?voyageId=${voyage.id}`} className="text-seal" data-testid="voyage-route-link">
+          Draw this voyage on the map
+        </Link>
+      </p>
       {voyage.manifest ? (
         <figure className="paper-card mt-8 overflow-hidden" data-testid="voyage-manifest">
           {/* eslint-disable-next-line @next/next/no-img-element */}

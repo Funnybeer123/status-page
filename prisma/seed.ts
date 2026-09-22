@@ -2187,8 +2187,80 @@ async function ensureHartArchive() {
         title: "What I still remember of Grandma's cider",
         body: "She said the cider was too sweet. I have not shared this with the cousins yet.",
         recordedAt: new Date("2026-03-12"),
+        keepOutOfAsk: true,
       },
-      update: { title: "What I still remember of Grandma's cider" },
+      update: { title: "What I still remember of Grandma's cider", keepOutOfAsk: true },
+    });
+    await prisma.personBookmark.upsert({
+      where: { userId_personId: { userId: demoUser.id, personId: eleanor.id } },
+      create: { userId: demoUser.id, personId: eleanor.id },
+      update: {},
+    });
+    const lilyBookmark = await prisma.person.findUnique({ where: { id: "person-lily" } });
+    if (lilyBookmark) {
+      await prisma.personBookmark.upsert({
+        where: { userId_personId: { userId: demoUser.id, personId: lilyBookmark.id } },
+        create: { userId: demoUser.id, personId: lilyBookmark.id },
+        update: {},
+      });
+    }
+    await prisma.personFollow.upsert({
+      where: { userId_personId: { userId: demoUser.id, personId: eleanor.id } },
+      create: { userId: demoUser.id, personId: eleanor.id },
+      update: {},
+    });
+    await prisma.invite.upsert({
+      where: { token: "hart-researcher-2026" },
+      create: {
+        familyId: family.id,
+        token: "hart-researcher-2026",
+        email: "archives@cedarfalls.lib",
+        role: Role.viewer,
+        purpose: "researcher",
+        expiresAt: new Date("2026-12-31T23:59:59.999Z"),
+      },
+      update: {
+        purpose: "researcher",
+        role: Role.viewer,
+        expiresAt: new Date("2026-12-31T23:59:59.999Z"),
+        email: "archives@cedarfalls.lib",
+      },
+    });
+    const newspaperPath = writeMedia(
+      family.id,
+      "fairview-clipping.svg",
+      svgScene("Fairview notice", "Cedar Falls Courier", "4 June 2015", "#3d3228"),
+    );
+    let clippingAsset = await prisma.asset.findFirst({
+      where: { familyId: family.id, title: "Fairview burial notice, newspaper page" },
+    });
+    if (!clippingAsset) {
+      clippingAsset = await prisma.asset.create({
+        data: {
+          familyId: family.id,
+          kind: AssetKind.letter,
+          title: "Fairview burial notice, newspaper page",
+          mimeType: "image/svg+xml",
+          storagePath: newspaperPath,
+          capturedAt: new Date("2015-06-04"),
+          uploadedById: demoUser.id,
+          tags: { create: [{ personId: eleanor.id }] },
+        },
+      });
+    }
+    await prisma.document.upsert({
+      where: { id: "doc-clipping-fairview" },
+      create: {
+        id: "doc-clipping-fairview",
+        familyId: family.id,
+        assetId: clippingAsset.id,
+        title: "Fairview burial notice",
+        kind: DocKind.clipping,
+        transcript: "Eleanor Hart, called Ellie, was laid to rest at Fairview near the cedar.",
+        writtenAt: new Date("2015-06-04"),
+        people: { create: [{ personId: eleanor.id }] },
+      },
+      update: { title: "Fairview burial notice", assetId: clippingAsset.id },
     });
     const existingSuggest = await prisma.factSuggestion.findFirst({
       where: { id: "suggest-eleanor-plot" },

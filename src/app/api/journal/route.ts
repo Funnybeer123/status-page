@@ -12,6 +12,7 @@ const schema = z.object({
   title: z.string().max(200).optional(),
   body: z.string().max(8000).optional(),
   recordedAt: z.string().optional(),
+  keepOut: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -55,6 +56,7 @@ export async function POST(req: Request) {
       title: existing.title,
       body: existing.body,
       recordedAt: existing.recordedAt,
+      keepOutOfAsk: existing.keepOutOfAsk,
     });
     const entry = await prisma.journalEntry.update({
       where: { id: existing.id },
@@ -82,6 +84,7 @@ export async function POST(req: Request) {
       title: body.data.title.trim(),
       body: body.data.body.trim(),
       recordedAt: body.data.recordedAt ? new Date(body.data.recordedAt) : null,
+      keepOutOfAsk: Boolean(body.data.keepOut),
     },
   });
   return NextResponse.json({ entry, heading: journalLine(entry.title, false) });

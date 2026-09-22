@@ -8,6 +8,8 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
+import { KeepOutToggle } from "@/app/follow/ui";
+import { clippingPageHeading } from "@/lib/clippingPage";
 
 export default async function LetterPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -49,8 +51,13 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <div className="paper-card overflow-hidden p-4">
           {letter.asset ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={`/api/media/${letter.asset.storagePath}`} alt={letter.title} className="w-full bg-cream" />
+            <figure data-testid={letter.kind === "clipping" ? "clipping-page" : "letter-scan"}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/media/${letter.asset.storagePath}`} alt={letter.title} className="w-full bg-cream" />
+              {letter.kind === "clipping" ? (
+                <figcaption className="mt-2 font-sans text-sm text-gold">{clippingPageHeading(letter.title)}</figcaption>
+              ) : null}
+            </figure>
           ) : (
             <p className="text-bark">This note has no scan — only the family&apos;s words.</p>
           )}
@@ -112,6 +119,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           </ul>
         </section>
       ) : null}
+      {canWrite(ctx.role) ? <KeepOutToggle kind="letter" id={letter.id} keepOut={letter.keepOutOfAsk} /> : null}
       {canWrite(ctx.role) ? <TrashRestore type="letter" id={letter.id} /> : null}
       <CommentThread comments={letter.comments} documentId={letter.id} canWrite={canWrite(ctx.role)} />
     </AppShell>

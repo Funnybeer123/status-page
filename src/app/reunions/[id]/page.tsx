@@ -50,6 +50,14 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
         <Link href={`/reunions/${reunion.id}/tags`} className="text-seal" data-testid="name-tags-link">
           Printable name tags
         </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/tree`} className="text-seal" data-testid="reunion-living-tree-link">
+          Living tree
+        </Link>
+        {" · "}
+        <Link href={`/reunions/${reunion.id}/living`} className="text-seal" data-testid="reunion-living-link">
+          Living guests
+        </Link>
       </p>
       <section className="mt-10">
         <h2 className="font-display text-3xl">Who’s coming</h2>
