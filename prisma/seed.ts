@@ -4039,6 +4039,299 @@ async function ensureHartArchive() {
       update: { line: 8, body: "Mother still told it this way: he called her Whitaker as if it were a compliment." },
     });
   }
+
+  const weiLiving = people.find((person) => person.id === "person-wei");
+  const jamesLiving = people.find((person) => person.id === "person-james");
+  if (robertLiving) {
+    await prisma.funeralPallbearer.upsert({
+      where: { deceasedId_personId: { deceasedId: eleanor.id, personId: robertLiving.id } },
+      create: {
+        id: "pallbearer-eleanor-robert",
+        familyId: family.id,
+        deceasedId: eleanor.id,
+        personId: robertLiving.id,
+        role: "head",
+        notes: "Walked first from St. John's.",
+      },
+      update: { role: "head" },
+    });
+  }
+  if (weiLiving) {
+    await prisma.funeralPallbearer.upsert({
+      where: { deceasedId_personId: { deceasedId: eleanor.id, personId: weiLiving.id } },
+      create: {
+        id: "pallbearer-eleanor-wei",
+        familyId: family.id,
+        deceasedId: eleanor.id,
+        personId: weiLiving.id,
+        role: "left",
+        notes: "Held the left rail.",
+      },
+      update: { role: "left" },
+    });
+  }
+  if (jamesLiving) {
+    await prisma.funeralPallbearer.upsert({
+      where: { deceasedId_personId: { deceasedId: eleanor.id, personId: jamesLiving.id } },
+      create: {
+        id: "pallbearer-eleanor-james",
+        familyId: family.id,
+        deceasedId: eleanor.id,
+        personId: jamesLiving.id,
+        role: "right",
+        notes: "Held the right rail.",
+      },
+      update: { role: "right" },
+    });
+  }
+
+  await prisma.christeningGown.upsert({
+    where: { id: "gown-hart" },
+    create: {
+      id: "gown-hart",
+      familyId: family.id,
+      title: "Hart christening gown",
+      notes: "Ivory lawn, worn at St. John's.",
+    },
+    update: { title: "Hart christening gown" },
+  });
+  await prisma.christeningGownWear.upsert({
+    where: { id: "gown-wear-eleanor" },
+    create: {
+      id: "gown-wear-eleanor",
+      familyId: family.id,
+      gownId: "gown-hart",
+      personId: eleanor.id,
+      wornOn: new Date("1928-03-12"),
+      notes: "The first wearer.",
+    },
+    update: { wornOn: new Date("1928-03-12") },
+  });
+  if (margaretLiving) {
+    await prisma.christeningGownWear.upsert({
+      where: { id: "gown-wear-margaret" },
+      create: {
+        id: "gown-wear-margaret",
+        familyId: family.id,
+        gownId: "gown-hart",
+        personId: margaretLiving.id,
+        wornOn: new Date("1952-04-02"),
+      },
+      update: { wornOn: new Date("1952-04-02") },
+    });
+  }
+  if (lilyLiving) {
+    await prisma.christeningGownWear.upsert({
+      where: { id: "gown-wear-lily" },
+      create: {
+        id: "gown-wear-lily",
+        familyId: family.id,
+        gownId: "gown-hart",
+        personId: lilyLiving.id,
+        wornOn: new Date("1984-07-21"),
+      },
+      update: { wornOn: new Date("1984-07-21") },
+    });
+  }
+
+  await prisma.iceHarvestCrew.upsert({
+    where: { id: "ice-samuel-1947" },
+    create: {
+      id: "ice-samuel-1947",
+      familyId: family.id,
+      personId: samuel.id,
+      year: 1947,
+      place: "Cedar River",
+      role: "pike",
+      notes: "Cut blocks for the icehouse.",
+    },
+    update: { year: 1947, role: "pike", place: "Cedar River" },
+  });
+
+  const picnicCamera = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Hart picnic, 1961" },
+  });
+  if (picnicCamera && margaretLiving) {
+    await prisma.asset.update({
+      where: { id: picnicCamera.id },
+      data: { takenById: margaretLiving.id },
+    });
+  }
+
+  await prisma.surnameSpelling.upsert({
+    where: { id: "spelling-whiticker" },
+    create: {
+      id: "spelling-whiticker",
+      familyId: family.id,
+      surname: "Whitaker",
+      variant: "Whiticker",
+      source: "1930 census",
+      notes: "The enumerator wrote it with an i.",
+    },
+    update: { variant: "Whiticker", source: "1930 census" },
+  });
+  await prisma.surnameSpelling.upsert({
+    where: { id: "spelling-whittaker" },
+    create: {
+      id: "spelling-whittaker",
+      familyId: family.id,
+      surname: "Whitaker",
+      variant: "Whittaker",
+      source: "St. John's register",
+      notes: "Two t's in the baptism book.",
+    },
+    update: { variant: "Whittaker", source: "St. John's register" },
+  });
+
+  await prisma.threshingRing.upsert({
+    where: { id: "threshing-samuel-1948" },
+    create: {
+      id: "threshing-samuel-1948",
+      familyId: family.id,
+      personId: samuel.id,
+      year: 1948,
+      place: "North farm",
+      role: "bundle pitcher",
+      notes: "The year after the harvest dance.",
+    },
+    update: { year: 1948, role: "bundle pitcher" },
+  });
+
+  await prisma.person.update({
+    where: { id: eleanor.id },
+    data: { lastSeenOn: new Date("2015-05-20") },
+  });
+  if (margaretLiving) {
+    await prisma.person.update({
+      where: { id: margaretLiving.id },
+      data: { lastSeenOn: new Date("2026-09-01") },
+    });
+  }
+
+  if (margaretLiving && lilyLiving) {
+    await prisma.schoolClass.upsert({
+      where: { id: "class-cfhs-1984" },
+      create: {
+        id: "class-cfhs-1984",
+        familyId: family.id,
+        school: "Cedar Falls High",
+        year: 1984,
+        place: "Cedar Falls, Iowa",
+        teacherId: margaretLiving.id,
+        notes: "Margaret taught the year Lily sat in the front row.",
+      },
+      update: { teacherId: margaretLiving.id, year: 1984 },
+    });
+    await prisma.schoolClassPupil.upsert({
+      where: { classId_personId: { classId: "class-cfhs-1984", personId: lilyLiving.id } },
+      create: { classId: "class-cfhs-1984", personId: lilyLiving.id },
+      update: {},
+    });
+  }
+
+  await prisma.familyVehicle.upsert({
+    where: { id: "vehicle-farm-truck" },
+    create: {
+      id: "vehicle-farm-truck",
+      familyId: family.id,
+      personId: samuel.id,
+      name: "North-farm truck",
+      kind: "truck",
+      startedOn: new Date("1952-01-01"),
+      endedOn: new Date("1978-12-31"),
+      notes: "Hauled seed corn and Sunday rolls.",
+    },
+    update: { name: "North-farm truck", kind: "truck" },
+  });
+
+  await prisma.partyLine.upsert({
+    where: { id: "party-line-cedar" },
+    create: {
+      id: "party-line-cedar",
+      familyId: family.id,
+      exchange: "Cedar Falls",
+      number: "4-218",
+      notes: "Two rings for the north farm.",
+    },
+    update: { exchange: "Cedar Falls", number: "4-218" },
+  });
+  await prisma.partyLinePerson.upsert({
+    where: { lineId_personId: { lineId: "party-line-cedar", personId: eleanor.id } },
+    create: { lineId: "party-line-cedar", personId: eleanor.id },
+    update: {},
+  });
+  await prisma.partyLinePerson.upsert({
+    where: { lineId_personId: { lineId: "party-line-cedar", personId: samuel.id } },
+    create: { lineId: "party-line-cedar", personId: samuel.id },
+    update: {},
+  });
+
+  await prisma.milkRoute.upsert({
+    where: { id: "milk-cedar-falls" },
+    create: {
+      id: "milk-cedar-falls",
+      familyId: family.id,
+      name: "Cedar Falls dairy",
+      year: 1961,
+      notes: "Glass bottles on the north-farm porch.",
+    },
+    update: { year: 1961 },
+  });
+  await prisma.milkRouteStop.upsert({
+    where: { id: "milk-stop-north-farm" },
+    create: {
+      id: "milk-stop-north-farm",
+      routeId: "milk-cedar-falls",
+      personId: samuel.id,
+      stopOrder: 1,
+      notes: "The first porch after the river.",
+    },
+    update: { stopOrder: 1 },
+  });
+
+  await prisma.churchPew.upsert({
+    where: { id: "pew-st-johns-12" },
+    create: {
+      id: "pew-st-johns-12",
+      familyId: family.id,
+      personId: eleanor.id,
+      church: "St. John's",
+      pewNumber: "12",
+      startedOn: new Date("1948-06-14"),
+      endedOn: new Date("2015-06-03"),
+      notes: "Rented after the wedding.",
+    },
+    update: { pewNumber: "12", church: "St. John's" },
+  });
+
+  if (margaretLiving) {
+    await prisma.graveBlanket.upsert({
+      where: { id: "blanket-eleanor-christmas" },
+      create: {
+        id: "blanket-eleanor-christmas",
+        familyId: family.id,
+        personId: eleanor.id,
+        placedById: margaretLiving.id,
+        monthDay: "December 24",
+        notes: "Evergreen and a red ribbon.",
+      },
+      update: { monthDay: "December 24", placedById: margaretLiving.id },
+    });
+  }
+
+  await prisma.grainElevatorAccount.upsert({
+    where: { id: "elevator-cedar-coop" },
+    create: {
+      id: "elevator-cedar-coop",
+      familyId: family.id,
+      personId: samuel.id,
+      elevator: "Cedar Falls Co-op",
+      account: "Hart 14",
+      year: 1952,
+      notes: "Corn and oats, settled after harvest.",
+    },
+    update: { elevator: "Cedar Falls Co-op", account: "Hart 14", year: 1952 },
+  });
 }
 
 async function writeHartMedia() {

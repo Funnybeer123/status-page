@@ -42,6 +42,8 @@ export default async function SittersPage() {
         <Link href="/portraits" className="text-seal">Portrait wall</Link>
         {" · "}
         <Link href="/sitters/missing" className="text-seal">Portraits without a sitter</Link>
+        {" · "}
+        <Link href="/cameras" className="text-seal">Who held the camera</Link>
       </p>
       {canWrite(ctx.role) ? (
         <SitterForm

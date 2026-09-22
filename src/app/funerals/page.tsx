@@ -16,7 +16,10 @@ export default async function FuneralsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="funerals-heading">{funeralsHeading(programs.length)}</h1>
-      <p className="mt-3 max-w-2xl text-bark">Print-ready programs: dates, a portrait, and a short life.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Print-ready programs: dates, a portrait, and a short life.{" "}
+        <Link href="/pallbearers" className="text-seal">Pallbearers</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="funerals-list">
         {programs.map((person) => (
           <li key={person.id} className="paper-card p-5">

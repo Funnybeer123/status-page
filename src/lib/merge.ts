@@ -73,6 +73,7 @@ export async function mergePeople(input: { familyId: string; keepId: string; dro
         familyName: keep.familyName || drop.familyName,
         birthDate: keep.birthDate || drop.birthDate,
         deathDate: keep.deathDate || drop.deathDate,
+        lastSeenOn: keep.lastSeenOn || drop.lastSeenOn,
         notes: [keep.notes, drop.notes].filter(Boolean).join("\n\n") || null,
         sex: keep.sex || drop.sex,
         profileAssetId: keep.profileAssetId || drop.profileAssetId,

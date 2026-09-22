@@ -38,6 +38,8 @@ export default async function PhoneTreePage() {
       <p className="mt-3 max-w-2xl text-bark">
         Who to call when news spreads, in order.{" "}
         <Link href="/phone-tree/missing" className="text-seal">Who still needs a number</Link>
+        {" · "}
+        <Link href="/party-lines" className="text-seal">Party lines</Link>
       </p>
       {canWrite(ctx.role) ? (
         <PhoneTreeForm

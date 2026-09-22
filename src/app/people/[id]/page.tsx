@@ -220,6 +220,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 {person.middleName}
               </p>
             ) : null}
+            {!hideChild && person.lastSeenOn ? (
+              <p className="mt-2 font-sans text-sm text-gold" data-testid="last-seen">
+                Last time we saw them · {formatDate(person.lastSeenOn)}
+              </p>
+            ) : null}
             <p className="mt-2 font-sans text-sm text-bark">
               {hideChild || hidden ? "Living" : lifespan(person.birthDate, person.deathDate)}
             </p>
@@ -347,6 +352,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 </Link>
                 <Link href={`/people/${person.id}/funeral`} className="mt-2 block font-sans text-sm text-seal">
                   Funeral program
+                </Link>
+                <Link href={`/people/${person.id}/pallbearers`} className="mt-2 block font-sans text-sm text-seal">
+                  Pallbearers
                 </Link>
               </>
             ) : null}
@@ -649,6 +657,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               languages={person.languages || ""}
               burialPlot={person.burialPlot || ""}
               pronunciation={person.pronunciation || ""}
+              lastSeenOn={person.lastSeenOn ? person.lastSeenOn.toISOString().slice(0, 10) : ""}
             />
           ) : null}
           {canSeeOwnerNote(ctx.role) ? (

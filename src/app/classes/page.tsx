@@ -49,6 +49,8 @@ export default async function ClassesPage() {
       <p className="mt-8 font-sans text-sm">
         <Link href="/classes/mates" className="text-seal">Classmates</Link>
         {" · "}
+        <Link href="/teachers" className="text-seal">Schoolteachers</Link>
+        {" · "}
         <Link href="/schools" className="text-seal">Schools</Link>
       </p>
     </AppShell>

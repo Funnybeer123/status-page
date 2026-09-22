@@ -10,7 +10,7 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const row = await prisma.schoolClass.findFirst({
     where: { id, familyId: ctx.family.id },
-    include: { pupils: { include: { person: true } } },
+    include: { pupils: { include: { person: true } }, teacher: true },
   });
   if (!row) notFound();
   return (
@@ -18,6 +18,11 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{row.place || "School"}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="class-heading">{classHeading(row.school, row.year)}</h1>
       {row.notes ? <p className="mt-3 text-bark">{row.notes}</p> : null}
+      {row.teacher ? (
+        <p className="mt-3 text-bark" data-testid="class-teacher">
+          Teacher · {row.teacher.displayName}
+        </p>
+      ) : null}
       <ul className="mt-10 space-y-3" data-testid="class-pupils">
         {row.pupils
           .slice()
@@ -31,6 +36,8 @@ export default async function ClassPage({ params }: { params: Promise<{ id: stri
       </ul>
       <p className="mt-8 font-sans text-sm">
         <Link href="/classes" className="text-seal">All class lists</Link>
+        {" · "}
+        <Link href="/teachers" className="text-seal">Schoolteachers</Link>
         {" · "}
         <Link href="/schools" className="text-seal">Schools</Link>
       </p>

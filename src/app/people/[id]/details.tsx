@@ -9,12 +9,14 @@ export function PersonDetailsForm({
   languages,
   burialPlot,
   pronunciation,
+  lastSeenOn,
 }: {
   personId: string;
   causeOfDeath: string;
   languages: string;
   burialPlot: string;
   pronunciation: string;
+  lastSeenOn: string;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState("");
@@ -30,6 +32,7 @@ export function PersonDetailsForm({
         languages: data.get("languages"),
         burialPlot: data.get("burialPlot"),
         pronunciation: data.get("pronunciation"),
+        lastSeenOn: data.get("lastSeenOn") || null,
       }),
     });
     if (response.ok) {
@@ -45,6 +48,10 @@ export function PersonDetailsForm({
       <input name="causeOfDeath" defaultValue={causeOfDeath} placeholder="Cause of death" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <input name="languages" defaultValue={languages} placeholder="Languages spoken" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <input name="burialPlot" defaultValue={burialPlot} placeholder="Burial plot" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <label className="font-sans text-sm">
+        Last time we saw them
+        <input name="lastSeenOn" type="date" defaultValue={lastSeenOn} className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="last-seen-input" />
+      </label>
       <div className="flex items-center gap-3">
         <button className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
           Save later facts

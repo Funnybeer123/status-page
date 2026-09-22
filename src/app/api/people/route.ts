@@ -14,6 +14,7 @@ const schema = z.object({
   familyName: z.string().max(80).optional(),
   birthDate: z.string().optional(),
   deathDate: z.string().optional(),
+  lastSeenOn: z.string().optional(),
   notes: z.string().max(4000).optional(),
   sex: z.string().max(8).optional(),
 });
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
       familyName: body.data.familyName || null,
       birthDate: body.data.birthDate ? new Date(body.data.birthDate) : null,
       deathDate: body.data.deathDate ? new Date(body.data.deathDate) : null,
+      lastSeenOn: body.data.lastSeenOn ? new Date(body.data.lastSeenOn) : null,
       notes: body.data.notes || null,
       sex: body.data.sex || null,
     },

@@ -21,6 +21,7 @@ const schema = z.object({
   pronunciation: z.string().max(160).optional().nullable(),
   pronunciationAssetId: z.string().optional().nullable(),
   ownerNote: z.string().max(4000).optional().nullable(),
+  lastSeenOn: z.string().optional().nullable(),
 });
 
 const personInclude = {
@@ -124,6 +125,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         body.data.ownerNote === undefined || ctx.role !== Role.owner
           ? existing.ownerNote
           : body.data.ownerNote || null,
+      lastSeenOn:
+        body.data.lastSeenOn === undefined
+          ? existing.lastSeenOn
+          : body.data.lastSeenOn
+            ? new Date(body.data.lastSeenOn)
+            : null,
     },
   });
   await syncVitalEvents({

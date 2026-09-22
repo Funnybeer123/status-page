@@ -12,6 +12,7 @@ const schema = z.object({
   place: z.string().max(160).optional(),
   notes: z.string().max(800).optional(),
   personIds: z.array(z.string()).optional(),
+  teacherId: z.string().optional(),
 });
 
 export async function GET() {
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
   const people = await prisma.person.findMany({
     where: { familyId: ctx.family.id, id: { in: [...new Set(body.data.personIds ?? [])] }, deletedAt: null },
   });
+  if (body.data.teacherId) {
+    const teacher = await prisma.person.findFirst({
+      where: { id: body.data.teacherId, familyId: ctx.family.id, deletedAt: null },
+    });
+    if (!teacher) return NextResponse.json({ error: "Teacher not found." }, { status: 404 });
+  }
   const row = await prisma.schoolClass.create({
     data: {
       familyId: ctx.family.id,
@@ -42,6 +49,7 @@ export async function POST(req: Request) {
       year,
       place: body.data.place?.trim() || null,
       notes: body.data.notes?.trim() || null,
+      teacherId: body.data.teacherId || null,
       pupils: people.length ? { create: people.map((person) => ({ personId: person.id })) } : undefined,
     },
     include: { pupils: { include: { person: true } } },

@@ -41,7 +41,8 @@
     "test:ui:alive-when": "tsx tests/ui-alive-when-layer.ts",
     "test:ui:family-hour": "tsx tests/ui-family-hour-layer.ts",
     "test:ui:story-circle": "tsx tests/ui-story-circle-layer.ts",
-    "test:ui:register": "tsx tests/ui-register-layer.ts"
+    "test:ui:register": "tsx tests/ui-register-layer.ts",
+    "test:ui:pallbearer": "tsx tests/ui-pallbearer-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

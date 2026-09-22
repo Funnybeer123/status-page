@@ -244,6 +244,18 @@ model Family {
   crests           FamilyCrest[]
   phrases          FamilyPhrase[]
   programItems     ReunionProgramItem[]
+  pallbearers      FuneralPallbearer[]
+  gowns            ChristeningGown[]
+  gownWears        ChristeningGownWear[]
+  iceHarvests      IceHarvestCrew[]
+  spellings        SurnameSpelling[]
+  threshingRings   ThreshingRing[]
+  vehicles         FamilyVehicle[]
+  partyLines       PartyLine[]
+  milkRoutes       MilkRoute[]
+  pews             ChurchPew[]
+  graveBlankets    GraveBlanket[]
+  elevators        GrainElevatorAccount[]
 }
 
 model Membership {
@@ -290,6 +302,7 @@ model Person {
   pronunciation  String?
   pronunciationAssetId String?
   ownerNote      String?
+  lastSeenOn     DateTime?        @db.Date
   phoneContacts  FamilyPhoneContact[]
   photoGuesses   PhotoGuess[]
   spokenAssets   Asset[]          @relation("SpokenBy")
@@ -378,6 +391,20 @@ model Person {
   satFor         Asset[]      @relation("PortraitSitter")
   willWitnesses  WillWitness[]
   programItems   ReunionProgramItem[]
+  pallbearerFor  FuneralPallbearer[] @relation("Pallbearer")
+  funeralBearers FuneralPallbearer[] @relation("DeceasedPallbearers")
+  gownWears      ChristeningGownWear[]
+  iceHarvests    IceHarvestCrew[]
+  takenPhotos    Asset[]          @relation("TakenBy")
+  threshingRings ThreshingRing[]
+  taughtClasses  SchoolClass[]    @relation("ClassTeacher")
+  vehicles       FamilyVehicle[]
+  partyLines     PartyLinePerson[]
+  milkStops      MilkRouteStop[]
+  pews           ChurchPew[]
+  blanketsPlaced GraveBlanket[]   @relation("BlanketPlacedBy")
+  graveBlankets  GraveBlanket[]   @relation("BlanketGrave")
+  elevators      GrainElevatorAccount[]
 }
 
 model Relationship {
@@ -448,6 +475,8 @@ model Asset {
   favoritedBy    Person[]      @relation("FavoritePhoto")
   sitterId       String?
   sitter         Person?       @relation("PortraitSitter", fields: [sitterId], references: [id], onDelete: SetNull)
+  takenById      String?
+  takenBy        Person?       @relation("TakenBy", fields: [takenById], references: [id], onDelete: SetNull)
 }
 
 model PersonTag {
@@ -1907,8 +1936,10 @@ model SchoolClass {
   year      Int
   place     String?
   notes     String?
+  teacherId String?
   createdAt DateTime           @default(now())
   family    Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  teacher   Person?            @relation("ClassTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   pupils    SchoolClassPupil[]
 
   @@index([familyId, year])
@@ -2419,4 +2450,188 @@ model ReunionProgramItem {
   person    Person?          @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([familyId, reunionId])
+}
+
+model FuneralPallbearer {
+  id         String  @id @default(cuid())
+  familyId   String
+  deceasedId String
+  personId   String
+  role       String
+  notes      String?
+  family     Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  deceased   Person  @relation("DeceasedPallbearers", fields: [deceasedId], references: [id], onDelete: Cascade)
+  person     Person  @relation("Pallbearer", fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([deceasedId, personId])
+  @@index([familyId])
+}
+
+model ChristeningGown {
+  id        String                 @id @default(cuid())
+  familyId  String
+  title     String
+  notes     String?
+  createdAt DateTime               @default(now())
+  family    Family                 @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  wears     ChristeningGownWear[]
+
+  @@index([familyId])
+}
+
+model ChristeningGownWear {
+  id        String          @id @default(cuid())
+  familyId  String
+  gownId    String
+  personId  String
+  wornOn    DateTime?       @db.Date
+  notes     String?
+  family    Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  gown      ChristeningGown @relation(fields: [gownId], references: [id], onDelete: Cascade)
+  person    Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, gownId])
+}
+
+model IceHarvestCrew {
+  id       String  @id @default(cuid())
+  familyId String
+  personId String
+  year     Int
+  place    String?
+  role     String?
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, year])
+}
+
+model SurnameSpelling {
+  id       String  @id @default(cuid())
+  familyId String
+  surname  String
+  variant  String
+  source   String?
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, surname])
+}
+
+model ThreshingRing {
+  id       String  @id @default(cuid())
+  familyId String
+  personId String
+  year     Int
+  place    String?
+  role     String?
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, year])
+}
+
+model FamilyVehicle {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String?
+  name      String
+  kind      String
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model PartyLine {
+  id       String           @id @default(cuid())
+  familyId String
+  exchange String
+  number   String
+  notes    String?
+  family   Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  people   PartyLinePerson[]
+
+  @@index([familyId])
+}
+
+model PartyLinePerson {
+  lineId   String
+  personId String
+  line     PartyLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([lineId, personId])
+}
+
+model MilkRoute {
+  id       String         @id @default(cuid())
+  familyId String
+  name     String
+  year     Int?
+  notes    String?
+  family   Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  stops    MilkRouteStop[]
+
+  @@index([familyId])
+}
+
+model MilkRouteStop {
+  id        String    @id @default(cuid())
+  routeId   String
+  personId  String
+  stopOrder Int
+  notes     String?
+  route     MilkRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([routeId, stopOrder])
+}
+
+model ChurchPew {
+  id        String    @id @default(cuid())
+  familyId  String
+  personId  String
+  church    String
+  pewNumber String
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  notes     String?
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model GraveBlanket {
+  id          String    @id @default(cuid())
+  familyId    String
+  personId    String
+  placedById  String?
+  monthDay    String
+  notes       String?
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person      Person    @relation("BlanketGrave", fields: [personId], references: [id], onDelete: Cascade)
+  placedBy    Person?   @relation("BlanketPlacedBy", fields: [placedById], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+}
+
+model GrainElevatorAccount {
+  id       String  @id @default(cuid())
+  familyId String
+  personId String
+  elevator String
+  account  String
+  year     Int?
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
 }
