@@ -235,8 +235,9 @@ test("a relative can print an index card, walk a filmstrip, and keep a quiet hom
   await t.test("the family playlist lists oral histories in date order", async () => {
     const playlist = await maya.json<{ heading: string; items: { title: string }[] }>("/api/oral/playlist");
     assert.match(playlist.body.heading, /oral histor/);
-    assert.equal(playlist.body.items[0]?.title, "Picnic reel");
-    assert.equal(playlist.body.items[1]?.title, "Later kitchen tape");
+    const titles = playlist.body.items.map((item) => item.title);
+    assert.ok(titles.indexOf("Picnic reel") < titles.indexOf("Later kitchen tape"));
+    assert.equal(titles[titles.length - 1], "Undated attic tape");
     const page = await maya.html("/oral/playlist");
     assert.match(page.text, /Picnic reel/);
     const oral = await maya.html("/oral");

@@ -28,7 +28,7 @@ export function isOralHistory(asset: { kind?: string | null; mimeType?: string |
 
 function dateKey(value?: Date | string | null, fallback?: string | null) {
   const extra = fallback || "";
-  if (!value) return `~${extra}`;
+  if (!value) return `9999-${extra}`;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toISOString();

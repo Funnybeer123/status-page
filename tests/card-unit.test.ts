@@ -61,9 +61,11 @@ test("a fragile original has a clear label", () => {
 test("the oral playlist is in date order", () => {
   const sorted = sortOralPlaylist([
     { title: "Later reel", capturedAt: new Date("1961-07-04T00:00:00Z") },
+    { title: "Undated attic tape", capturedAt: null },
     { title: "Harvest reel", capturedAt: "1947-10-18" },
   ]);
   assert.equal(sorted[0]?.title, "Harvest reel");
+  assert.equal(sorted[2]?.title, "Undated attic tape");
   assert.match(playlistLine("Harvest reel", "18 October 1947"), /Harvest reel/);
   assert.equal(oralPlaylistHeading(2), "2 oral histories in the playlist");
   assert.equal(emptyPlaylistHeading(), "The oral-history playlist is empty");
@@ -77,7 +79,8 @@ test("two people’s residences can sit on one map", () => {
     { startedAt: "1952-04-02" },
     { startedAt: new Date("1948-06-14T00:00:00Z") },
   ]);
-  assert.equal(String(sorted[0]?.startedAt).slice(0, 10), "1948-06-14");
+  const first = sorted[0]?.startedAt;
+  assert.equal((first instanceof Date ? first.toISOString() : String(first)).slice(0, 10), "1948-06-14");
   assert.equal(missingResidencesHeading(1), "1 person still needs a residence");
   assert.match(addressCardLine("Eleanor Hart", { name: "Cedar Falls", region: "Iowa" }), /Cedar Falls/);
 });

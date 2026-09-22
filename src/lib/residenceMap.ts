@@ -13,7 +13,7 @@ export function missingResidencesHeading(count: number) {
 }
 
 function dateKey(value?: Date | string | null, fallback = "") {
-  if (!value) return `~${fallback}`;
+  if (!value) return `9999-${fallback}`;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toISOString();
