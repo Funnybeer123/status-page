@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { bookmarkHeading, bookmarkHomeHeading, bookmarkLine } from "../src/lib/bookmarks";
+import { bookmarkHeading, bookmarkHomeHeading, bookmarkLine, watchersHeading } from "../src/lib/bookmarks";
 import { followFeedHeading, followHeading, followHref, followLine, followNoticeTitle } from "../src/lib/follows";
 import { isShareRevoked, shareOpenLine, shareOpensHeading, shareRevokeHeading, shareLinksHeading } from "../src/lib/shareRevoke";
 import { livingPeople, livingRelationships, livingTreeHeading, reunionLivingHeading, reunionLivingListHeading } from "../src/lib/livingTree";
@@ -17,6 +17,8 @@ test("bookmarks and follows read the way a relative would say them", () => {
   assert.match(bookmarkHeading(3), /3 bookmarked people/);
   assert.equal(bookmarkLine(" Eleanor Hart "), "Eleanor Hart");
   assert.equal(bookmarkHomeHeading(1), "1 person on your bookmark list");
+  assert.equal(watchersHeading(0, 0), "No one is watching this person yet");
+  assert.equal(watchersHeading(1, 2), "1 bookmark · 2 followers");
   assert.equal(followHeading(0), "You are not following anyone yet");
   assert.equal(followHeading(1), "Following 1 person");
   assert.equal(followLine("Eleanor Hart"), "Following Eleanor Hart");

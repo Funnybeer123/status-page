@@ -130,6 +130,7 @@ const links = [
   { href: "/ask/kept-out", label: "Kept out of Ask" },
   { href: "/map/voyages", label: "Voyage routes" },
   { href: "/invites/researcher", label: "Guest researchers" },
+  { href: "/shared/opens", label: "Share openings" },
   { href: "/scans/missing", label: "Missing scans" },
   { href: "/manifests/missing", label: "Missing manifests" },
   { href: "/digitize", label: "Digitize" },

@@ -219,6 +219,10 @@ async function main() {
   await page.waitForSelector("[data-testid=reunion-living-heading]");
   await shot("reunion_living.png");
 
+  await page.goto(`${BASE}/people/${ids.rose}/watchers`, { waitUntil: "networkidle0" });
+  await page.waitForSelector("[data-testid=watchers-heading]");
+  await shot("watchers.png");
+
   await browser.close();
   writeFileSync(`${MEDIA}/follow_layer_manifest.txt`, written.join("\n") + "\n");
   console.log("ui follow layer ok", written.length, "files");

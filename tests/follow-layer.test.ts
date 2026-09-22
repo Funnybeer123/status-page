@@ -325,6 +325,15 @@ test("a relative can bookmark, follow, revoke a share, and keep a story out of A
     assert.match(page.text, /expires 2027-12-31/);
   });
 
+  await t.test("who bookmarked and who follows a person is listed", async () => {
+    const watchers = await maya.json<{ heading: string }>("/api/watchers?personId=" + ids.rose);
+    assert.equal(watchers.status, 200, watchers.body.error);
+    assert.match(watchers.body.heading, /bookmark/);
+    const page = await maya.html(`/people/${ids.rose}/watchers`);
+    assert.match(page.text, /Maya Park|Aunt June/);
+    assert.match(page.text, /watchers-heading|bookmark/);
+  });
+
   await t.test("the newspaper page image is shown on the clipping", async () => {
     const list = await maya.html("/clippings");
     assert.match(list.text, /Newspaper page · Fairview burial notice/);

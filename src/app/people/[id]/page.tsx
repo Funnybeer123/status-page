@@ -231,6 +231,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 PDF of this life
               </Link>
             ) : null}
+            <Link href={`/people/${person.id}/watchers`} className="mt-2 block font-sans text-sm text-seal" data-testid="watchers-link">
+              Who is watching
+            </Link>
             <Link href="/handwriting" className="mt-2 block font-sans text-sm text-seal">
               Handwriting
             </Link>
