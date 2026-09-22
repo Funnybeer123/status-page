@@ -29,6 +29,8 @@ enum DocKind {
   letter
   note
   story
+  clipping
+  recipe
 }
 
 enum NameKind {
@@ -49,6 +51,8 @@ enum EventKind {
   military
   census
   burial
+  religion
+  reunion
   other
 }
 
@@ -60,9 +64,11 @@ model User {
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   assets       Asset[]      @relation("UploadedBy")
-  activities   Activity[]
-  comments     Comment[]
-  albums       Album[]      @relation("AlbumCreator")
+  activities     Activity[]
+  comments       Comment[]
+  albums         Album[]      @relation("AlbumCreator")
+  notifications  Notification[] @relation("Notified")
+  noticesSent    Notification[] @relation("Notifier")
 }
 
 model Family {
@@ -85,6 +91,8 @@ model Family {
   activities    Activity[]
   albums        Album[]
   comments      Comment[]
+  notifications Notification[]
+  heirlooms     Heirloom[]
 }
 
 model Membership {
@@ -133,6 +141,7 @@ model Person {
   storiesTold    Story[]          @relation("StoryTeller")
   storyLinks     StoryPerson[]
   citations      Citation[]
+  heirlooms      Heirloom[]
 }
 
 model Relationship {
@@ -398,4 +407,36 @@ model Comment {
   story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  familyId  String
+  userId    String
+  actorId   String
+  title     String
+  body      String?
+  href      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user      User      @relation("Notified", fields: [userId], references: [id], onDelete: Cascade)
+  actor     User      @relation("Notifier", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([familyId, createdAt])
+}
+
+model Heirloom {
+  id         String    @id @default(cuid())
+  familyId   String
+  personId   String?
+  title      String
+  summary    String?
+  acquiredAt DateTime? @db.Date
+  createdAt  DateTime  @default(now())
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
 }

@@ -103,6 +103,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/tree?personId=${person.id}&view=pedigree`} className="mt-2 block font-sans text-sm text-seal">
               Ancestor chart
             </Link>
+            {!living ? (
+              <Link href={`/people/${person.id}/memorial`} className="mt-2 block font-sans text-sm text-seal">
+                Memorial page
+              </Link>
+            ) : null}
           </div>
         </aside>
         <section className="space-y-8">

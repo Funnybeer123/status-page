@@ -55,8 +55,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Install OCR and ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr ffmpeg
+      - name: Install OCR, ffmpeg, and PDF tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr ffmpeg poppler-utils
       - run: npm ci
       - run: npx prisma migrate deploy
       - run: npm run build

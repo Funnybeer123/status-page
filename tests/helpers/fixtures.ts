@@ -63,6 +63,30 @@ export function makeWav() {
   return header;
 }
 
+export function makePdfLetter(pageTwo = "Helen kept the navy hatband in the cedar chest.") {
+  const dir = mkdtempSync(join(tmpdir(), "fl-pdf-"));
+  const htmlPath = join(dir, "letter.html");
+  const pdfPath = join(dir, "letter.pdf");
+  const escaped1 = ROSE_LETTER.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+  const escaped2 = pageTwo.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+  writeFileSync(
+    htmlPath,
+    `<!doctype html><html><body style="margin:48px;color:#2b2118;font:26px/1.5 Georgia,serif">
+      <section style="page-break-after:always;white-space:pre-wrap">${escaped1}</section>
+      <section style="white-space:pre-wrap">${escaped2}</section>
+    </body></html>`,
+  );
+  execFileSync("google-chrome-stable", [
+    "--headless=new",
+    "--disable-gpu",
+    "--no-sandbox",
+    `--print-to-pdf=${pdfPath}`,
+    "--no-pdf-header-footer",
+    `file://${htmlPath}`,
+  ], { stdio: "ignore" });
+  return { path: pdfPath, bytes: readFileSync(pdfPath) };
+}
+
 export function makeVideo() {
   const dir = mkdtempSync(join(tmpdir(), "fl-video-"));
   const dest = join(dir, "picnic.mp4");

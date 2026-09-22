@@ -5,6 +5,7 @@ import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { saveUpload } from "@/lib/media";
 import { ocrFile } from "@/lib/ocr";
+import { ocrPdf } from "@/lib/pdfOcr";
 
 export async function POST(req: Request) {
   const ctx = await apiFamily(Role.contributor);
@@ -19,6 +20,7 @@ export async function POST(req: Request) {
     `ocr-${Date.now()}-${randomBytes(3).toString("hex")}${ext}`,
     bytes,
   );
-  const text = await ocrFile(storagePath);
-  return NextResponse.json({ text, storagePath });
+  const isPdf = file.type.includes("pdf") || ext.toLowerCase() === ".pdf";
+  const ocr = isPdf ? await ocrPdf(storagePath) : { pages: 1, text: await ocrFile(storagePath) };
+  return NextResponse.json({ text: ocr.text, pages: ocr.pages, storagePath });
 }

@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/AppShell";
-import { ArchiveClient } from "@/app/archive/ui";
+import { ArchiveClient, BulkPhotoForm } from "@/app/archive/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
@@ -39,7 +39,10 @@ export default async function ArchivePage({
         </div>
       </div>
       {canWrite(ctx.role) ? (
-        <ArchiveClient people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
+        <>
+          <ArchiveClient people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
+          <BulkPhotoForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
+        </>
       ) : null}
       <div className="mt-6 flex flex-wrap gap-2 font-sans text-sm">
         <a href="/archive" className={`rounded-full px-3 py-1 ${!year ? "bg-seal text-cream" : "border border-bark/15"}`}>All years</a>

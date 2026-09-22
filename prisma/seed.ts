@@ -390,6 +390,32 @@ async function ensureHartArchive() {
     },
     update: {},
   });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-school" },
+    create: {
+      id: "event-eleanor-school",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      kind: EventKind.education,
+      title: "Eleanor finished Cedar Falls High",
+      happenedOn: new Date("1945-05-28"),
+    },
+    update: {},
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-religion" },
+    create: {
+      id: "event-eleanor-religion",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      kind: EventKind.religion,
+      title: "Eleanor confirmed at St. John's",
+      happenedOn: new Date("1941-04-13"),
+    },
+    update: {},
+  });
   const wei = people.find((person) => person.id === "person-wei");
   if (margaret && wei) {
     await prisma.lifeEvent.upsert({

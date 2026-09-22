@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ImportForm } from "@/app/import/ui";
+import { RestoreForm } from "@/app/import/restore";
 import { requireFamily } from "@/lib/family";
 import { canWrite } from "@/lib/roles";
 
@@ -19,7 +20,14 @@ export default async function ImportPage() {
         <a href="/api/export?format=bundle" className="rounded-full border border-bark/20 px-4 py-2">JSON with media</a>
         <Link href="/export" className="rounded-full border border-bark/20 px-4 py-2">Export page</Link>
       </div>
-      {canWrite(ctx.role) ? <ImportForm /> : <p className="mt-8 text-bark">Viewers can download, but cannot import.</p>}
+      {canWrite(ctx.role) ? (
+        <>
+          <ImportForm />
+          <RestoreForm />
+        </>
+      ) : (
+        <p className="mt-8 text-bark">Viewers can download, but cannot import.</p>
+      )}
     </AppShell>
   );
 }

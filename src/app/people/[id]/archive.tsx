@@ -161,6 +161,8 @@ export function PersonArchiveForms({
             <option value="immigration">Immigration</option>
             <option value="occupation">Occupation</option>
             <option value="education">Education</option>
+            <option value="religion">Religion</option>
+            <option value="reunion">Reunion</option>
             <option value="military">Military</option>
             <option value="census">Census</option>
             <option value="burial">Burial</option>

@@ -62,3 +62,50 @@ export function ArchiveClient({ people }: { people: { id: string; displayName: s
     </form>
   );
 }
+
+export function BulkPhotoForm({ people }: { people: { id: string; displayName: string }[] }) {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    data.set("personIds", data.getAll("personIds").map(String).join(","));
+    const response = await fetch("/api/assets/bulk", { method: "POST", body: data });
+    const payload = await response.json();
+    setBusy(false);
+    if (!response.ok) {
+      setError(payload.error || "Could not upload those photographs.");
+      return;
+    }
+    form.reset();
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="paper-card mt-6 grid gap-3 p-5" data-testid="bulk-photo-form">
+      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Bulk photographs</p>
+      <input type="file" name="files" multiple accept="image/*" required className="font-sans text-sm" />
+      <input type="date" name="capturedAt" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <fieldset className="font-sans text-sm">
+        <legend className="mb-2">Tag people on every photo</legend>
+        <div className="flex flex-wrap gap-2">
+          {people.map((person) => (
+            <label key={person.id} className="rounded-full border border-bark/15 px-3 py-1">
+              <input type="checkbox" name="personIds" value={person.id} className="mr-2" />
+              {person.displayName}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
+      <button disabled={busy} className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+        {busy ? "Uploading…" : "Upload the envelope"}
+      </button>
+    </form>
+  );
+}

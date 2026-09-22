@@ -58,6 +58,8 @@ export function LetterForm({ people }: { people: { id: string; displayName: stri
           <select name="kind" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2">
             <option value="letter">Letter</option>
             <option value="note">Note</option>
+            <option value="clipping">Newspaper clipping</option>
+            <option value="recipe">Recipe</option>
           </select>
         </label>
       </div>

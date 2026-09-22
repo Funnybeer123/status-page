@@ -7,7 +7,7 @@ import { exportGedcom } from "@/lib/gedcom";
 export async function exportFamilyArchive(familyId: string, includeMedia = false) {
   const family = await prisma.family.findFirst({ where: { id: familyId } });
   if (!family) return null;
-  const [people, relationships, places, names, residences, events, documents, assets, stories, albums, comments] =
+  const [people, relationships, places, names, residences, events, documents, assets, stories, albums, comments, heirlooms] =
     await Promise.all([
       prisma.person.findMany({ where: { familyId }, orderBy: { displayName: "asc" } }),
       prisma.relationship.findMany({ where: { familyId } }),
@@ -20,6 +20,7 @@ export async function exportFamilyArchive(familyId: string, includeMedia = false
       prisma.story.findMany({ where: { familyId }, include: { people: true } }),
       prisma.album.findMany({ where: { familyId }, include: { items: true } }),
       prisma.comment.findMany({ where: { familyId }, include: { author: { select: { name: true } } } }),
+      prisma.heirloom.findMany({ where: { familyId } }),
     ]);
 
   const files: { title: string | null; mimeType: string; storagePath: string; dataBase64?: string }[] = [];
@@ -98,6 +99,7 @@ export async function exportFamilyArchive(familyId: string, includeMedia = false
       documentId: comment.documentId,
       storyId: comment.storyId,
     })),
+    heirlooms,
     files,
     gedcom,
   };

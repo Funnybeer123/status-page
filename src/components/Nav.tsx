@@ -13,9 +13,15 @@ const links = [
   { href: "/map", label: "Map" },
   { href: "/archive", label: "Archive" },
   { href: "/albums", label: "Albums" },
+  { href: "/clippings", label: "Clippings" },
+  { href: "/recipes", label: "Cookbook" },
+  { href: "/heirlooms", label: "Heirlooms" },
   { href: "/stories", label: "Stories" },
   { href: "/book", label: "Book" },
   { href: "/dates", label: "Dates" },
+  { href: "/duplicates", label: "Duplicates" },
+  { href: "/stats", label: "Stats" },
+  { href: "/research", label: "Research" },
   { href: "/related", label: "Related" },
   { href: "/import", label: "Import" },
   { href: "/letters/new", label: "Letters" },
@@ -29,10 +35,12 @@ export function Nav({
   families,
   activeFamilyId,
   userName,
+  unread = 0,
 }: {
   families: FamilyOption[];
   activeFamilyId?: string;
   userName?: string | null;
+  unread?: number;
 }) {
   return (
     <header className="border-b border-bark/10 bg-cream/80 backdrop-blur">
@@ -48,6 +56,9 @@ export function Nav({
           ))}
         </nav>
         <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
+          <Link href="/notifications" className="hover:text-seal" data-testid="nav-notifications">
+            Notices{unread ? ` (${unread})` : ""}
+          </Link>
           <SearchBox />
           <FamilySwitcher families={families} activeFamilyId={activeFamilyId} />
           <span className="hidden text-bark/70 sm:inline">{userName}</span>

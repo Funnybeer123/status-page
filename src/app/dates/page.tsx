@@ -85,6 +85,9 @@ export default async function DatesPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Birthdays, death anniversaries, marriages, and the other dated events the archive already knows.
       </p>
+      <a href="/api/dates/ics" className="mt-4 inline-block rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" data-testid="ics-download">
+        Download calendar (.ics)
+      </a>
       <section className="mt-10">
         <h2 className="font-display text-2xl">This week</h2>
         <ReminderList items={remindersThisWeek(reminders)} />
