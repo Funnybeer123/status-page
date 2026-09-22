@@ -144,6 +144,48 @@ export function MeetingForm({ people }: { people: { id: string; displayName: str
   );
 }
 
+export function HangPortraitForm({
+  personId,
+  assets,
+}: {
+  personId: string;
+  assets: { id: string; title: string | null }[];
+}) {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const response = await fetch("/api/portraits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId, assetId: data.get("assetId") }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error || "Could not hang that portrait.");
+      return;
+    }
+    router.refresh();
+  }
+  return (
+    <form onSubmit={onSubmit} className="mt-3 flex flex-wrap items-center gap-2" data-testid={`hang-portrait-${personId}`}>
+      <select name="assetId" required className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">Hang a portrait</option>
+        {assets.map((asset) => (
+          <option key={asset.id} value={asset.id}>
+            {asset.title || "Untitled photograph"}
+          </option>
+        ))}
+      </select>
+      <button className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+        Hang this
+      </button>
+      {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
+    </form>
+  );
+}
+
 export function DeedForm({
   landId,
   assets,

@@ -27,3 +27,14 @@ export function sortHolds<T extends { heldFrom?: Date | string | null; createdAt
 export function currentHolder<T extends { heldUntil?: Date | string | null }>(holds: T[]) {
   return [...holds].reverse().find((hold) => !hold.heldUntil) ?? holds.at(-1) ?? null;
 }
+
+export function currentHolderLine(title: string, name?: string | null) {
+  const item = title.trim() || "This heirloom";
+  return name?.trim() ? `${item} is with ${name.trim()}` : `${item} has no current holder`;
+}
+
+export function chainsHeading(count: number) {
+  if (!count) return "No heirloom chains recorded yet";
+  if (count === 1) return "1 heirloom has a provenance chain";
+  return `${count} heirlooms have a provenance chain`;
+}

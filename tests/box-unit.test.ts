@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { boxFileLine, boxHeading, boxItemLine, isUnsorted } from "../src/lib/box";
-import { currentHolder, holdLine, provenanceHeading, sortHolds } from "../src/lib/provenance";
-import { generationHeading, missingPortraitsHeading, portraitAssetId, portraitWallHeading } from "../src/lib/portraits";
+import { chainsHeading, currentHolder, currentHolderLine, holdLine, provenanceHeading, sortHolds } from "../src/lib/provenance";
+import { generationHeading, hangPortraitLine, missingPortraitsHeading, portraitAssetId, portraitWallHeading } from "../src/lib/portraits";
 import {
   isTranscriptLocked,
   lockConflictMessage,
@@ -40,6 +40,8 @@ test("heirloom provenance stays in the order people held the item", () => {
   assert.equal(holds[0]?.heldFrom, "1948-06-14");
   assert.equal(holds[2]?.heldFrom, null);
   assert.equal(currentHolder([{ heldUntil: "1995-09-01" }, { heldUntil: null }])?.heldUntil, null);
+  assert.equal(currentHolderLine("Ellie’s cedar chest", "Lily Chen"), "Ellie’s cedar chest is with Lily Chen");
+  assert.equal(chainsHeading(1), "1 heirloom has a provenance chain");
 });
 
 test("portraits, transcript locks, mute, deeds, and the pyramid", () => {
@@ -48,6 +50,7 @@ test("portraits, transcript locks, mute, deeds, and the pyramid", () => {
   assert.equal(generationHeading(0, 1), "The eldest generation · 1 portrait");
   assert.equal(portraitWallHeading(2), "2 portraits on the wall");
   assert.equal(missingPortraitsHeading(0), "Everyone has a portrait");
+  assert.equal(hangPortraitLine("June Whitaker"), "Portrait hung for June Whitaker");
   assert.equal(isTranscriptLocked({ transcriptLockedAt: null }), false);
   assert.equal(isTranscriptLocked({ transcriptLockedAt: "2026-03-01" }), true);
   assert.equal(transcriptCreditLine("Lily Chen"), "Transcribed by Lily Chen");

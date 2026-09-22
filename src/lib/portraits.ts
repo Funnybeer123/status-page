@@ -23,6 +23,10 @@ export function portraitWallHeading(count: number) {
   return `${count} portraits on the wall`;
 }
 
+export function hangPortraitLine(name: string) {
+  return `Portrait hung for ${name.trim() || "this person"}`;
+}
+
 export function missingPortraitsHeading(count: number) {
   if (!count) return "Everyone has a portrait";
   if (count === 1) return "1 person still needs a portrait";

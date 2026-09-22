@@ -5,14 +5,20 @@ import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
 import { buildPortraitWall, missingPortraitsHeading } from "@/lib/portraits";
 import { hideMinorDetails } from "@/lib/privacy";
+import { canWrite } from "@/lib/roles";
+import { HangPortraitForm } from "@/app/box/ui";
 
 export default async function MissingPortraitsPage() {
   const ctx = await requireFamily();
-  const [people, relationships, tags] = await Promise.all([
+  const [people, relationships, tags, photos] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
     prisma.personTag.findMany({
       where: { person: { familyId: ctx.family.id }, asset: { deletedAt: null, kind: "photo" } },
+    }),
+    prisma.asset.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null, kind: "photo" },
+      orderBy: { title: "asc" },
     }),
   ]);
   const visible = people.filter((person) => !hideMinorDetails(ctx.role, person));
@@ -38,6 +44,12 @@ export default async function MissingPortraitsPage() {
             <Link href={`/people/${person.id}`} className="font-display text-2xl text-seal">
               {person.displayName}
             </Link>
+            {canWrite(ctx.role) ? (
+              <HangPortraitForm
+                personId={person.id}
+                assets={photos.map((asset) => ({ id: asset.id, title: asset.title }))}
+              />
+            ) : null}
           </li>
         ))}
         {!wall.missing.length ? <li className="text-bark">Everyone has a portrait.</li> : null}

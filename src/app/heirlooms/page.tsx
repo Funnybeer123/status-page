@@ -5,6 +5,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
+import { currentHolder, currentHolderLine, sortHolds } from "@/lib/provenance";
 
 export default async function HeirloomsPage() {
   const ctx = await requireFamily();
@@ -12,7 +13,7 @@ export default async function HeirloomsPage() {
     prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
     prisma.heirloom.findMany({
       where: { familyId: ctx.family.id },
-      include: { person: true },
+      include: { person: true, holds: { include: { person: true } } },
       orderBy: { title: "asc" },
     }),
   ]);
@@ -24,7 +25,7 @@ export default async function HeirloomsPage() {
         Objects the family still keeps, and who they belonged to.{" "}
         <Link href="/loans" className="text-seal">Who borrowed what</Link>.
         {" · "}
-        <Link href="/heirlooms" className="text-seal">Provenance is on each object</Link>.
+        <Link href="/heirlooms/chains" className="text-seal">Every provenance chain</Link>.
       </p>
       {canWrite(ctx.role) ? (
         <HeirloomForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
@@ -34,8 +35,11 @@ export default async function HeirloomsPage() {
           <li key={item.id} className="paper-card p-5">
             <Link href={`/heirlooms/${item.id}`} className="font-display text-2xl text-seal">{item.title}</Link>
             {item.person ? (
-              <Link href={`/people/${item.person.id}`} className="font-sans text-sm text-seal">{item.person.displayName}</Link>
+              <Link href={`/people/${item.person.id}`} className="ml-3 font-sans text-sm text-seal">{item.person.displayName}</Link>
             ) : null}
+            <p className="mt-2 text-bark">
+              {currentHolderLine(item.title, currentHolder(sortHolds(item.holds))?.person.displayName ?? item.person?.displayName)}
+            </p>
             <p className="text-bark">{item.summary}</p>
             <p className="font-sans text-sm text-gold">{formatDate(item.acquiredAt, "")}</p>
           </li>

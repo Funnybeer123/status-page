@@ -14,6 +14,7 @@ import { PinMemoryForm } from "@/app/homes/pin-form";
 import { compileThisWeek, thisWeekHeading, thisWeekSince } from "@/lib/thisWeek";
 import { BannerForm } from "@/app/banner/ui";
 import { bookmarkHomeHeading, bookmarkLine } from "@/lib/bookmarks";
+import { boxHeading } from "@/lib/box";
 
 export default async function HomePage() {
   const session = await auth();
@@ -52,7 +53,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -93,6 +94,9 @@ export default async function HomePage() {
       include: { person: true },
       orderBy: { createdAt: "desc" },
       take: 8,
+    }),
+    prisma.asset.count({
+      where: { familyId: ctx.family.id, deletedAt: null, tags: { none: {} } },
     }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
@@ -141,6 +145,13 @@ export default async function HomePage() {
           </>
         )}
       </p>
+      <section className="mt-8" data-testid="home-box">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{boxHeading(boxCount)}</h2>
+          <Link href="/box" className="font-sans text-sm text-seal">Unsorted box</Link>
+        </div>
+        <p className="mt-2 max-w-2xl text-bark">Uploads that still need to be filed onto someone.</p>
+      </section>
       <section className="mt-8" data-testid="home-bookmarks">
         <div className="flex items-baseline justify-between">
           <h2 className="font-display text-2xl">{bookmarkHomeHeading(bookmarks.length)}</h2>

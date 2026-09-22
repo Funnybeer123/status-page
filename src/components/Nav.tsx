@@ -136,6 +136,7 @@ const links = [
   { href: "/surnames/map", label: "Surname map" },
   { href: "/land/deeds", label: "Missing deeds" },
   { href: "/portraits/missing", label: "Missing portraits" },
+  { href: "/heirlooms/chains", label: "Provenance chains" },
   { href: "/shared/links", label: "Share links" },
   { href: "/tree/living", label: "Living tree" },
   { href: "/ask/kept-out", label: "Kept out of Ask" },

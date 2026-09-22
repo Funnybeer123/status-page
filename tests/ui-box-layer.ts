@@ -221,6 +221,10 @@ async function main() {
   await page.waitForSelector("[data-testid=deed-image]");
   await shot("abstract_deed.png");
 
+  await page.goto(`${BASE}/heirlooms/chains`, { waitUntil: "networkidle0" });
+  await page.waitForSelector("[data-testid=chains-heading]");
+  await shot("provenance_chains.png");
+
   await browser.close();
   writeFileSync(`${MEDIA}/box_layer_manifest.txt`, written.join("\n") + "\n");
   console.log("ui box layer ok", written.length, "files");

@@ -128,6 +128,8 @@ test("a relative can file the box, record who held an heirloom, and lock a trans
   });
 
   await t.test("the unsorted box lists uploads with no person, then files each one", async () => {
+    const home = await maya.html("/");
+    assert.match(home.text, /1 upload not filed to a person yet|home-box/);
     const box = await maya.json<{ heading: string; assets: { id: string }[] }>("/api/box");
     assert.equal(box.status, 200, box.body.error);
     assert.match(box.body.heading, /1 upload not filed/);
@@ -333,5 +335,24 @@ test("a relative can file the box, record who held an heirloom, and lock a trans
     const page = await maya.html("/surnames/map");
     assert.match(page.text, /Whitaker/);
     assert.match(page.text, /Cedar Falls/);
+  });
+
+  await t.test("provenance chains and hanging a portrait keep the next useful work together", async () => {
+    const chains = await maya.json<{ heading: string; chains: { title: string; holder: string }[] }>("/api/heirlooms/chains");
+    assert.equal(chains.status, 200, chains.body.error);
+    assert.match(chains.body.heading, /1 heirloom has a provenance chain/);
+    assert.ok(chains.body.chains.some((item) => /Maya Park/.test(item.holder)));
+    const list = await maya.html("/heirlooms/chains");
+    assert.match(list.text, /Ellie’s cedar chest/);
+    assert.match(list.text, /Rose Whitaker/);
+    const hung = await maya.json<{ heading: string }>("/api/portraits", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId: ids.june, assetId: ids.box }),
+    });
+    assert.equal(hung.status, 200, hung.body.error);
+    assert.match(hung.body.heading, /Portrait hung for June Whitaker/);
+    const wall = await maya.json<{ missing: { id: string }[] }>("/api/portraits");
+    assert.ok(!wall.body.missing.some((person) => person.id === ids.june));
   });
 });
