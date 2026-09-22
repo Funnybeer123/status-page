@@ -23,6 +23,8 @@ export default async function DigitizePage() {
       <p className="mt-3 max-w-2xl text-bark">
         Physical letters, photographs, and Bibles that still need a scan.{" "}
         <Link href="/reunions/shifts/missing" className="text-seal">Digitizing shifts</Link>
+        {" · "}
+        <Link href="/originals" className="text-seal">Who holds the original</Link>
       </p>
       {canWrite(ctx.role) ? (
         <RecordForm

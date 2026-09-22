@@ -46,6 +46,8 @@ export default async function FamilyHourPage() {
         <Link href="/hour/past" className="text-seal">Already happened</Link>
         {" · "}
         <Link href="/hour/interviews/missing" className="text-seal">Interviews without a date</Link>
+        {" · "}
+        <Link href="/married" className="text-seal">Years married</Link>
       </p>
       <p className="mt-6 font-display text-3xl" data-testid="family-hour-countdown">
         {hour.line}

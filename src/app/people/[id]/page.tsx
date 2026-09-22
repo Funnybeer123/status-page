@@ -36,7 +36,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         documents: { include: { document: true } },
         fromRels: { include: { toPerson: true } },
         toRels: { include: { fromPerson: true } },
-        names: { include: { citations: { include: { document: true } } } },
+        names: { include: { citations: { include: { document: true } }, namedBy: true } },
         residences: { include: { place: true, citations: { include: { document: true } } } },
         events: { include: { place: true, otherPerson: true, citations: { include: { document: true } }, witnesses: { include: { person: true } } } },
         otherEvents: { include: { place: true, person: true } },
@@ -215,6 +215,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           </div>
           <div className="p-5">
             <h1 className="font-display text-3xl">{hideChild ? childPublicName(person) : person.displayName}</h1>
+            {!hideChild && person.middleName ? (
+              <p className="mt-2 font-sans text-sm text-gold" data-testid="middle-name">
+                {person.middleName}
+              </p>
+            ) : null}
             <p className="mt-2 font-sans text-sm text-bark">
               {hideChild || hidden ? "Living" : lifespan(person.birthDate, person.deathDate)}
             </p>
@@ -228,6 +233,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 {person.names.map((name) => (
                   <li key={name.id}>
                     <span className="uppercase tracking-wide text-gold">{name.kind}</span> {name.name}
+                    {name.namedBy ? ` · named by ${name.namedBy.displayName}` : ""}
                   </li>
                 ))}
               </ul>

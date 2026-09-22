@@ -35,6 +35,8 @@ export default async function AnniversariesPage({
       </ul>
       <p className="mt-8 font-sans text-sm">
         <Link href="/milestones" className="text-seal">Milestone birthdays</Link>
+        {" · "}
+        <Link href="/married" className="text-seal">Years married</Link>
       </p>
     </AppShell>
   );

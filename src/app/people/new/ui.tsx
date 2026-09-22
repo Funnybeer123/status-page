@@ -18,6 +18,7 @@ export function PersonForm({ people }: { people: { id: string; displayName: stri
       body: JSON.stringify({
         displayName: data.get("displayName"),
         givenName: data.get("givenName"),
+        middleName: data.get("middleName"),
         familyName: data.get("familyName"),
         birthDate: data.get("birthDate"),
         deathDate: data.get("deathDate"),
@@ -56,6 +57,7 @@ export function PersonForm({ people }: { people: { id: string; displayName: stri
       <input name="displayName" required placeholder="Display name" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <div className="grid gap-4 sm:grid-cols-2">
         <input name="givenName" placeholder="Given name" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+        <input name="middleName" placeholder="Middle name" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
         <input name="familyName" placeholder="Family name" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">

@@ -10,6 +10,7 @@ import { isoDay, recordPersonChanges } from "@/lib/personChanges";
 const schema = z.object({
   displayName: z.string().min(1).max(120).optional(),
   givenName: z.string().max(80).optional(),
+  middleName: z.string().max(80).optional().nullable(),
   familyName: z.string().max(80).optional(),
   birthDate: z.string().optional().nullable(),
   deathDate: z.string().optional().nullable(),
@@ -72,6 +73,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existing) return NextResponse.json({ error: "Person not found." }, { status: 404 });
   const nextName = body.data.displayName ?? existing.displayName;
   const nextGiven = body.data.givenName === undefined ? existing.givenName : body.data.givenName || null;
+  const nextMiddle = body.data.middleName === undefined ? existing.middleName : body.data.middleName || null;
   const nextFamily = body.data.familyName === undefined ? existing.familyName : body.data.familyName || null;
   const nextBirth =
     body.data.birthDate === undefined ? existing.birthDate : body.data.birthDate ? new Date(body.data.birthDate) : null;
@@ -84,6 +86,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     changes: [
       { field: "name", before: existing.displayName, after: nextName },
       { field: "givenName", before: existing.givenName, after: nextGiven },
+      { field: "middleName", before: existing.middleName, after: nextMiddle },
       { field: "familyName", before: existing.familyName, after: nextFamily },
       { field: "birthDate", before: isoDay(existing.birthDate), after: isoDay(nextBirth) },
       { field: "deathDate", before: isoDay(existing.deathDate), after: isoDay(nextDeath) },
@@ -94,6 +97,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     data: {
       displayName: body.data.displayName ?? existing.displayName,
       givenName: body.data.givenName === undefined ? existing.givenName : body.data.givenName || null,
+      middleName: body.data.middleName === undefined ? existing.middleName : body.data.middleName || null,
       familyName: body.data.familyName === undefined ? existing.familyName : body.data.familyName || null,
       birthDate:
         body.data.birthDate === undefined

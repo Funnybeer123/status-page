@@ -69,6 +69,7 @@ export async function mergePeople(input: { familyId: string; keepId: string; dro
       where: { id: keep.id },
       data: {
         givenName: keep.givenName || drop.givenName,
+        middleName: keep.middleName || drop.middleName,
         familyName: keep.familyName || drop.familyName,
         birthDate: keep.birthDate || drop.birthDate,
         deathDate: keep.deathDate || drop.deathDate,

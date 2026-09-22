@@ -123,6 +123,7 @@ model User {
   photoGuesses     PhotoGuess[]
   readLaterItems   ReadLater[]
   trashAudits      TrashAudit[]
+  marginNotes      LetterMarginNote[]
 }
 
 model Family {
@@ -238,6 +239,11 @@ model Family {
   interviewPlans InterviewPlan[]
   inheritanceItems InheritanceItem[]
   reunionShifts ReunionShift[]
+  marginNotes      LetterMarginNote[]
+  willWitnesses    WillWitness[]
+  crests           FamilyCrest[]
+  phrases          FamilyPhrase[]
+  programItems     ReunionProgramItem[]
 }
 
 model Membership {
@@ -270,6 +276,7 @@ model Person {
   familyId       String
   displayName    String
   givenName      String?
+  middleName     String?
   familyName     String?
   birthDate      DateTime?        @db.Date
   deathDate      DateTime?        @db.Date
@@ -366,6 +373,11 @@ model Person {
   memorialObituaries Document[] @relation("MemorialObituary")
   reunionSeats   ReunionSeat[]
   lifeDrafts     LifeDraft[]
+  namedNames     PersonName[] @relation("NamedBy")
+  heldOriginals  Document[]   @relation("HeldOriginal")
+  satFor         Asset[]      @relation("PortraitSitter")
+  willWitnesses  WillWitness[]
+  programItems   ReunionProgramItem[]
 }
 
 model Relationship {
@@ -434,6 +446,8 @@ model Asset {
   oralCaptions   FilmCaption[] @relation("FilmCaptionOral")
   guesses        PhotoGuess[]
   favoritedBy    Person[]      @relation("FavoritePhoto")
+  sitterId       String?
+  sitter         Person?       @relation("PortraitSitter", fields: [sitterId], references: [id], onDelete: SetNull)
 }
 
 model PersonTag {
@@ -503,6 +517,11 @@ model Document {
   ocrConfidence  Int?
   readLaterItems ReadLater[]
   inheritances   InheritanceItem[]
+  paperMill      String?
+  heldById       String?
+  heldBy         Person?           @relation("HeldOriginal", fields: [heldById], references: [id], onDelete: SetNull)
+  marginNotes    LetterMarginNote[]
+  willWitnesses  WillWitness[]
 }
 
 model DocumentPerson {
@@ -563,8 +582,10 @@ model PersonName {
   startedAt  DateTime?  @db.Date
   endedAt    DateTime?  @db.Date
   notes      String?
+  namedById  String?
   family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  namedBy    Person?    @relation("NamedBy", fields: [namedById], references: [id], onDelete: SetNull)
   citations  Citation[]
 
   @@index([familyId, personId])
@@ -1060,6 +1081,7 @@ model ReunionGathering {
   seats      ReunionSeat[]
   shopItems  ReunionShopItem[]
   shifts     ReunionShift[]
+  programItems ReunionProgramItem[]
 
   @@index([familyId, happenedOn])
 }
@@ -2325,4 +2347,76 @@ model ReadLater {
   story      Story?    @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, userId])
+}
+
+model LetterMarginNote {
+  id         String   @id @default(cuid())
+  familyId   String
+  documentId String
+  authorId   String
+  line       Int
+  body       String
+  createdAt  DateTime @default(now())
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, documentId])
+}
+
+model WillWitness {
+  id         String    @id @default(cuid())
+  familyId   String
+  documentId String
+  personId   String
+  stoodOn    DateTime? @db.Date
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, personId])
+  @@index([familyId])
+}
+
+model FamilyCrest {
+  id        String   @id @default(cuid())
+  familyId  String
+  title     String
+  blazon    String
+  tincture  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model FamilyPhrase {
+  id        String   @id @default(cuid())
+  familyId  String
+  phrase    String
+  meaning   String
+  language  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model ReunionProgramItem {
+  id        String           @id @default(cuid())
+  familyId  String
+  reunionId String
+  title     String
+  startsAt  String?
+  personId  String?
+  notes     String?
+  createdAt DateTime         @default(now())
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  person    Person?          @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, reunionId])
 }

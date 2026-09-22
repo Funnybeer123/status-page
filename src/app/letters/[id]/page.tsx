@@ -20,6 +20,9 @@ import { PostmarkForm } from "@/app/then-now/ui";
 import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
 import { PostageForm } from "@/app/family-hour/ui";
 import { FoldForm } from "@/app/story-circle/ui";
+import { PaperMillForm } from "@/app/register/ui";
+import { hasPaperMill, paperMillLine } from "@/lib/paperMill";
+import { holderLine } from "@/lib/originalHolder";
 import { hasPostage, postageLine } from "@/lib/postage";
 import { foldLine, hasFold } from "@/lib/letterFold";
 import { SecretUntilForm, WeatherForm, OcrConfidenceForm } from "@/app/memory-lane/ui";
@@ -46,6 +49,7 @@ export default async function LetterPage({
       comments: { include: { author: true } },
       revisions: { include: { editedBy: { select: { name: true } } }, orderBy: { editedAt: "desc" } },
       transcribedBy: { select: { name: true } },
+      heldBy: true,
       replyTo: true,
       replies: { orderBy: { writtenAt: "asc" } },
       handwritingSamples: { include: { person: true } },
@@ -104,6 +108,14 @@ export default async function LetterPage({
         {" · "}
         <Link href={`/letters/${letter.id}/fold`} className="text-seal" data-testid="fold-link">
           Fold
+        </Link>
+        {" · "}
+        <Link href={`/letters/${letter.id}/margins`} className="text-seal" data-testid="margins-link">
+          Margin notes
+        </Link>
+        {" · "}
+        <Link href="/letters/paper" className="text-seal" data-testid="paper-link">
+          Paper mill
         </Link>
         {letter.people[0] ? (
           <>
@@ -266,6 +278,17 @@ export default async function LetterPage({
           <h2 className="font-display text-2xl">{foldLine(letter.foldPattern)}</h2>
           {canWrite(ctx.role) ? <FoldForm letterId={letter.id} foldPattern={letter.foldPattern} /> : null}
         </section>
+      ) : null}
+      {hasPaperMill(letter) || canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-paper">
+          <h2 className="font-display text-2xl">{paperMillLine(letter.paperMill)}</h2>
+          {canWrite(ctx.role) ? <PaperMillForm letterId={letter.id} paperMill={letter.paperMill} /> : null}
+        </section>
+      ) : null}
+      {letter.heldBy ? (
+        <p className="mt-4 text-bark" data-testid="letter-holder">
+          {holderLine(letter.title, letter.heldBy.displayName)}
+        </p>
       ) : null}
       <CiteBlock title={letter.title} path={`/letters/${letter.id}`} />
       {canWrite(ctx.role) ? <FragileToggle letterId={letter.id} fragile={letter.fragileOriginal} /> : null}

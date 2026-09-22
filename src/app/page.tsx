@@ -29,6 +29,7 @@ import { GuestBookForm } from "@/app/then-now/ui";
 import { emptyGuestBookHeading, guestBookHeading, guestBookLine } from "@/lib/guestBook";
 import { compileFamilyHour } from "@/lib/familyHour";
 import { anniversaryLine, yearsSinceFirstUpload } from "@/lib/anniversary";
+import { compileYearsMarried, longestMarriageHeading } from "@/lib/marriedYears";
 
 export default async function HomePage() {
   const session = await auth();
@@ -177,7 +178,7 @@ export default async function HomePage() {
     );
   }
 
-  const [reunions, interviewPlans, firstUpload] = await Promise.all([
+  const [reunions, interviewPlans, firstUpload, marriedPeople, marriedRels] = await Promise.all([
     prisma.reunionGathering.findMany({ where: { familyId: ctx.family.id } }),
     prisma.interviewPlan.findMany({ where: { familyId: ctx.family.id }, include: { person: true } }),
     prisma.asset.findFirst({
@@ -185,7 +186,13 @@ export default async function HomePage() {
       orderBy: { createdAt: "asc" },
       select: { createdAt: true },
     }),
+    prisma.person.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null },
+      select: { id: true, displayName: true, deathDate: true },
+    }),
+    prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
   ]);
+  const homeMarried = compileYearsMarried(marriedPeople, marriedRels)[0] || null;
   const homeAnniversaryYears = yearsSinceFirstUpload(firstUpload?.createdAt);
   const homeHour = compileFamilyHour([
     ...reunions.map((reunion) => ({
@@ -240,6 +247,15 @@ export default async function HomePage() {
           <p className="mt-2 font-display text-2xl">{anniversaryLine(homeAnniversaryYears, firstUpload.createdAt)}</p>
           <Link href="/anniversary" className="mt-2 inline-block font-sans text-sm text-seal">
             Years since the first upload
+          </Link>
+        </aside>
+      ) : null}
+      {homeMarried ? (
+        <aside className="mt-4 paper-card p-5" data-testid="home-married-years">
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Years married</p>
+          <p className="mt-2 font-display text-2xl">{longestMarriageHeading(homeMarried)}</p>
+          <Link href="/married" className="mt-2 inline-block font-sans text-sm text-seal">
+            Open the wedding-year roll
           </Link>
         </aside>
       ) : null}

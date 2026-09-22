@@ -42,7 +42,7 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
       where: {
         familyId,
         deletedAt: null,
-        OR: [{ displayName: like }, { givenName: like }, { familyName: like }, { notes: like }],
+        OR: [{ displayName: like }, { givenName: like }, { middleName: like }, { familyName: like }, { notes: like }],
       },
     }),
     prisma.personName.findMany({

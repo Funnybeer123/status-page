@@ -12,6 +12,7 @@ const schema = z.object({
   startedAt: z.string().optional(),
   endedAt: z.string().optional(),
   notes: z.string().max(400).optional(),
+  namedById: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
   const personId = new URL(req.url).searchParams.get("personId");
   const names = await prisma.personName.findMany({
     where: { familyId: ctx.family.id, ...(personId ? { personId } : {}) },
-    include: { person: true, citations: true },
+    include: { person: true, namedBy: true, citations: true },
     orderBy: { name: "asc" },
   });
   return NextResponse.json({ names });
@@ -35,6 +36,12 @@ export async function POST(req: Request) {
     where: { id: body.data.personId, familyId: ctx.family.id },
   });
   if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+  if (body.data.namedById) {
+    const namedBy = await prisma.person.findFirst({
+      where: { id: body.data.namedById, familyId: ctx.family.id, deletedAt: null },
+    });
+    if (!namedBy) return NextResponse.json({ error: "The person who named them was not found." }, { status: 404 });
+  }
   const name = await prisma.personName.create({
     data: {
       familyId: ctx.family.id,
@@ -44,8 +51,9 @@ export async function POST(req: Request) {
       startedAt: parseDate(body.data.startedAt),
       endedAt: parseDate(body.data.endedAt),
       notes: body.data.notes?.trim() || null,
+      namedById: body.data.namedById || null,
     },
-    include: { person: true },
+    include: { person: true, namedBy: true },
   });
   return NextResponse.json({ name });
 }

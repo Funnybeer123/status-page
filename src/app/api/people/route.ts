@@ -10,6 +10,7 @@ import { recordActivity } from "@/lib/activity";
 const schema = z.object({
   displayName: z.string().min(1).max(120),
   givenName: z.string().max(80).optional(),
+  middleName: z.string().max(80).optional(),
   familyName: z.string().max(80).optional(),
   birthDate: z.string().optional(),
   deathDate: z.string().optional(),
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
       familyId: ctx.family.id,
       displayName: body.data.displayName.trim(),
       givenName: body.data.givenName || null,
+      middleName: body.data.middleName || null,
       familyName: body.data.familyName || null,
       birthDate: body.data.birthDate ? new Date(body.data.birthDate) : null,
       deathDate: body.data.deathDate ? new Date(body.data.deathDate) : null,

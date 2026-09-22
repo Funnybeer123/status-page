@@ -29,6 +29,9 @@ export default async function BothNamesPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="both-names-heading">{bothNamesHeading(rows.length)}</h1>
+      <p className="mt-3 max-w-2xl text-bark">
+        <Link href="/names/given" className="text-seal">Who named the child</Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="both-names-list">
         {rows.map((row) => (
           <li key={row.id} className="paper-card p-5">

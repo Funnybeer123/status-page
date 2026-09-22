@@ -3911,6 +3911,134 @@ async function ensureHartArchive() {
       update: { label: "Afternoon indexer", startsAt: "afternoon" },
     });
   }
+
+  await prisma.person.update({
+    where: { id: eleanor.id },
+    data: { middleName: "Mae" },
+  });
+  if (lilyLiving) {
+    await prisma.person.update({
+      where: { id: lilyLiving.id },
+      data: { middleName: "Ruth" },
+    });
+  }
+  if (lilyLiving && margaretLiving) {
+    await prisma.personName.upsert({
+      where: { id: "name-lily-birth" },
+      create: {
+        id: "name-lily-birth",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        kind: NameKind.birth,
+        name: "Lily",
+        namedById: margaretLiving.id,
+        notes: "Margaret chose Lily after the farm lilies.",
+      },
+      update: { namedById: margaretLiving.id, name: "Lily" },
+    });
+  }
+  if (margaretLiving && robertLiving) {
+    await prisma.willWitness.upsert({
+      where: { documentId_personId: { documentId: "doc-samuel-will", personId: margaretLiving.id } },
+      create: {
+        id: "will-witness-margaret",
+        familyId: family.id,
+        documentId: "doc-samuel-will",
+        personId: margaretLiving.id,
+        stoodOn: new Date("2017-11-02"),
+        notes: "Stood at the kitchen table.",
+      },
+      update: { stoodOn: new Date("2017-11-02") },
+    });
+    await prisma.willWitness.upsert({
+      where: { documentId_personId: { documentId: "doc-samuel-will", personId: robertLiving.id } },
+      create: {
+        id: "will-witness-robert",
+        familyId: family.id,
+        documentId: "doc-samuel-will",
+        personId: robertLiving.id,
+        stoodOn: new Date("2017-11-02"),
+        notes: "Brought the navy hatband.",
+      },
+      update: { stoodOn: new Date("2017-11-02") },
+    });
+  }
+  await prisma.familyCrest.upsert({
+    where: { id: "crest-hart" },
+    create: {
+      id: "crest-hart",
+      familyId: family.id,
+      title: "Hart arms",
+      blazon: "Argent, a cottonwood proper, on a chief azure three bees or",
+      tincture: "Argent, azure, and or",
+      notes: "The bees are Sam's. The cottonwood is the walk home.",
+    },
+    update: { blazon: "Argent, a cottonwood proper, on a chief azure three bees or" },
+  });
+  await prisma.familyPhrase.upsert({
+    where: { id: "phrase-whitaker" },
+    create: {
+      id: "phrase-whitaker",
+      familyId: family.id,
+      phrase: "He called me Whitaker",
+      meaning: "A compliment, the way Sam said Eleanor's maiden name",
+      language: "English",
+      notes: "From the harvest letter.",
+    },
+    update: { meaning: "A compliment, the way Sam said Eleanor's maiden name" },
+  });
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: { paperMill: "Crane & Co., Dalton", heldById: margaretLiving?.id || null },
+  });
+  if (eleanorFavorite) {
+    await prisma.asset.update({
+      where: { id: eleanorFavorite.id },
+      data: { sitterId: eleanor.id },
+    });
+  }
+  if (lilyLiving && margaretLiving) {
+    await prisma.reunionProgramItem.upsert({
+      where: { id: "program-welcome" },
+      create: {
+        id: "program-welcome",
+        familyId: family.id,
+        reunionId: "reunion-hart-harvest-2026",
+        title: "Welcome under the cottonwoods",
+        startsAt: "morning",
+        personId: lilyLiving.id,
+        notes: "Open the doors.",
+      },
+      update: { title: "Welcome under the cottonwoods", startsAt: "morning" },
+    });
+    await prisma.reunionProgramItem.upsert({
+      where: { id: "program-grace" },
+      create: {
+        id: "program-grace",
+        familyId: family.id,
+        reunionId: "reunion-hart-harvest-2026",
+        title: "Grace",
+        startsAt: "noon",
+        personId: margaretLiving.id,
+        notes: "Courtesy to the trees.",
+      },
+      update: { title: "Grace", startsAt: "noon" },
+    });
+  }
+  if (demoUser) {
+    await prisma.letterMarginNote.upsert({
+      where: { id: "margin-harvest-whitaker" },
+      create: {
+        id: "margin-harvest-whitaker",
+        familyId: family.id,
+        documentId: "doc-harvest",
+        authorId: demoUser.id,
+        line: 8,
+        body: "Mother still told it this way: he called her Whitaker as if it were a compliment.",
+      },
+      update: { line: 8, body: "Mother still told it this way: he called her Whitaker as if it were a compliment." },
+    });
+  }
 }
 
 async function writeHartMedia() {
@@ -3977,6 +4105,7 @@ async function main() {
         familyId: family.id,
         displayName: "Eleanor Hart",
         givenName: "Eleanor",
+        middleName: "Mae",
         familyName: "Hart",
         birthDate: new Date("1928-03-12"),
         deathDate: new Date("2015-06-03"),
@@ -4036,6 +4165,7 @@ async function main() {
         familyId: family.id,
         displayName: "Lily Chen",
         givenName: "Lily",
+        middleName: "Ruth",
         familyName: "Chen",
         birthDate: new Date("1984-07-21"),
         notes: "Granddaughter who started this archive. Demo login uses her account.",

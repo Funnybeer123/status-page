@@ -24,6 +24,8 @@ export default async function WillsPage() {
       <p className="mt-3 max-w-2xl text-bark">
         What someone left in writing, and who they named.{" "}
         <Link href="/inheritances" className="text-seal">Who inherited what</Link>
+        {" · "}
+        <Link href="/wills/witnesses" className="text-seal" data-testid="will-witnesses-link">Will witnesses</Link>
       </p>
       {canWrite(ctx.role) ? (
         <WillForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
