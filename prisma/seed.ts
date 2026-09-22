@@ -4332,6 +4332,238 @@ async function ensureHartArchive() {
     },
     update: { elevator: "Cedar Falls Co-op", account: "Hart 14", year: 1952 },
   });
+
+  const margaretForBee = people.find((person) => person.id === "person-margaret");
+  const lilyForBee = people.find((person) => person.id === "person-lily");
+  const robertForBee = people.find((person) => person.id === "person-robert");
+  const weiForBee = people.find((person) => person.id === "person-wei");
+
+  await prisma.quiltingBee.upsert({
+    where: { id: "bee-harvest-ring" },
+    create: {
+      id: "bee-harvest-ring",
+      familyId: family.id,
+      title: "Harvest ring bee",
+      heldOn: new Date("1952-04-12"),
+      place: "North farm parlor",
+      notes: "The wedding-ring quilt for Margaret.",
+    },
+    update: { title: "Harvest ring bee", heldOn: new Date("1952-04-12"), place: "North farm parlor" },
+  });
+  for (const block of [
+    { id: "bee-block-eleanor", personId: eleanor.id, piece: "Ohio star" },
+    ...(margaretForBee ? [{ id: "bee-block-margaret", personId: margaretForBee.id, piece: "nine-patch" }] : []),
+    ...(lilyForBee ? [{ id: "bee-block-lily", personId: lilyForBee.id, piece: "friendship" }] : []),
+  ]) {
+    await prisma.quiltingBeeBlock.upsert({
+      where: { id: block.id },
+      create: {
+        id: block.id,
+        familyId: family.id,
+        beeId: "bee-harvest-ring",
+        personId: block.personId,
+        block: block.piece,
+      },
+      update: { block: block.piece },
+    });
+  }
+
+  await prisma.churchBell.upsert({
+    where: { id: "bell-samuel-sunday-1948" },
+    create: {
+      id: "bell-samuel-sunday-1948",
+      familyId: family.id,
+      personId: samuel.id,
+      service: "Sunday morning",
+      rangOn: new Date("1948-06-14"),
+      notes: "The wedding morning.",
+    },
+    update: { service: "Sunday morning", rangOn: new Date("1948-06-14") },
+  });
+
+  if (weiForBee && margaretForBee) {
+    await prisma.boxSocial.upsert({
+      where: { id: "social-wei-margaret" },
+      create: {
+        id: "social-wei-margaret",
+        familyId: family.id,
+        buyerId: weiForBee.id,
+        sellerId: margaretForBee.id,
+        heldOn: new Date("1968-10-12"),
+        price: "35 cents",
+        notes: "Fried chicken and a slice of harvest cake.",
+      },
+      update: { price: "35 cents", heldOn: new Date("1968-10-12") },
+    });
+  }
+
+  await prisma.ruralMailRoute.upsert({
+    where: { id: "mail-rr2" },
+    create: {
+      id: "mail-rr2",
+      familyId: family.id,
+      carrierId: samuel.id,
+      name: "Rural Route 2",
+      days: "Tue Thu Sat",
+      notes: "The north-farm loop.",
+    },
+    update: { name: "Rural Route 2", days: "Tue Thu Sat", carrierId: samuel.id },
+  });
+  await prisma.ruralMailBox.upsert({
+    where: { id: "mailbox-eleanor-14" },
+    create: {
+      id: "mailbox-eleanor-14",
+      routeId: "mail-rr2",
+      personId: eleanor.id,
+      boxNumber: "14",
+      notes: "By the cottonwoods.",
+    },
+    update: { boxNumber: "14" },
+  });
+
+  await prisma.washDay.upsert({
+    where: { id: "wash-eleanor-monday" },
+    create: {
+      id: "wash-eleanor-monday",
+      familyId: family.id,
+      personId: eleanor.id,
+      weekday: "Monday",
+      notes: "Line dry if the wind is west.",
+    },
+    update: { weekday: "Monday" },
+  });
+
+  await prisma.seedOrder.upsert({
+    where: { id: "seed-samuel-ohio-1952" },
+    create: {
+      id: "seed-samuel-ohio-1952",
+      familyId: family.id,
+      personId: samuel.id,
+      variety: "Early Ohio potatoes",
+      quantity: "2 sacks",
+      supplier: "Iowa Seed Co.",
+      year: 1952,
+    },
+    update: { variety: "Early Ohio potatoes", quantity: "2 sacks", supplier: "Iowa Seed Co.", year: 1952 },
+  });
+
+  await prisma.barnRaising.upsert({
+    where: { id: "barn-north-farm-1949" },
+    create: {
+      id: "barn-north-farm-1949",
+      familyId: family.id,
+      title: "North-farm barn",
+      heldOn: new Date("1949-06-18"),
+      place: "North farm",
+      notes: "The new haymow after the old barn leaned.",
+    },
+    update: { title: "North-farm barn", heldOn: new Date("1949-06-18") },
+  });
+  for (const job of [
+    { id: "barn-job-samuel", personId: samuel.id, role: "frame" },
+    ...(robertForBee ? [{ id: "barn-job-robert", personId: robertForBee.id, role: "rafter" }] : []),
+    ...(weiForBee ? [{ id: "barn-job-wei", personId: weiForBee.id, role: "peg" }] : []),
+  ]) {
+    await prisma.barnRaisingCrew.upsert({
+      where: { id: job.id },
+      create: {
+        id: job.id,
+        familyId: family.id,
+        raisingId: "barn-north-farm-1949",
+        personId: job.personId,
+        job: job.role,
+      },
+      update: { job: job.role },
+    });
+  }
+
+  await prisma.confirmationClass.upsert({
+    where: { id: "confirm-st-johns-1945" },
+    create: {
+      id: "confirm-st-johns-1945",
+      familyId: family.id,
+      church: "St. John's",
+      year: 1945,
+      notes: "Eleanor stood with the spring class.",
+    },
+    update: { church: "St. John's", year: 1945 },
+  });
+  await prisma.confirmationPupil.upsert({
+    where: { classId_personId: { classId: "confirm-st-johns-1945", personId: eleanor.id } },
+    create: { classId: "confirm-st-johns-1945", personId: eleanor.id },
+    update: {},
+  });
+
+  if (margaretForBee) {
+    await prisma.deathwatch.upsert({
+      where: { id: "watch-eleanor-margaret" },
+      create: {
+        id: "watch-eleanor-margaret",
+        familyId: family.id,
+        deceasedId: eleanor.id,
+        personId: margaretForBee.id,
+        watchedOn: new Date("2015-06-02"),
+        notes: "The last night at the farmhouse.",
+      },
+      update: { watchedOn: new Date("2015-06-02"), personId: margaretForBee.id },
+    });
+  }
+
+  await prisma.butterEggAccount.upsert({
+    where: { id: "butter-eleanor-whitaker-3" },
+    create: {
+      id: "butter-eleanor-whitaker-3",
+      familyId: family.id,
+      personId: eleanor.id,
+      store: "Market Street",
+      account: "Whitaker 3",
+      year: 1961,
+      notes: "Butter on Thursday, eggs on Saturday.",
+    },
+    update: { store: "Market Street", account: "Whitaker 3", year: 1961 },
+  });
+
+  await prisma.wellRecord.upsert({
+    where: { id: "well-north-farm-1949" },
+    create: {
+      id: "well-north-farm-1949",
+      familyId: family.id,
+      personId: samuel.id,
+      place: "north farm",
+      depth: "42 feet",
+      year: 1949,
+      notes: "Dug before the barn raising.",
+    },
+    update: { place: "north farm", depth: "42 feet", year: 1949 },
+  });
+
+  await prisma.parlorOrgan.upsert({
+    where: { id: "organ-eleanor-cottage" },
+    create: {
+      id: "organ-eleanor-cottage",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "cottage organ",
+      place: "north-farm parlor",
+      notes: "Hymns after supper.",
+    },
+    update: { title: "cottage organ", place: "north-farm parlor" },
+  });
+
+  if (lilyForBee) {
+    await prisma.sundaySchoolPin.upsert({
+      where: { id: "pin-lily-1996" },
+      create: {
+        id: "pin-lily-1996",
+        familyId: family.id,
+        personId: lilyForBee.id,
+        year: 1996,
+        church: "St. John's",
+        notes: "Perfect attendance.",
+      },
+      update: { year: 1996, church: "St. John's" },
+    });
+  }
 }
 
 async function writeHartMedia() {

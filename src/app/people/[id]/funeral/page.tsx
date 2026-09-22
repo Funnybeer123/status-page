@@ -48,6 +48,10 @@ export default async function FuneralProgramPage({ params }: { params: Promise<{
           <Link href={`/people/${person.id}/pallbearers`} className="text-seal" data-testid="pallbearers-link">
             Pallbearers
           </Link>
+          {" · "}
+          <Link href="/watches" className="text-seal" data-testid="deathwatch-link">
+            Deathwatch
+          </Link>
         </p>
       </article>
     </AppShell>

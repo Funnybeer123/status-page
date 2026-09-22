@@ -17,7 +17,10 @@ export default async function QuiltsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="quilts-heading">Quilts and textiles</h1>
-      <p className="mt-3 max-w-2xl text-bark">A quilt, sampler, or lace a relative made.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        A quilt, sampler, or lace a relative made.{" "}
+        <Link href="/bees" className="text-seal">Quilting bees</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="textile"

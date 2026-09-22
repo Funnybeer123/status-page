@@ -19,6 +19,8 @@ export default async function FuneralsPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Print-ready programs: dates, a portrait, and a short life.{" "}
         <Link href="/pallbearers" className="text-seal">Pallbearers</Link>
+        {" · "}
+        <Link href="/watches" className="text-seal">Deathwatch</Link>
       </p>
       <ul className="mt-10 space-y-3" data-testid="funerals-list">
         {programs.map((person) => (
