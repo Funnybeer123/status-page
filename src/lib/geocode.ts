@@ -43,9 +43,25 @@ export function mapBounds(points: GeoPoint[]) {
   };
 }
 
+export type MapBounds = NonNullable<ReturnType<typeof mapBounds>>;
+
+export function projectPoint(point: GeoPoint, bounds: MapBounds, width: number, height: number) {
+  const xPad = 36;
+  const yPad = 28;
+  const x = xPad + ((point.longitude - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * (width - xPad * 2);
+  const y = yPad + ((bounds.maxLat - point.latitude) / (bounds.maxLat - bounds.minLat)) * (height - yPad * 2);
+  return { x, y };
+}
+
 export function osmEmbedUrl(points: GeoPoint[]) {
   const bounds = mapBounds(points);
   if (!bounds) return null;
   const { minLng, minLat, maxLng, maxLat, center } = bounds;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${minLng}%2C${minLat}%2C${maxLng}%2C${maxLat}&layer=mapnik&marker=${center.latitude}%2C${center.longitude}`;
+}
+
+export function osmBrowseUrl(points: GeoPoint[]) {
+  const bounds = mapBounds(points);
+  if (!bounds) return null;
+  return `https://www.openstreetmap.org/?mlat=${bounds.center.latitude}&mlon=${bounds.center.longitude}#map=10/${bounds.center.latitude}/${bounds.center.longitude}`;
 }

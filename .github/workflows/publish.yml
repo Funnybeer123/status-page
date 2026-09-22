@@ -26,11 +26,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Lowercase image repository
+        id: image
+        run: echo "repo=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/family-lineage" >> "$GITHUB_OUTPUT"
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/family-lineage:latest
-            ghcr.io/${{ github.repository_owner }}/family-lineage:${{ github.sha }}
+            ${{ steps.image.outputs.repo }}:latest
+            ${{ steps.image.outputs.repo }}:${{ github.sha }}

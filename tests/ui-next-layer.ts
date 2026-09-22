@@ -75,7 +75,7 @@ async function prepare() {
   audio.set("title", "Helen remembering the navy brim");
   audio.set("kind", "audio");
   audio.set("personIds", ids.helen);
-  await client.json("/api/assets", { method: "POST", body: audio });
+  const reel = await client.json<{ asset: { id: string } }>("/api/assets", { method: "POST", body: audio });
   const scan = makeLetterPng();
   const letter = new FormData();
   letter.set("file", new Blob([scan.bytes], { type: "image/png" }), "rose-letter.png");
@@ -99,7 +99,13 @@ async function prepare() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ assetId: uploaded.body.asset.id }),
   });
-  return { email, ids, letterId: saved.body.document.id, albumId: album.body.album.id };
+  return {
+    email,
+    ids,
+    letterId: saved.body.document.id,
+    albumId: album.body.album.id,
+    audioId: reel.body.asset.id,
+  };
 }
 
 async function main() {
@@ -170,6 +176,14 @@ async function main() {
   await page.goto(`${BASE}/export`, { waitUntil: "networkidle0" });
   await page.waitForSelector("[data-testid=export-heading]");
   await shot("next_export.png");
+
+  await page.goto(`${BASE}/people/${member.ids.rose}`, { waitUntil: "networkidle0" });
+  await page.waitForSelector("[data-testid=merge-form]");
+  await shot("next_merge.png");
+
+  await page.goto(`${BASE}/archive/${member.audioId}`, { waitUntil: "networkidle0" });
+  await page.waitForSelector("[data-testid=oral-audio]");
+  await shot("next_audio.png");
 
   await browser.close();
   writeFileSync(`${MEDIA}/next_layer_manifest.txt`, written.join("\n") + "\n");

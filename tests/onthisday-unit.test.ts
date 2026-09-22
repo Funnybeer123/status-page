@@ -23,12 +23,28 @@ test("collectOnThisDay keeps a birth, a letter, and a military fact", () => {
         },
       ],
       documents: [{ id: "let", title: "Aunt June", kind: "letter", writtenAt: "1952-09-22" }],
-      assets: [],
+      assets: [{ id: "scan", title: "Aunt June", kind: "letter", capturedAt: "1952-09-22" }],
       stories: [],
       role: Role.owner,
     },
     new Date("2026-09-22T00:00:00Z"),
   );
   assert.ok(items.some((item) => /draft board/.test(item.title)));
-  assert.ok(items.some((item) => /Aunt June/.test(item.title)));
+  assert.equal(items.filter((item) => /Aunt June/.test(item.title)).length, 1);
+});
+
+test("letter scans do not appear twice on this day", () => {
+  const items = collectOnThisDay(
+    {
+      people: [],
+      events: [],
+      documents: [{ id: "let", title: "Aunt June", kind: "letter", writtenAt: "1952-09-22" }],
+      assets: [{ id: "scan", title: "Aunt June", kind: "letter", capturedAt: "1952-09-22" }],
+      stories: [],
+      role: Role.owner,
+    },
+    new Date("2026-09-22T00:00:00Z"),
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].kind, "letter");
 });

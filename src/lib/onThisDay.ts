@@ -111,6 +111,7 @@ export function collectOnThisDay(
   }
 
   for (const asset of input.assets) {
+    if (asset.kind === "letter") continue;
     if (!sameMonthDay(asset.capturedAt, from)) continue;
     items.push({
       id: `asset-${asset.id}`,

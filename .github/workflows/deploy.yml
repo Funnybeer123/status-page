@@ -25,10 +25,13 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          IMAGE: ghcr.io/${{ github.repository_owner }}/family-lineage:${{ github.event.workflow_run.head_sha || github.sha }}
-          LATEST: ghcr.io/${{ github.repository_owner }}/family-lineage:latest
+          IMAGE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           set -eu
+          owner="$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${owner}/family-lineage:${IMAGE_SHA}"
+          LATEST="ghcr.io/${owner}/family-lineage:latest"
           if [ -z "${DEPLOY_HOST:-}" ] || [ -z "${DEPLOY_USER:-}" ] || [ -z "${DEPLOY_SSH_KEY:-}" ]; then
             echo "Deploy did not run. The production environment is missing DEPLOY_HOST, DEPLOY_USER, or DEPLOY_SSH_KEY."
             echo "Those secrets are documented in README.md. This workflow will not invent credentials."

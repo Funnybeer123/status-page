@@ -66,8 +66,10 @@ Workflows live on `family-lineage` under `.github/workflows/`.
 
 **Publish** (`publish.yml`) builds and pushes:
 
-- `ghcr.io/<github-owner>/family-lineage:latest`
-- `ghcr.io/<github-owner>/family-lineage:<git-sha>`
+- `ghcr.io/<lowercase-github-owner>/family-lineage:latest`
+- `ghcr.io/<lowercase-github-owner>/family-lineage:<git-sha>`
+
+GHCR requires a lowercase repository name, so the workflow lowercases the GitHub owner (for example `Funnybeer123` becomes `funnybeer123`).
 
 It uses `GITHUB_TOKEN` with `packages: write`. The `ghcr` environment can add extra reviewers if you want a human gate on publishes.
 
@@ -83,7 +85,7 @@ Set these on the `production` environment (Settings → Environments → product
 | `DEPLOY_PATH` | Optional. Directory on the host that contains `docker-compose.yml` or `.env`. Defaults to `/opt/family-lineage`. |
 | `DEPLOY_PORT` | Optional. SSH port. Defaults to `22`. |
 
-On the host, keep real runtime secrets in `.env` (never commit them): `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, and optional `OPENAI_API_KEY`. Point compose at `ghcr.io/<owner>/family-lineage` or set `FAMILY_LINEAGE_IMAGE`.
+On the host, keep real runtime secrets in `.env` (never commit them): `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, and optional `OPENAI_API_KEY`. Point compose at `ghcr.io/<lowercase-owner>/family-lineage` or set `FAMILY_LINEAGE_IMAGE`.
 
 Trigger deploy with **Actions → Deploy → Run workflow**, or let it follow a successful **Publish image** run.
 
