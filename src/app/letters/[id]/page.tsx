@@ -21,6 +21,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
       revisions: { include: { editedBy: { select: { name: true } } }, orderBy: { editedAt: "desc" } },
       replyTo: true,
       replies: { orderBy: { writtenAt: "asc" } },
+      handwritingSamples: { include: { person: true } },
     },
   });
   if (!letter) notFound();
@@ -91,6 +92,19 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
               </li>
             ))}
           </ol>
+        </section>
+      ) : null}
+      {letter.handwritingSamples.length ? (
+        <section className="mt-8" data-testid="letter-handwriting">
+          <h2 className="font-display text-2xl">Handwriting</h2>
+          <ul className="mt-3 space-y-2">
+            {letter.handwritingSamples.map((sample) => (
+              <li key={sample.id}>
+                <Link href={`/people/${sample.personId}`} className="text-seal">{sample.person.displayName}</Link>
+                {sample.notes ? <span className="ml-2 font-sans text-sm text-bark">{sample.notes}</span> : null}
+              </li>
+            ))}
+          </ul>
         </section>
       ) : null}
       {canWrite(ctx.role) ? <TrashRestore type="letter" id={letter.id} /> : null}

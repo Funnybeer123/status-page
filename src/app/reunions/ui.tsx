@@ -55,6 +55,47 @@ export function ReunionForm({ people }: { people: Person[] }) {
   );
 }
 
+export function ReunionPhotoForm({
+  reunionId,
+  assets,
+}: {
+  reunionId: string;
+  assets: { id: string; title: string | null }[];
+}) {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const response = await fetch("/api/reunions/photos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reunionId, assetId: data.get("assetId") }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error || "Could not add that photograph.");
+      return;
+    }
+    event.currentTarget.reset();
+    router.refresh();
+  }
+  return (
+    <form onSubmit={onSubmit} className="paper-card mt-6 grid gap-3 p-5" data-testid="reunion-photo-form">
+      <select name="assetId" required className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">A photograph from the reunion</option>
+        {assets.map((asset) => (
+          <option key={asset.id} value={asset.id}>{asset.title || "Untitled"}</option>
+        ))}
+      </select>
+      {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
+      <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+        Add to the gallery
+      </button>
+    </form>
+  );
+}
+
 export function RsvpButton({ reunionId, personId, coming }: { reunionId: string; personId: string; coming: boolean }) {
   const router = useRouter();
   async function toggle() {

@@ -161,6 +161,13 @@ model Family {
   pets          FamilyPet[]
   textiles      TextileRecord[]
   dnaNotes      DnaNote[]
+  heirloomLoans HeirloomLoan[]
+  homes         FamilyHome[]
+  digitizeItems DigitizeItem[]
+  pinnedMemories PinnedMemory[]
+  handwritingSamples HandwritingSample[]
+  inscriptions  GravestoneInscription[]
+  holidays      FamilyHoliday[]
 }
 
 model Membership {
@@ -249,6 +256,11 @@ model Person {
   pets           FamilyPet[]
   textiles       TextileRecord[]
   dnaNotes       DnaNote[]
+  heirloomLoans  HeirloomLoan[]
+  homeStays      FamilyHomeResident[]
+  digitizeItems  DigitizeItem[]
+  handwritingSamples HandwritingSample[]
+  inscriptions   GravestoneInscription[]
 }
 
 model Relationship {
@@ -288,6 +300,10 @@ model Asset {
   pairThen     PhotoPair[] @relation("PairThen")
   pairNow      PhotoPair[] @relation("PairNow")
   custody      CustodyRecord[]
+  homePhotos   FamilyHomePhoto[]
+  reunionPhotos ReunionPhoto[]
+  handwritingSamples HandwritingSample[]
+  pinnedMemories PinnedMemory[]
 }
 
 model PersonTag {
@@ -326,6 +342,8 @@ model Document {
   revisions   DocumentRevision[]
   timeCapsule TimeCapsule?
   custody     CustodyRecord[]
+  handwritingSamples HandwritingSample[]
+  pinnedMemories PinnedMemory[]
 }
 
 model DocumentPerson {
@@ -361,6 +379,7 @@ model Place {
   family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   residences Residence[]
   events     LifeEvent[]
+  homes      FamilyHome[]
 
   @@index([familyId])
 }
@@ -435,6 +454,7 @@ model Story {
   albumItems     AlbumItem[]
   promptAnswers  StoryPromptAnswer[]
   interviewAnswers InterviewAnswer[]
+  pinnedMemories PinnedMemory[]
 
   @@index([familyId])
 }
@@ -563,6 +583,7 @@ model Heirloom {
   createdAt  DateTime  @default(now())
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  loans      HeirloomLoan[]
 
   @@index([familyId])
 }
@@ -826,6 +847,7 @@ model ReunionGathering {
   createdAt  DateTime        @default(now())
   family     Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   guests     ReunionGuest[]
+  photos     ReunionPhoto[]
 
   @@index([familyId, happenedOn])
 }
@@ -1162,4 +1184,139 @@ model DnaNote {
   person     Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([familyId, personId])
+}
+
+model HeirloomLoan {
+  id         String    @id @default(cuid())
+  familyId   String
+  heirloomId String
+  borrowerId String
+  borrowedOn DateTime  @db.Date
+  dueOn      DateTime? @db.Date
+  returnedOn DateTime? @db.Date
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  heirloom   Heirloom  @relation(fields: [heirloomId], references: [id], onDelete: Cascade)
+  borrower   Person    @relation(fields: [borrowerId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, dueOn])
+}
+
+model FamilyHome {
+  id        String               @id @default(cuid())
+  familyId  String
+  placeId   String?
+  title     String
+  line      String?
+  locality  String?
+  region    String?
+  notes     String?
+  family    Family               @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  place     Place?               @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  photos    FamilyHomePhoto[]
+  residents FamilyHomeResident[]
+
+  @@index([familyId])
+}
+
+model FamilyHomePhoto {
+  id      String     @id @default(cuid())
+  homeId  String
+  assetId String
+  takenOn DateTime?
+  caption String?
+  home    FamilyHome @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  asset   Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([homeId, takenOn])
+}
+
+model FamilyHomeResident {
+  homeId    String
+  personId  String
+  startedOn DateTime?  @db.Date
+  endedOn   DateTime?  @db.Date
+  home      FamilyHome @relation(fields: [homeId], references: [id], onDelete: Cascade)
+  person    Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([homeId, personId])
+}
+
+model DigitizeItem {
+  id       String    @id @default(cuid())
+  familyId String
+  title    String
+  kind     String
+  holderId String?
+  notes    String?
+  doneAt   DateTime?
+  createdAt DateTime @default(now())
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  holder   Person?   @relation(fields: [holderId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, doneAt])
+}
+
+model PinnedMemory {
+  id         String    @id @default(cuid())
+  familyId   String
+  title      String
+  note       String?
+  storyId    String?
+  documentId String?
+  assetId    String?
+  createdAt  DateTime  @default(now())
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  story      Story?    @relation(fields: [storyId], references: [id], onDelete: SetNull)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, createdAt])
+}
+
+model ReunionPhoto {
+  reunionId String
+  assetId   String
+  reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  asset     Asset            @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([reunionId, assetId])
+}
+
+model HandwritingSample {
+  id         String    @id @default(cuid())
+  familyId   String
+  personId   String
+  documentId String?
+  assetId    String?
+  notes      String?
+  family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  asset      Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, personId])
+}
+
+model GravestoneInscription {
+  id       String  @id @default(cuid())
+  familyId String
+  personId String
+  text     String
+  place    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, personId])
+}
+
+model FamilyHoliday {
+  id       String  @id @default(cuid())
+  familyId String
+  title    String
+  season   String?
+  notes    String?
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
 }

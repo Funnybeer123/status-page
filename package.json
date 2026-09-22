@@ -19,7 +19,8 @@
     "test:ui:keep": "tsx tests/ui-keep-shipping.ts",
     "test:ui:this": "tsx tests/ui-this-layer.ts",
     "test:ui:capsule": "tsx tests/ui-capsule-layer.ts",
-    "test:ui:ask": "tsx tests/ui-ask-layer.ts"
+    "test:ui:ask": "tsx tests/ui-ask-layer.ts",
+    "test:ui:print": "tsx tests/ui-print-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

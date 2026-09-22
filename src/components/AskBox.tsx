@@ -10,6 +10,7 @@ type Source = {
   writtenAt: string | null;
   kind: string;
   excerpt: string;
+  href?: string;
 };
 
 type Message = {
@@ -24,11 +25,15 @@ export function AskBox({
   conversationId: initialId,
   initialMessages = [],
   saved = false,
+  action = "/api/ask",
+  persist = true,
 }: {
   suggested: string;
   conversationId?: string;
   initialMessages?: Message[];
   saved?: boolean;
+  action?: string;
+  persist?: boolean;
 }) {
   const router = useRouter();
   const [question, setQuestion] = useState(initialMessages.length ? "" : suggested);
@@ -47,14 +52,14 @@ export function AskBox({
     setMessages((current) => [...current, { role: "user", text }]);
     setQuestion("");
     try {
-      const response = await fetch("/api/ask", {
+      const response = await fetch(action, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, conversationId: conversationId || undefined }),
+        body: JSON.stringify({ question: text, conversationId: persist ? conversationId || undefined : undefined }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Ask failed.");
-      if (payload.conversationId) {
+      if (persist && payload.conversationId) {
         setConversationId(payload.conversationId);
         router.replace(`/ask?conversationId=${payload.conversationId}`);
       }
@@ -109,7 +114,7 @@ export function AskBox({
                 {message.sources.map((source) => (
                   <Link
                     key={source.documentId}
-                    href={`/letters/${source.documentId}`}
+                    href={source.href || (source.kind === "photo" ? `/archive/${source.documentId}` : `/letters/${source.documentId}`)}
                     className="paper-card block p-4 text-left hover:border-seal/40"
                   >
                     <p className="font-sans text-xs uppercase tracking-wide text-seal">{source.kind}</p>

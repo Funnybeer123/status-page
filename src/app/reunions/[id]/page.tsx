@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { RsvpButton } from "@/app/reunions/ui";
+import Link from "next/link";
+import { RsvpButton, ReunionPhotoForm } from "@/app/reunions/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
@@ -9,10 +10,16 @@ import { formatDate } from "@/lib/dates";
 export default async function ReunionPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const reunion = await prisma.reunionGathering.findFirst({
-    where: { id, familyId: ctx.family.id },
-    include: { guests: { include: { person: true } } },
-  });
+  const [reunion, assets] = await Promise.all([
+    prisma.reunionGathering.findFirst({
+      where: { id, familyId: ctx.family.id },
+      include: { guests: { include: { person: true } }, photos: { include: { asset: true } } },
+    }),
+    prisma.asset.findMany({
+      where: { familyId: ctx.family.id, deletedAt: null, kind: "photo" },
+      orderBy: { title: "asc" },
+    }),
+  ]);
   if (!reunion) notFound();
   const coming = reunion.guests.filter((guest) => guest.coming);
   const notComing = reunion.guests.filter((guest) => !guest.coming);
@@ -34,6 +41,27 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
             </li>
           ))}
           {!coming.length ? <li className="text-bark">No one has said they are coming.</li> : null}
+        </ul>
+      </section>
+      <section className="mt-10">
+        <h2 className="font-display text-3xl">Gallery</h2>
+        {canWrite(ctx.role) ? (
+          <ReunionPhotoForm
+            reunionId={reunion.id}
+            assets={assets.map((asset) => ({ id: asset.id, title: asset.title }))}
+          />
+        ) : null}
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2" data-testid="reunion-gallery">
+          {reunion.photos.map((photo) => (
+            <li key={photo.assetId} className="paper-card overflow-hidden">
+              <Link href={`/archive/${photo.assetId}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${photo.asset.storagePath}`} alt={photo.asset.title || ""} className="aspect-video w-full object-cover" />
+                <p className="p-4 font-display text-xl">{photo.asset.title}</p>
+              </Link>
+            </li>
+          ))}
+          {!reunion.photos.length ? <li className="text-bark">No photographs tied to this reunion yet.</li> : null}
         </ul>
       </section>
       {notComing.length ? (

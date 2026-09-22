@@ -3,7 +3,8 @@ import { Role } from "@prisma/client";
 import { z } from "zod";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { recordActivity } from "@/lib/activity";
+import { recordActivity, activityHref } from "@/lib/activity";
+import { notifyMentions } from "@/lib/mentions";
 
 const schema = z.object({
   body: z.string().min(1).max(4000),
@@ -48,14 +49,22 @@ export async function POST(req: Request) {
     },
     include: { author: { select: { id: true, name: true } } },
   });
+  const entityType = body.data.storyId ? "story" : body.data.documentId ? "document" : "asset";
+  const entityId = body.data.storyId || body.data.documentId || body.data.assetId;
   await recordActivity({
     familyId: ctx.family.id,
     actorId: ctx.session.user.id,
     verb: "commented",
-    entityType: body.data.storyId ? "story" : body.data.documentId ? "document" : "asset",
-    entityId: body.data.storyId || body.data.documentId || body.data.assetId,
+    entityType,
+    entityId,
     title: "Left a note",
     summary: comment.body.slice(0, 160),
+  });
+  await notifyMentions({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    body: comment.body,
+    href: activityHref(entityType, entityId),
   });
   return NextResponse.json({ comment });
 }

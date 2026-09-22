@@ -33,6 +33,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         storiesTold: true,
         storyLinks: { include: { story: true } },
         citations: { include: { document: true, asset: true, event: true, name: true } },
+        handwritingSamples: { include: { document: true, asset: true } },
       },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
@@ -122,6 +123,15 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             </Link>
             <Link href={`/people/${person.id}/history`} className="mt-2 block font-sans text-sm text-seal">
               Edit history
+            </Link>
+            <Link href={`/group-sheets/${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Family group sheet
+            </Link>
+            <Link href={`/people/${person.id}/report`} className="mt-2 block font-sans text-sm text-seal">
+              Descendant report
+            </Link>
+            <Link href="/handwriting" className="mt-2 block font-sans text-sm text-seal">
+              Handwriting
             </Link>
             {childMarks(person.id, [...person.fromRels, ...person.toRels]).length ? (
               <p className="mt-3 font-sans text-xs uppercase tracking-wide text-gold">
@@ -269,6 +279,23 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               {!citations.length ? <li className="text-bark">{hidden ? "Sources on living facts are hidden." : "None yet."}</li> : null}
             </ul>
           </div>
+          {person.handwritingSamples.length ? (
+            <div data-testid="person-handwriting">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Handwriting</p>
+              <ul className="mt-3 space-y-2">
+                {person.handwritingSamples.map((sample) => (
+                  <li key={sample.id}>
+                    {sample.document ? (
+                      <Link className="text-seal" href={`/letters/${sample.document.id}`}>{sample.document.title}</Link>
+                    ) : (
+                      <span>A sample of their hand</span>
+                    )}
+                    {sample.notes ? <span className="ml-2 font-sans text-sm text-bark">{sample.notes}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Letters and notes</p>
             <ul className="mt-3 space-y-2">

@@ -20,7 +20,10 @@ export default async function HeirloomsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="heirlooms-heading">Heirlooms</h1>
-      <p className="mt-3 max-w-2xl text-bark">Objects the family still keeps, and who they belonged to.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Objects the family still keeps, and who they belonged to.{" "}
+        <Link href="/loans" className="text-seal">Who borrowed what</Link>.
+      </p>
       {canWrite(ctx.role) ? (
         <HeirloomForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
       ) : null}

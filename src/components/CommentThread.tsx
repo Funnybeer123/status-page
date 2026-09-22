@@ -61,7 +61,7 @@ export function CommentThread({
       </ul>
       {canWrite ? (
         <form onSubmit={onSubmit} className="mt-4 grid gap-3">
-          <textarea name="body" required rows={3} placeholder="What the family still says" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="comment-body" />
+          <textarea name="body" required rows={3} placeholder="What the family still says — @Name to notify them" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="comment-body" />
           {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
           <button disabled={busy} className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit" data-testid="comment-submit">
             {busy ? "Saving…" : "Add a comment"}

@@ -9,6 +9,8 @@ import { activityHref } from "@/lib/activity";
 import { remindersThisWeek } from "@/lib/reminders";
 import { howRelated } from "@/lib/related";
 import { alive } from "@/lib/alive";
+import { canWrite } from "@/lib/roles";
+import { PinMemoryForm } from "@/app/homes/pin-form";
 
 export default async function HomePage() {
   const session = await auth();
@@ -47,7 +49,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, mePeople, relationships] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, mePeople, relationships, pins, pinChoices] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -58,7 +60,27 @@ export default async function HomePage() {
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive }, select: { id: true, displayName: true } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.pinnedMemory.findMany({
+      where: { familyId: ctx.family.id },
+      include: { story: true, document: true, asset: true },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+    Promise.all([
+      prisma.story.findMany({ where: { familyId: ctx.family.id }, select: { id: true, title: true }, orderBy: { title: "asc" } }),
+      prisma.document.findMany({
+        where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null },
+        select: { id: true, title: true },
+        orderBy: { title: "asc" },
+      }),
+      prisma.asset.findMany({
+        where: { familyId: ctx.family.id, deletedAt: null, kind: "photo" },
+        select: { id: true, title: true },
+        orderBy: { title: "asc" },
+      }),
+    ]),
   ]);
+  const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
   const myPeople = me
     ? mePeople
@@ -86,6 +108,28 @@ export default async function HomePage() {
           </>
         )}
       </p>
+      <section className="mt-8" data-testid="home-pins">
+        <h2 className="font-display text-2xl">Pinned memories</h2>
+        <p className="mt-2 max-w-2xl text-bark">A letter, story, or photograph kept on the family home.</p>
+        <ul className="mt-4 space-y-3" data-testid="pins-list">
+          {pins.map((pin) => (
+            <li key={pin.id} className="paper-card p-4">
+              <Link
+                href={pin.storyId ? `/stories/${pin.storyId}` : pin.documentId ? `/letters/${pin.documentId}` : pin.assetId ? `/archive/${pin.assetId}` : "/"}
+                className="font-display text-xl text-seal"
+              >
+                {pin.title}
+              </Link>
+              {pin.note ? <p className="text-bark">{pin.note}</p> : null}
+            </li>
+          ))}
+          {!pins.length ? <li className="text-bark">Nothing pinned yet.</li> : null}
+        </ul>
+        {canWrite(ctx.role) ? (
+          <PinMemoryForm stories={pinStories} documents={pinLetters} assets={pinPhotos} />
+        ) : null}
+      </section>
+
       {myPeople.length ? (
         <section className="mt-8" data-testid="home-related">
           <h2 className="font-display text-2xl">How you are related</h2>

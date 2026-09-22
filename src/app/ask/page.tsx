@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { AskBox } from "@/components/AskBox";
 import { requireFamily } from "@/lib/family";
@@ -18,7 +19,8 @@ export default async function AskPage({
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">From the family&apos;s own words</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="ask-heading">Ask</h1>
       <p className="mt-3 max-w-2xl text-bark">
-        Try the question a grandchild would ask. A follow-up stays in the same conversation and still cites the letters.
+        Try the question a grandchild would ask. A follow-up stays in the same conversation and still cites the letters.{" "}
+        <Link href="/ask/grandchild" className="text-seal">A simpler ask for a grandchild</Link>.
       </p>
       <div className="mt-8">
         <AskBox

@@ -8,6 +8,7 @@ export type AskSource = {
   writtenAt: string | null;
   kind: string;
   excerpt: string;
+  href?: string;
 };
 
 export type AskResult = {

@@ -1473,6 +1473,151 @@ async function ensureHartArchive() {
       }
     }
   }
+
+  const heirloom = await prisma.heirloom.upsert({
+    where: { id: "heirloom-cedar-chest" },
+    create: {
+      id: "heirloom-cedar-chest",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "Ellie’s cedar chest",
+      summary: "The harvest-dance letter still lives in the tray.",
+      acquiredAt: new Date("1948-06-14"),
+    },
+    update: { title: "Ellie’s cedar chest" },
+  });
+  if (lily) {
+    await prisma.heirloomLoan.upsert({
+      where: { id: "loan-lily-chest" },
+      create: {
+        id: "loan-lily-chest",
+        familyId: family.id,
+        heirloomId: heirloom.id,
+        borrowerId: lily.id,
+        borrowedOn: new Date("2026-06-01"),
+        dueOn: new Date("2026-10-12"),
+        notes: "For the reunion display, then back to Meg’s hall.",
+      },
+      update: { dueOn: new Date("2026-10-12") },
+    });
+  }
+
+  const home = await prisma.familyHome.upsert({
+    where: { id: "home-whitaker" },
+    create: {
+      id: "home-whitaker",
+      familyId: family.id,
+      title: "Whitaker house",
+      line: "14 Market Street",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      notes: "Ellie wrote from the upstairs hall.",
+    },
+    update: { title: "Whitaker house", line: "14 Market Street" },
+  });
+  for (const person of [eleanor, samuel, margaret].filter(Boolean)) {
+    if (!person) continue;
+    await prisma.familyHomeResident.upsert({
+      where: { homeId_personId: { homeId: home.id, personId: person.id } },
+      create: {
+        homeId: home.id,
+        personId: person.id,
+        startedOn: person.id === eleanor.id ? new Date("1928-03-12") : new Date("1948-06-14"),
+      },
+      update: {},
+    });
+  }
+  const housePhotos = photos.length
+    ? photos
+    : await prisma.asset.findMany({
+        where: {
+          familyId: family.id,
+          title: { in: ["Harvest dance, Grange hall", "Ellie and Sam married", "Hart picnic, 1961"] },
+        },
+      });
+  for (const photo of housePhotos) {
+    const existing = await prisma.familyHomePhoto.findFirst({ where: { homeId: home.id, assetId: photo.id } });
+    if (!existing) {
+      await prisma.familyHomePhoto.create({
+        data: {
+          homeId: home.id,
+          assetId: photo.id,
+          takenOn: photo.capturedAt,
+          caption: photo.title,
+        },
+      });
+    }
+  }
+
+  await prisma.digitizeItem.upsert({
+    where: { id: "digitize-ruth-chest" },
+    create: {
+      id: "digitize-ruth-chest",
+      familyId: family.id,
+      title: "Ruth’s reply, still in the cedar chest",
+      kind: "letter",
+      holderId: margaret?.id ?? eleanor.id,
+      notes: "The second page has no scan yet.",
+    },
+    update: { title: "Ruth’s reply, still in the cedar chest" },
+  });
+
+  await prisma.pinnedMemory.upsert({
+    where: { id: "pin-harvest-letter" },
+    create: {
+      id: "pin-harvest-letter",
+      familyId: family.id,
+      title: "The harvest-dance letter",
+      note: "How Grandma met Grandpa, pinned on the family home.",
+      documentId: "doc-harvest",
+    },
+    update: { title: "The harvest-dance letter" },
+  });
+
+  const picnic = housePhotos.find((photo) => /picnic/i.test(photo.title || ""));
+  if (picnic) {
+    await prisma.reunionPhoto.upsert({
+      where: { reunionId_assetId: { reunionId: "reunion-hart-2026", assetId: picnic.id } },
+      create: { reunionId: "reunion-hart-2026", assetId: picnic.id },
+      update: {},
+    });
+  }
+
+  await prisma.handwritingSample.upsert({
+    where: { id: "handwriting-eleanor" },
+    create: {
+      id: "handwriting-eleanor",
+      familyId: family.id,
+      personId: eleanor.id,
+      documentId: "doc-harvest",
+      notes: "The long loops on cider and cottonwood.",
+    },
+    update: { notes: "The long loops on cider and cottonwood." },
+  });
+
+  await prisma.gravestoneInscription.upsert({
+    where: { id: "inscription-eleanor" },
+    create: {
+      id: "inscription-eleanor",
+      familyId: family.id,
+      personId: eleanor.id,
+      text: "At rest under the cottonwoods",
+      place: "Fairview Cemetery",
+    },
+    update: { text: "At rest under the cottonwoods" },
+  });
+
+  await prisma.familyHoliday.upsert({
+    where: { id: "holiday-harvest" },
+    create: {
+      id: "holiday-harvest",
+      familyId: family.id,
+      title: "Harvest-dance anniversary supper",
+      season: "October",
+      notes: "Sunday rolls and cider.",
+    },
+    update: { title: "Harvest-dance anniversary supper" },
+  });
 }
 
 async function writeHartMedia() {

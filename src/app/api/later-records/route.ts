@@ -75,6 +75,18 @@ const schema = z.discriminatedUnion("kind", [
     company: z.string().max(80).optional(),
     notes: z.string().max(800).optional(),
   }),
+  z.object({
+    kind: z.literal("inscription"),
+    personId: z.string(),
+    text: z.string().min(1).max(400),
+    place: z.string().max(160).optional(),
+  }),
+  z.object({
+    kind: z.literal("holiday"),
+    title: z.string().min(1).max(160),
+    season: z.string().max(80).optional(),
+    notes: z.string().max(800).optional(),
+  }),
 ]);
 
 async function belong(familyId: string, personId?: string | null) {
@@ -125,6 +137,16 @@ export async function GET(req: Request) {
   if (kind === "dna") {
     return NextResponse.json({
       records: await prisma.dnaNote.findMany({ where: { familyId }, include: { person: true }, orderBy: { haplogroup: "asc" } }),
+    });
+  }
+  if (kind === "inscription") {
+    return NextResponse.json({
+      records: await prisma.gravestoneInscription.findMany({ where: { familyId }, include: { person: true }, orderBy: { place: "asc" } }),
+    });
+  }
+  if (kind === "holiday") {
+    return NextResponse.json({
+      records: await prisma.familyHoliday.findMany({ where: { familyId }, orderBy: { title: "asc" } }),
     });
   }
   return NextResponse.json({ error: "Unknown record kind." }, { status: 400 });
@@ -254,16 +276,41 @@ export async function POST(req: Request) {
     await recordActivity({ familyId, actorId, verb: "recorded", entityType: "textile", entityId: record.id, title: record.title });
     return NextResponse.json({ record });
   }
-  const record = await prisma.dnaNote.create({
+  if (data.kind === "dna") {
+    const record = await prisma.dnaNote.create({
+      data: {
+        familyId,
+        personId: data.personId,
+        haplogroup: data.haplogroup?.trim() || null,
+        company: data.company?.trim() || null,
+        notes: data.notes?.trim() || null,
+      },
+      include: { person: true },
+    });
+    await recordActivity({ familyId, actorId, verb: "recorded", entityType: "dna", entityId: record.id, title: record.haplogroup || record.company || "DNA note" });
+    return NextResponse.json({ record });
+  }
+  if (data.kind === "inscription") {
+    const record = await prisma.gravestoneInscription.create({
+      data: {
+        familyId,
+        personId: data.personId,
+        text: data.text.trim(),
+        place: data.place?.trim() || null,
+      },
+      include: { person: true },
+    });
+    await recordActivity({ familyId, actorId, verb: "recorded", entityType: "inscription", entityId: record.id, title: record.person.displayName });
+    return NextResponse.json({ record });
+  }
+  const record = await prisma.familyHoliday.create({
     data: {
       familyId,
-      personId: data.personId,
-      haplogroup: data.haplogroup?.trim() || null,
-      company: data.company?.trim() || null,
+      title: data.title.trim(),
+      season: data.season?.trim() || null,
       notes: data.notes?.trim() || null,
     },
-    include: { person: true },
   });
-  await recordActivity({ familyId, actorId, verb: "recorded", entityType: "dna", entityId: record.id, title: record.haplogroup || record.company || "DNA note" });
+  await recordActivity({ familyId, actorId, verb: "recorded", entityType: "holiday", entityId: record.id, title: record.title });
   return NextResponse.json({ record });
 }

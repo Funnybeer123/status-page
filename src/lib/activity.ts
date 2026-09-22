@@ -83,5 +83,12 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "pet") return "/pets";
   if (entityType === "textile") return "/quilts";
   if (entityType === "dna") return "/dna";
+  if (entityType === "loan") return "/loans";
+  if (entityType === "home") return `/homes/${entityId}`;
+  if (entityType === "digitize") return "/digitize";
+  if (entityType === "pin") return "/";
+  if (entityType === "handwriting") return "/handwriting";
+  if (entityType === "inscription") return "/inscriptions";
+  if (entityType === "holiday") return "/holidays";
   return "/activity";
 }
