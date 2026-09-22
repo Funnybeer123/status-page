@@ -24,6 +24,8 @@ export default async function ArchiveFoldersPage() {
         <Link href="/decades" className="text-seal">By decade</Link>
         {" · "}
         <Link href="/archive/folders/undated" className="text-seal">Items still without a date</Link>
+        {" · "}
+        <Link href="/archive/folders/zips" className="text-seal">Download a decade</Link>
       </p>
       <div className="mt-10 space-y-8" data-testid="archive-folders">
         {folders.map((folder) => (

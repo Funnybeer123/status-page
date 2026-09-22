@@ -21,6 +21,7 @@ import { chapterHeading, compileLifeChapters } from "@/lib/chapters";
 import { childPublicName } from "@/lib/children";
 import { qualityLabel } from "@/lib/sourceQuality";
 import { placeLabel } from "@/lib/places";
+import { compileSameDay, emptySameDayHeading, sameDayHeading } from "@/lib/sameDay";
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -148,6 +149,44 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           })),
         ],
       });
+  const sameDay = hideChild
+    ? []
+    : compileSameDay([
+        ...(!hidden && person.birthDate
+          ? [{ id: `birth-${person.id}`, title: `Born · ${person.displayName}`, happenedOn: person.birthDate, href: `/people/${person.id}`, kind: "birth" }]
+          : []),
+        ...(person.deathDate
+          ? [{ id: `death-${person.id}`, title: `Died · ${person.displayName}`, happenedOn: person.deathDate, href: `/people/${person.id}`, kind: "death" }]
+          : []),
+        ...events.map((event) => ({
+          id: event.id,
+          title: event.title,
+          happenedOn: event.happenedOn,
+          href: `/people/${person.id}`,
+          kind: "event",
+        })),
+        ...letters.map((item) => ({
+          id: item.document.id,
+          title: item.document.title,
+          happenedOn: item.document.writtenAt,
+          href: `/letters/${item.document.id}`,
+          kind: "letter",
+        })),
+        ...archiveTags.map((tag) => ({
+          id: tag.asset.id,
+          title: tag.asset.title || "Photograph",
+          happenedOn: tag.asset.capturedAt,
+          href: `/archive/${tag.asset.id}`,
+          kind: "photo",
+        })),
+        ...stories.map((story) => ({
+          id: story.id,
+          title: story.title,
+          happenedOn: story.recordedAt,
+          href: `/stories/${story.id}`,
+          kind: "story",
+        })),
+      ]);
 
   return (
     <AppShell>
@@ -205,6 +244,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/people/${person.id}/history`} className="mt-2 block font-sans text-sm text-seal">
               Edit history
             </Link>
+            {!hideChild ? (
+              <Link href={`/people/${person.id}/sameday`} className="mt-2 block font-sans text-sm text-seal" data-testid="same-day-link">
+                Same day in history
+              </Link>
+            ) : null}
             <Link href={`/group-sheets/${person.id}`} className="mt-2 block font-sans text-sm text-seal">
               Family group sheet
             </Link>
@@ -299,6 +343,22 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <p className="paper-card p-4 font-sans text-sm text-bark" data-testid="living-privacy-note">
               Some dates, notes, and places are hidden because this person is living. Contributors and owners still see the full record.
             </p>
+          ) : null}
+          {!hideChild ? (
+            <aside className="paper-card p-5" data-testid="same-day-strip">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                {sameDay.length ? sameDayHeading(person.displayName) : emptySameDayHeading(person.displayName)}
+              </p>
+              <ul className="mt-3 space-y-1">
+                {sameDay.map((item) => (
+                  <li key={`${item.kind}-${item.id}`}>
+                    <Link href={item.href} className="text-seal">
+                      {item.year} · {item.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </aside>
           ) : null}
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Dates</p>

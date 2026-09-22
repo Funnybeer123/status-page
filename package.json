@@ -38,7 +38,8 @@
     "test:ui:firsts": "tsx tests/ui-firsts-layer.ts",
     "test:ui:then-now": "tsx tests/ui-then-now-layer.ts",
     "test:ui:memory-lane": "tsx tests/ui-memory-lane-layer.ts",
-    "test:ui:alive-when": "tsx tests/ui-alive-when-layer.ts"
+    "test:ui:alive-when": "tsx tests/ui-alive-when-layer.ts",
+    "test:ui:family-hour": "tsx tests/ui-family-hour-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

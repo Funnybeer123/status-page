@@ -4,6 +4,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { filterAssetsForAudience } from "@/lib/privacy";
 import { compileArchiveFolders, decadeFolderHeading } from "@/lib/archiveFolders";
+import { decadeZipHeading } from "@/lib/decadeZip";
 
 export default async function DecadeFolderPage({ params }: { params: Promise<{ decade: string }> }) {
   const ctx = await requireFamily();
@@ -29,6 +30,10 @@ export default async function DecadeFolderPage({ params }: { params: Promise<{ d
       </ul>
       <p className="mt-8 font-sans text-sm">
         <Link href="/archive/folders" className="text-seal">All decade folders</Link>
+        {" · "}
+        <a href={`/api/archive/folders/${decade}/zip`} className="text-seal" data-testid="decade-zip-link">
+          {decadeZipHeading(key === "undated" ? "undated" : Number(decade) || "undated")}
+        </a>
       </p>
     </AppShell>
   );

@@ -46,6 +46,10 @@ export default async function ReunionSeatingPage({ params }: { params: Promise<{
           <Link href={`/reunions/${reunion.id}`} className="text-seal">Back to the reunion</Link>
           {" · "}
           <Link href="/reunions/seating/missing" className="text-seal">Reunions without a chart</Link>
+          {" · "}
+          <Link href={`/reunions/${reunion.id}/placecards`} className="text-seal" data-testid="place-cards-link">
+            Place cards
+          </Link>
         </p>
       </article>
     </AppShell>

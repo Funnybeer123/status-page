@@ -133,6 +133,7 @@ model Family {
   calendarToken String?        @unique
   nameStyle     String?
   dateStyle     String?
+  rulesText     String?
   createdAt     DateTime       @default(now())
   memberships   Membership[]
   people        Person[]
@@ -233,6 +234,7 @@ model Family {
   placeNames    PlaceName[]
   trashAudits   TrashAudit[]
   readLaterItems ReadLater[]
+  interviewPlans InterviewPlan[]
 }
 
 model Membership {
@@ -280,6 +282,8 @@ model Person {
   ownerNote      String?
   phoneContacts  FamilyPhoneContact[]
   photoGuesses   PhotoGuess[]
+  spokenAssets   Asset[]          @relation("SpokenBy")
+  interviewPlans InterviewPlan[]
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -384,10 +388,12 @@ model Asset {
   capturedAt   DateTime?
   createdAt    DateTime    @default(now())
   uploadedById String
+  spokenById   String?
   deletedAt    DateTime?
   placeId      String?
   family       Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   uploadedBy   User        @relation("UploadedBy", fields: [uploadedById], references: [id])
+  spokenBy     Person?     @relation("SpokenBy", fields: [spokenById], references: [id], onDelete: SetNull)
   place        Place?      @relation(fields: [placeId], references: [id], onDelete: SetNull)
   tags         PersonTag[]
   document     Document?
@@ -482,6 +488,7 @@ model Document {
   holiday        FamilyHoliday?   @relation(fields: [holidayId], references: [id], onDelete: SetNull)
   postmarkedAt   DateTime?        @db.Date
   stampText      String?
+  postage        String?
   weather        String?
   secretUntil    DateTime?        @db.Date
   ocrConfidence  Int?
@@ -2244,6 +2251,19 @@ model TrashAudit {
   actor      User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
 
   @@index([familyId, createdAt])
+}
+
+model InterviewPlan {
+  id          String   @id @default(cuid())
+  familyId    String
+  personId    String
+  scheduledOn DateTime @db.Date
+  notes       String?
+  createdAt   DateTime @default(now())
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, scheduledOn])
 }
 
 model ReadLater {

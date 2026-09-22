@@ -3632,6 +3632,84 @@ async function ensureHartArchive() {
       update: { arrived: true, arrivedAt: new Date("2026-09-22T14:00:00Z") },
     });
   }
+
+  await prisma.family.update({
+    where: { id: family.id },
+    data: {
+      rulesText: [
+        "Viewers do not see a living relative’s birth year or private notes.",
+        "Ask stays out of letters marked keep-out.",
+        "Owners invite; a guest-researcher invite can expire.",
+        "The harvest-dance hats stay in the family.",
+      ].join("\n"),
+    },
+  });
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: { postage: "3 cents" },
+  });
+  await prisma.asset.updateMany({
+    where: { id: "asset-eleanor-spoken" },
+    data: { spokenById: eleanor.id },
+  });
+  await prisma.reunionGathering.upsert({
+    where: { id: "reunion-hart-harvest-2026" },
+    create: {
+      id: "reunion-hart-harvest-2026",
+      familyId: family.id,
+      title: "Harvest-dance anniversary supper",
+      place: "Grange hall",
+      happenedOn: new Date("2026-10-18"),
+      notes: "The next family hour after the July picnic.",
+    },
+    update: { happenedOn: new Date("2026-10-18"), title: "Harvest-dance anniversary supper" },
+  });
+  if (lilyLiving) {
+    await prisma.interviewPlan.upsert({
+      where: { id: "plan-lily-2026" },
+      create: {
+        id: "plan-lily-2026",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        scheduledOn: new Date("2026-10-19"),
+        notes: "Ask Lily how the Sunday rolls stayed warm.",
+      },
+      update: { scheduledOn: new Date("2026-10-19") },
+    });
+  }
+  if (demoUser) {
+    const picnicCopyPath = writeMedia(
+      family.id,
+      "picnic-copy.svg",
+      svgScene("Family picnic", "North farm meadow", "Summer 1961", "#4d5b3c"),
+    );
+    await prisma.asset.upsert({
+      where: { id: "asset-picnic-copy" },
+      create: {
+        id: "asset-picnic-copy",
+        familyId: family.id,
+        kind: AssetKind.photo,
+        title: "Hart picnic, 1961 (copy)",
+        mimeType: "image/svg+xml",
+        storagePath: picnicCopyPath,
+        capturedAt: new Date("1961-07-04T16:00:00Z"),
+        uploadedById: demoUser.id,
+      },
+      update: { title: "Hart picnic, 1961 (copy)", storagePath: picnicCopyPath },
+    });
+  }
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-same-day-eleanor" },
+    create: {
+      id: "event-same-day-eleanor",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: EventKind.other,
+      title: "Eleanor hems the harvest dress",
+      happenedOn: new Date("1947-09-22"),
+    },
+    update: { happenedOn: new Date("1947-09-22"), title: "Eleanor hems the harvest dress" },
+  });
 }
 
 async function writeHartMedia() {

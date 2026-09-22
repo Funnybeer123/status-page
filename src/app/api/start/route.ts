@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { startHeading, startSteps } from "@/lib/startHere";
+import { startRingHeading, startRingPercent } from "@/lib/startRing";
 
 export async function GET() {
   const ctx = await apiFamily();
@@ -34,5 +35,7 @@ export async function GET() {
     hasThere,
     steps,
     heading: startHeading(steps),
+    percent: startRingPercent(steps),
+    ring: startRingHeading(startRingPercent(steps)),
   });
 }

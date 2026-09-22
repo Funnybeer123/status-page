@@ -20,6 +20,9 @@ import { BorrowedForm, WeatherForm } from "@/app/memory-lane/ui";
 import { borrowedFromLine, hasBorrowedCredit } from "@/lib/borrowedFrom";
 import { hasWeather, weatherNoteLine, weatherOnDayHeading } from "@/lib/weatherNote";
 import { filmCaptionLine, sortFilmCaptions } from "@/lib/filmCaptions";
+import { SpokenByForm } from "@/app/family-hour/ui";
+import { isOralHistory } from "@/lib/oralPlaylist";
+import { spokenByLine } from "@/lib/spokenBy";
 
 export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -27,7 +30,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
   const [asset, people, places, albums] = await Promise.all([
     prisma.asset.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
-      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true, photoNotes: true, borrowedFromAlbum: true, filmCaptions: true },
+      include: { tags: { include: { person: true } }, comments: { include: { author: true } }, place: true, document: true, filmMoments: true, photoNotes: true, borrowedFromAlbum: true, filmCaptions: true, spokenBy: true, uploadedBy: { select: { name: true } } },
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
@@ -54,6 +57,11 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
         {asset.place ? ` · Taken at ${asset.place.name}` : ""}
         {hasWeather(asset) ? ` · ${weatherNoteLine(asset.weather, asset.capturedAt)}` : ""}
       </p>
+      {isOralHistory(asset) ? (
+        <p className="mt-2 font-sans text-sm text-gold" data-testid="spoken-by">
+          {spokenByLine(asset.spokenBy?.displayName, asset.uploadedBy.name)}
+        </p>
+      ) : null}
       {hasBorrowedCredit(asset) ? (
         <p className="mt-2 font-sans text-sm text-gold" data-testid="borrowed-from">
           {borrowedFromLine(asset.borrowedFromAlbum?.title)}
@@ -158,6 +166,13 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
             <Link href={`/films/${asset.id}/captions`} className="text-seal">Open the caption track</Link>
           </p>
         </section>
+      ) : null}
+      {canWrite(ctx.role) && isOralHistory(asset) ? (
+        <SpokenByForm
+          assetId={asset.id}
+          personId={asset.spokenById}
+          people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+        />
       ) : null}
       {canWrite(ctx.role) && !asset.document && (asset.kind === "audio" || asset.kind === "video" || asset.mimeType.startsWith("audio/")) ? (
         <TranscribeForm

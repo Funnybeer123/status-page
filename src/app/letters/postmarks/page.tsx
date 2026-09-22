@@ -22,6 +22,10 @@ export default async function PostmarksPage() {
         <Link href="/letters/postmarks/missing" className="text-seal">Letters still without a postmark</Link>
         {" · "}
         <Link href="/letters/postmarks/undated-written" className="text-seal">Postmarks without a written date</Link>
+        {" · "}
+        <Link href="/map/postmarks" className="text-seal">Postmark map</Link>
+        {" · "}
+        <Link href="/letters/postage" className="text-seal">Postage</Link>
       </p>
       <ul className="mt-10 space-y-3" data-testid="postmarks-list">
         {items.map((letter) => (

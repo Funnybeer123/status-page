@@ -78,7 +78,9 @@ export default async function MapPage({
         {" · "}
         <Link href="/map/pins" className="text-seal">Letters and stories on the map</Link>
         {" · "}
-        <Link href="/map/then-now" className="text-seal">Then and now</Link>.
+        <Link href="/map/then-now" className="text-seal">Then and now</Link>
+        {" · "}
+        <Link href="/map/postmarks" className="text-seal">Postmark map</Link>.
       </p>
       {bounds ? (
         <div className="paper-card mt-8 overflow-hidden" data-testid="family-map">

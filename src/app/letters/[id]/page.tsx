@@ -18,6 +18,8 @@ import { highlightHeading, highlightHitCount, highlightSearchWords } from "@/lib
 import { CiteBlock } from "@/components/CiteBlock";
 import { PostmarkForm } from "@/app/then-now/ui";
 import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
+import { PostageForm } from "@/app/family-hour/ui";
+import { hasPostage, postageLine } from "@/lib/postage";
 import { SecretUntilForm, WeatherForm, OcrConfidenceForm } from "@/app/memory-lane/ui";
 import { ReadLaterButton } from "@/app/alive-when/ui";
 import { hiddenSecretBody, isSecretLocked, secretUntilLine } from "@/lib/secretUntil";
@@ -92,6 +94,10 @@ export default async function LetterPage({
         {" · "}
         <Link href="/letters/postmarks" className="text-seal" data-testid="postmark-link">
           Postmarks
+        </Link>
+        {" · "}
+        <Link href="/letters/postage" className="text-seal" data-testid="postage-link">
+          Postage
         </Link>
         {letter.people[0] ? (
           <>
@@ -241,6 +247,12 @@ export default async function LetterPage({
               when={letter.postmarkedAt ? letter.postmarkedAt.toISOString().slice(0, 10) : ""}
             />
           ) : null}
+        </section>
+      ) : null}
+      {hasPostage(letter) || canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-postage">
+          <h2 className="font-display text-2xl">{postageLine(letter.postage)}</h2>
+          {canWrite(ctx.role) ? <PostageForm letterId={letter.id} postage={letter.postage} /> : null}
         </section>
       ) : null}
       <CiteBlock title={letter.title} path={`/letters/${letter.id}`} />

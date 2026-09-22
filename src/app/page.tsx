@@ -27,6 +27,7 @@ import { quietHomeHeading } from "@/lib/quietMode";
 import { nightQuietHeading } from "@/lib/nightMode";
 import { GuestBookForm } from "@/app/then-now/ui";
 import { emptyGuestBookHeading, guestBookHeading, guestBookLine } from "@/lib/guestBook";
+import { compileFamilyHour } from "@/lib/familyHour";
 
 export default async function HomePage() {
   const session = await auth();
@@ -175,6 +176,27 @@ export default async function HomePage() {
     );
   }
 
+  const [reunions, interviewPlans] = await Promise.all([
+    prisma.reunionGathering.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.interviewPlan.findMany({ where: { familyId: ctx.family.id }, include: { person: true } }),
+  ]);
+  const homeHour = compileFamilyHour([
+    ...reunions.map((reunion) => ({
+      id: reunion.id,
+      kind: "reunion" as const,
+      title: reunion.title,
+      happenedOn: reunion.happenedOn,
+      href: `/reunions/${reunion.id}`,
+    })),
+    ...interviewPlans.map((plan) => ({
+      id: plan.id,
+      kind: "interview" as const,
+      title: `Interview · ${plan.person.displayName}`,
+      happenedOn: plan.scheduledOn,
+      href: `/interviews?personId=${plan.personId}`,
+    })),
+  ]);
+
   const thisWeek = compileThisWeek(
     weekActivities.map((item) => ({
       id: item.id,
@@ -196,6 +218,15 @@ export default async function HomePage() {
         </aside>
       ) : null}
       <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
+      {homeHour.next ? (
+        <aside className="mt-4 paper-card p-5" data-testid="home-family-hour">
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Family hour</p>
+          <p className="mt-2 font-display text-2xl">{homeHour.line}</p>
+          <Link href="/hour" className="mt-2 inline-block font-sans text-sm text-seal">
+            Open the countdown
+          </Link>
+        </aside>
+      ) : null}
       {homeMotto ? (
         <aside className="mt-4 paper-card p-5" data-testid="home-motto">
           <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{homeMottoHeading()}</p>
