@@ -43,6 +43,10 @@ export default async function PersonPacketPage({ params }: { params: Promise<{ i
         <a href={`/api/people/${person.id}/packet`} className="text-seal" data-testid="packet-download">
           Download the packet
         </a>
+        {" · "}
+        <Link href={`/people/${person.id}/booklet`} className="text-seal">
+          Printable booklet
+        </Link>
       </p>
       <pre className="paper-card mt-8 whitespace-pre-wrap p-5 font-sans text-sm" data-testid="packet-facts">
         {preview}

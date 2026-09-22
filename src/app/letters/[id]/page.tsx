@@ -64,6 +64,10 @@ export default async function LetterPage({
         <Link href={`/letters/${letter.id}/aloud`} className="text-seal" data-testid="read-aloud-link">
           Read aloud
         </Link>
+        {" · "}
+        <Link href={`/letters/${letter.id}/envelope`} className="text-seal" data-testid="envelope-link">
+          Envelope
+        </Link>
         {letter.people[0] ? (
           <>
             {" · "}

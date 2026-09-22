@@ -34,7 +34,8 @@
     "test:ui:ask-save": "tsx tests/ui-ask-save-layer.ts",
     "test:ui:hunt": "tsx tests/ui-hunt-layer.ts",
     "test:ui:funeral": "tsx tests/ui-funeral-layer.ts",
-    "test:ui:card": "tsx tests/ui-card-layer.ts"
+    "test:ui:card": "tsx tests/ui-card-layer.ts",
+    "test:ui:firsts": "tsx tests/ui-firsts-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

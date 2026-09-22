@@ -18,6 +18,7 @@ const schema = z.object({
   languages: z.string().max(200).optional().nullable(),
   burialPlot: z.string().max(200).optional().nullable(),
   pronunciation: z.string().max(160).optional().nullable(),
+  pronunciationAssetId: z.string().optional().nullable(),
   ownerNote: z.string().max(4000).optional().nullable(),
 });
 
@@ -111,6 +112,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       languages: body.data.languages === undefined ? existing.languages : body.data.languages || null,
       burialPlot: body.data.burialPlot === undefined ? existing.burialPlot : body.data.burialPlot || null,
       pronunciation: body.data.pronunciation === undefined ? existing.pronunciation : body.data.pronunciation || null,
+      pronunciationAssetId:
+        body.data.pronunciationAssetId === undefined
+          ? existing.pronunciationAssetId
+          : body.data.pronunciationAssetId || null,
       ownerNote:
         body.data.ownerNote === undefined || ctx.role !== Role.owner
           ? existing.ownerNote

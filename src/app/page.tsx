@@ -24,6 +24,7 @@ import { homeMottoHeading, pickHomeMotto } from "@/lib/homeMotto";
 import { AskBox } from "@/components/AskBox";
 import { TreeView } from "@/components/TreeView";
 import { quietHomeHeading } from "@/lib/quietMode";
+import { nightQuietHeading } from "@/lib/nightMode";
 
 export default async function HomePage() {
   const session = await auth();
@@ -119,7 +120,7 @@ export default async function HomePage() {
       take: 6,
     }),
     prisma.familyMotto.findMany({ where: { familyId: ctx.family.id }, orderBy: { id: "asc" } }),
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { quietMode: true } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { quietMode: true, nightMode: true } }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive } }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
@@ -146,6 +147,9 @@ export default async function HomePage() {
         <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
         <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
         <h2 className="mt-6 font-display text-3xl" data-testid="quiet-home-heading">{quietHomeHeading()}</h2>
+        {quietUser.nightMode ? (
+          <h3 className="mt-4 font-display text-2xl" data-testid="night-quiet-heading">{nightQuietHeading()}</h3>
+        ) : null}
         <p className="mt-3 max-w-2xl text-bark">Activity counts stay hidden. The tree and Ask are still here.</p>
         <section className="mt-8" data-testid="quiet-tree">
           <TreeView

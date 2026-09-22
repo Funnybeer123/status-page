@@ -150,6 +150,24 @@ function escapeXml(value: string) {
     .replaceAll('"', "&quot;");
 }
 
+function writeWav(familyId: string, filename: string) {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(8000, 24);
+  header.writeUInt32LE(8000, 28);
+  header.writeUInt16LE(1, 32);
+  header.writeUInt16LE(8, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(0, 40);
+  return writeMedia(familyId, filename, header);
+}
+
 function writeMedia(familyId: string, filename: string, contents: string | Buffer, encoding?: BufferEncoding) {
   const dir = join(mediaRoot(), familyId);
   mkdirSync(dir, { recursive: true });
@@ -3174,6 +3192,113 @@ async function ensureHartArchive() {
       body: "From Letter: Eleanor to Ruth, 18 October 1947: I danced three times with Samuel Hart from the north farm.\n\nFrom Cottonwoods this summer: Lily said the cottonwoods still hold the walk home, the same way Ellie wrote it.",
     },
   });
+
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-ellie-first-house" },
+    create: {
+      id: "event-ellie-first-house",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: EventKind.residence,
+      title: "The Cedar Falls bungalow",
+      summary: "Their first house after the cottonwood wedding.",
+      happenedOn: new Date("1948-06-20"),
+      firstTag: "house",
+    },
+    update: { firstTag: "house", title: "The Cedar Falls bungalow" },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-ellie-first-car" },
+    create: {
+      id: "event-ellie-first-car",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: EventKind.other,
+      title: "The navy Ford",
+      summary: "Sam bought it the spring after the harvest-dance anniversary.",
+      happenedOn: new Date("1950-05-01"),
+      firstTag: "car",
+    },
+    update: { firstTag: "car", title: "The navy Ford" },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-ellie-first-child" },
+    create: {
+      id: "event-ellie-first-child",
+      familyId: family.id,
+      personId: eleanor.id,
+      otherPersonId: "person-margaret",
+      kind: EventKind.other,
+      title: "Margaret was born",
+      summary: "Their first child, later Meg.",
+      happenedOn: new Date("1952-04-02"),
+      firstTag: "child",
+    },
+    update: { firstTag: "child", title: "Margaret was born" },
+  });
+
+  await prisma.document.updateMany({
+    where: { id: "doc-sunday-rolls" },
+    data: { holidayId: "holiday-harvest" },
+  });
+  if (demoUser) {
+    const envelopePath = writeMedia(
+      family.id,
+      "harvest-envelope.svg",
+      svgScene("Envelope", "Eleanor Whitaker to Ruth Whitaker", "18 October 1947", "#5c4634"),
+    );
+    const envelopeScan = await prisma.asset.upsert({
+      where: { id: "asset-harvest-envelope" },
+      create: {
+        id: "asset-harvest-envelope",
+        familyId: family.id,
+        kind: AssetKind.letter,
+        title: "Harvest letter envelope",
+        mimeType: "image/svg+xml",
+        storagePath: envelopePath,
+        capturedAt: new Date("1947-10-18"),
+        uploadedById: demoUser.id,
+      },
+      update: { title: "Harvest letter envelope", storagePath: envelopePath },
+    });
+    await prisma.document.updateMany({
+      where: { id: "doc-harvest" },
+      data: {
+        envelopeFrom: "Eleanor Whitaker, Cedar Falls",
+        envelopeTo: "Ruth Whitaker",
+        envelopeAssetId: envelopeScan.id,
+      },
+    });
+    await prisma.familyVaultNote.upsert({
+      where: { id: "vault-ancestry" },
+      create: {
+        id: "vault-ancestry",
+        familyId: family.id,
+        title: "Ancestry login",
+        body: "Shared Hart family account. Owners only — do not put this on the memorial.",
+        createdById: demoUser.id,
+      },
+      update: { title: "Ancestry login", body: "Shared Hart family account. Owners only — do not put this on the memorial." },
+    });
+    const spokenPath = writeWav(family.id, "eleanor-name.wav");
+    const spoken = await prisma.asset.upsert({
+      where: { id: "asset-eleanor-spoken" },
+      create: {
+        id: "asset-eleanor-spoken",
+        familyId: family.id,
+        kind: AssetKind.audio,
+        title: "Eleanor, said out loud",
+        mimeType: "audio/wav",
+        storagePath: spokenPath,
+        uploadedById: demoUser.id,
+      },
+      update: { title: "Eleanor, said out loud", storagePath: spokenPath },
+    });
+    await prisma.person.update({
+      where: { id: eleanor.id },
+      data: { pronunciationAssetId: spoken.id, pronunciation: "EL-uh-nor hart" },
+    });
+  }
 }
 
 async function writeHartMedia() {
@@ -3190,6 +3315,8 @@ async function writeHartMedia() {
   writeMedia(familyId, "wedding.svg", svgScene("Wedding day", "St. John's, then the cottonwoods", "14 June 1948", "#3d2b1f"));
   writeMedia(familyId, "picnic.svg", svgScene("Family picnic", "North farm meadow", "Summer 1961", "#4d5b3c"));
   writeMedia(familyId, "harvest-letter.svg", svgLetter(HARVEST_LETTER));
+  writeMedia(familyId, "harvest-envelope.svg", svgScene("Envelope", "Eleanor Whitaker to Ruth Whitaker", "18 October 1947", "#5c4634"));
+  writeWav(familyId, "eleanor-name.wav");
   writeMedia(familyId, "grange-now.svg", svgScene("Grange hall today", "Cedar Falls, the same doors", "2024", "#6b5344"));
   tryWriteVideo(familyId, "picnic-1961.mp4");
 }

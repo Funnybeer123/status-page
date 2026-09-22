@@ -3,7 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function RecipeForm({ people }: { people: { id: string; displayName: string }[] }) {
+export function RecipeForm({
+  people,
+  holidays = [],
+}: {
+  people: { id: string; displayName: string }[];
+  holidays?: { id: string; title: string }[];
+}) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,6 +26,7 @@ export function RecipeForm({ people }: { people: { id: string; displayName: stri
         body: data.get("body"),
         writtenAt: data.get("writtenAt"),
         personIds: data.getAll("personIds"),
+        holidayId: data.get("holidayId") || undefined,
       }),
     });
     const payload = await response.json();
@@ -37,6 +44,16 @@ export function RecipeForm({ people }: { people: { id: string; displayName: stri
       <input name="title" required placeholder="Rose’s Sunday rolls" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <input name="writtenAt" type="date" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <textarea name="body" required rows={6} placeholder="Flour, yeast, and the rest of what she said" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      {holidays.length ? (
+        <select name="holidayId" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+          <option value="">Holiday (optional)</option>
+          {holidays.map((holiday) => (
+            <option key={holiday.id} value={holiday.id}>
+              {holiday.title}
+            </option>
+          ))}
+        </select>
+      ) : null}
       <fieldset className="font-sans text-sm">
         <legend className="mb-2">Whose recipe</legend>
         <div className="flex flex-wrap gap-2">

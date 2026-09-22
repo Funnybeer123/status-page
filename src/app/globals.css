@@ -35,6 +35,26 @@ a {
   background: linear-gradient(90deg, transparent, #c4a574, transparent);
 }
 
+.night-quiet {
+  background: #1a1410;
+  color: #f3ead8;
+}
+
+.night-quiet header {
+  background: rgba(26, 20, 16, 0.92);
+  border-color: rgba(243, 234, 216, 0.12);
+}
+
+.night-quiet .paper-card {
+  background: #2b2118;
+  border-color: rgba(243, 234, 216, 0.14);
+  box-shadow: none;
+}
+
+.night-quiet .text-bark {
+  color: #d9c8b0;
+}
+
 @media print {
   header,
   nav,

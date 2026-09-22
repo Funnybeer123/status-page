@@ -22,6 +22,7 @@ const schema = z.object({
   country: z.string().optional(),
   precision: z.nativeEnum(DatePrecision).optional(),
   rangeEnd: z.string().optional(),
+  firstTag: z.enum(["house", "car", "child", "job", "school"]).optional().nullable(),
 });
 
 export async function GET(req: Request) {
@@ -76,6 +77,7 @@ export async function POST(req: Request) {
       happenedOn: parseDate(body.data.happenedOn),
       rangeEnd: parseDate(body.data.rangeEnd),
       precision: body.data.precision ?? DatePrecision.exact,
+      firstTag: body.data.firstTag || null,
     },
     include: { person: true, otherPerson: true, place: true },
   });

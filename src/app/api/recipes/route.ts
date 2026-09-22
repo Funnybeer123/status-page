@@ -10,6 +10,7 @@ const schema = z.object({
   body: z.string().min(1).max(8000),
   writtenAt: z.string().optional(),
   personIds: z.array(z.string()).optional(),
+  holidayId: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
   if ("error" in ctx) return ctx.error;
   const recipes = await prisma.document.findMany({
     where: { familyId: ctx.family.id, kind: DocKind.recipe },
-    include: { people: { include: { person: true } } },
+    include: { people: { include: { person: true } }, holiday: true },
     orderBy: { title: "asc" },
   });
   return NextResponse.json({ recipes });
@@ -36,9 +37,10 @@ export async function POST(req: Request) {
       kind: DocKind.recipe,
       transcript: body.data.body.trim(),
       writtenAt: body.data.writtenAt ? new Date(body.data.writtenAt) : null,
+      holidayId: body.data.holidayId || null,
       people: personIds.length ? { create: personIds.map((personId) => ({ personId })) } : undefined,
     },
-    include: { people: { include: { person: true } } },
+    include: { people: { include: { person: true } }, holiday: true },
   });
   await recordActivity({
     familyId: ctx.family.id,

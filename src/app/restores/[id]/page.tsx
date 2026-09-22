@@ -4,6 +4,8 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { cleanedCopyLabel, originalScanLabel, restoreHeading } from "@/lib/restore";
+import { RestoreSlider } from "@/app/firsts/ui";
+import { restoreSliderHeading } from "@/lib/restoreSlider";
 
 export default async function RestorePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -23,6 +25,11 @@ export default async function RestorePage({ params }: { params: Promise<{ id: st
         {restore.notes || "The original scan and the cleaned copy, side by side."}{" "}
         <Link href="/restores" className="text-seal">All restoration pairs</Link>.
       </p>
+      <h2 className="mt-8 font-display text-2xl" data-testid="restore-slider-heading">{restoreSliderHeading()}</h2>
+      <RestoreSlider
+        originalSrc={`/api/media/${restore.original.storagePath}`}
+        cleanedSrc={`/api/media/${restore.cleaned.storagePath}`}
+      />
       <div className="mt-10 grid gap-6 lg:grid-cols-2" data-testid="restore-pair">
         <figure className="paper-card overflow-hidden p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}

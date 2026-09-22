@@ -89,6 +89,7 @@ model User {
   name         String
   passwordHash String
   quietMode    Boolean      @default(false)
+  nightMode    Boolean      @default(false)
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   assets       Asset[]      @relation("UploadedBy")
@@ -116,6 +117,7 @@ model User {
   noticeMutes    NoticeMute[]
   huntFinishes   HuntFinish[]
   familyVisits   FamilyVisit[]
+  vaultNotes     FamilyVaultNote[]
 }
 
 model Family {
@@ -218,6 +220,7 @@ model Family {
   reunionSeats  ReunionSeat[]
   familyVisits  FamilyVisit[]
   lifeDrafts    LifeDraft[]
+  vaultNotes    FamilyVaultNote[]
 }
 
 model Membership {
@@ -261,6 +264,7 @@ model Person {
   languages      String?
   burialPlot     String?
   pronunciation  String?
+  pronunciationAssetId String?
   ownerNote      String?
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -395,6 +399,7 @@ model Asset {
   biblePages     BibleRecord[]
   reunionBrings  ReunionBring[]
   huntClues      HuntClue[]
+  envelopeLetters Document[] @relation("EnvelopeScan")
 }
 
 model PersonTag {
@@ -449,6 +454,12 @@ model Document {
   memorialPerson Person?        @relation("MemorialObituary", fields: [memorialPersonId], references: [id], onDelete: SetNull)
   huntClues      HuntClue[]
   placePins      PlacePin[]
+  envelopeFrom   String?
+  envelopeTo     String?
+  envelopeAssetId String?
+  envelopeAsset  Asset?           @relation("EnvelopeScan", fields: [envelopeAssetId], references: [id], onDelete: SetNull)
+  holidayId      String?
+  holiday        FamilyHoliday?   @relation(fields: [holidayId], references: [id], onDelete: SetNull)
 }
 
 model DocumentPerson {
@@ -543,6 +554,7 @@ model LifeEvent {
   rangeEnd      DateTime?  @db.Date
   preferred     Boolean    @default(false)
   precision     DatePrecision @default(exact)
+  firstTag      String?
   family        Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person        Person     @relation("EventSubject", fields: [personId], references: [id], onDelete: Cascade)
   otherPerson   Person?    @relation("EventOther", fields: [otherPersonId], references: [id], onDelete: SetNull)
@@ -1482,6 +1494,20 @@ model FamilyHoliday {
   season   String?
   notes    String?
   family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recipes  Document[]
+
+  @@index([familyId])
+}
+
+model FamilyVaultNote {
+  id          String   @id @default(cuid())
+  familyId    String
+  title       String
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }

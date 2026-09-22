@@ -10,12 +10,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     }),
     prisma.user.findUnique({
       where: { id: ctx.session.user.id },
-      select: { quietMode: true },
+      select: { quietMode: true, nightMode: true },
     }),
   ]);
   const quiet = Boolean(user?.quietMode);
+  const night = Boolean(user?.quietMode && user?.nightMode);
   return (
-    <div className="min-h-screen">
+    <div className={night ? "night-quiet min-h-screen" : "min-h-screen"} data-testid={night ? "night-quiet-shell" : undefined}>
       <Nav
         userName={ctx.session.user.name}
         activeFamilyId={ctx.family.id}
