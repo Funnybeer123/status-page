@@ -33,12 +33,15 @@ export function mapBounds(points: GeoPoint[]) {
   const maxLat = Math.max(...lats);
   const minLng = Math.min(...lngs);
   const maxLng = Math.max(...lngs);
-  const pad = 0.08;
+  const latSpan = Math.max(maxLat - minLat, 0.012);
+  const lngSpan = Math.max(maxLng - minLng, 0.018);
+  const padLat = latSpan * 0.45;
+  const padLng = lngSpan * 0.45;
   return {
-    minLng: minLng - pad,
-    minLat: minLat - pad,
-    maxLng: maxLng + pad,
-    maxLat: maxLat + pad,
+    minLng: minLng - padLng,
+    minLat: minLat - padLat,
+    maxLng: maxLng + padLng,
+    maxLat: maxLat + padLat,
     center: { latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2 },
   };
 }

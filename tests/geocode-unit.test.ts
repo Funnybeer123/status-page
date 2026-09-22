@@ -22,3 +22,13 @@ test("projectPoint keeps a northern farm above Cedar Falls", () => {
   const b = projectPoint(farm, bounds, 800, 360);
   assert.ok(b.y < a.y);
 });
+
+test("Market Street and Cedar Falls stay far enough apart to read", () => {
+  const cedar = { latitude: 42.5278, longitude: -92.4453 };
+  const market = { latitude: 42.529, longitude: -92.446 };
+  const bounds = mapBounds([cedar, market]);
+  assert.ok(bounds);
+  const a = projectPoint(cedar, bounds, 800, 360);
+  const b = projectPoint(market, bounds, 800, 360);
+  assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 20);
+});
