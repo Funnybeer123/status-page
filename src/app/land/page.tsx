@@ -5,20 +5,28 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
+import { deedHeading, hasDeed } from "@/lib/deed";
+import { DeedForm } from "@/app/box/ui";
 
 export default async function LandPage() {
   const ctx = await requireFamily();
-  const [people, records, homes] = await Promise.all([
+  const [people, records, homes, assets] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
-    prisma.landRecord.findMany({ where: { familyId: ctx.family.id }, include: { person: true, home: true }, orderBy: { acquiredOn: "asc" } }),
+    prisma.landRecord.findMany({ where: { familyId: ctx.family.id }, include: { person: true, home: true, deed: true }, orderBy: { acquiredOn: "asc" } }),
     prisma.familyHome.findMany({ where: { familyId: ctx.family.id }, orderBy: { title: "asc" } }),
+    prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   const options = people.map((person) => ({ id: person.id, displayName: person.displayName }));
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="land-heading">Land records</h1>
-      <p className="mt-3 max-w-2xl text-bark">Farms, lots, and deeds the family still talks about.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Farms, lots, and deeds the family still talks about.{" "}
+        <Link href="/abstracts" className="text-seal">Land abstracts</Link>
+        {" · "}
+        <Link href="/land/deeds" className="text-seal">Missing deeds</Link>.
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="land"
@@ -52,6 +60,15 @@ export default async function LandPage() {
             </p>
             {row.abstract ? <p className="mt-2 text-bark" data-testid="land-abstract">{row.abstract}</p> : null}
             {row.notes ? <p className="mt-2 text-bark">{row.notes}</p> : null}
+            {hasDeed(row) && row.deed ? (
+              <figure className="mt-4" data-testid="deed-image">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${row.deed.storagePath}`} alt={deedHeading(row.title)} className="w-full bg-cream" />
+                <figcaption className="mt-2 font-sans text-sm text-gold">{deedHeading(row.title)}</figcaption>
+              </figure>
+            ) : canWrite(ctx.role) ? (
+              <DeedForm landId={row.id} assets={assets.map((asset) => ({ id: asset.id, title: asset.title }))} />
+            ) : null}
           </li>
         ))}
         {!records.length ? <li className="text-bark">No land records yet.</li> : null}

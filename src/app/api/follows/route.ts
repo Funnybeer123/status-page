@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { followHeading, followLine } from "@/lib/follows";
+import { followHeading, followLine, muteHeading, muteLine } from "@/lib/follows";
 import { alive } from "@/lib/alive";
 
 const schema = z.object({
   personId: z.string(),
   following: z.boolean().optional(),
+  muted: z.boolean().optional(),
 });
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function GET() {
   return NextResponse.json({
     follows,
     heading: followHeading(follows.length),
-    lines: follows.map((item) => followLine(item.person.displayName)),
+    lines: follows.map((item) => muteLine(item.person.displayName, Boolean(item.mutedAt))),
   });
 }
 
@@ -36,13 +37,25 @@ export async function POST(req: Request) {
   if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
   const on = body.data.following !== false;
   if (on) {
+    const mutedAt =
+      body.data.muted === undefined ? undefined : body.data.muted ? new Date() : null;
     const follow = await prisma.personFollow.upsert({
       where: { userId_personId: { userId: ctx.session.user.id, personId: person.id } },
-      create: { userId: ctx.session.user.id, personId: person.id },
-      update: {},
+      create: {
+        userId: ctx.session.user.id,
+        personId: person.id,
+        mutedAt: mutedAt ?? null,
+      },
+      update: mutedAt === undefined ? {} : { mutedAt },
       include: { person: true },
     });
-    return NextResponse.json({ follow, following: true, heading: followLine(person.displayName) });
+    return NextResponse.json({
+      follow,
+      following: true,
+      muted: Boolean(follow.mutedAt),
+      heading: followLine(person.displayName),
+      muteHeading: muteHeading(Boolean(follow.mutedAt)),
+    });
   }
   await prisma.personFollow.deleteMany({
     where: { userId: ctx.session.user.id, personId: person.id },

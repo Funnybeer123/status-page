@@ -11,6 +11,8 @@ export function LetterEditor({
   writtenAt,
   needsReview,
   canEdit,
+  locked = false,
+  credit = "",
 }: {
   id: string;
   title: string;
@@ -19,6 +21,8 @@ export function LetterEditor({
   writtenAt: string;
   needsReview: boolean;
   canEdit: boolean;
+  locked?: boolean;
+  credit?: string;
 }) {
   const router = useRouter();
   const [text, setText] = useState(transcript);
@@ -27,8 +31,9 @@ export function LetterEditor({
   const [rendered, setRendered] = useState(translation);
   const [review, setReview] = useState(needsReview);
   const [saved, setSaved] = useState("");
+  const [error, setError] = useState("");
 
-  async function save() {
+  async function save(lock?: boolean) {
     const response = await fetch(`/api/letters/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -38,12 +43,17 @@ export function LetterEditor({
         translation: rendered,
         writtenAt: date,
         needsReview: review,
+        ...(lock === undefined ? {} : { lock }),
       }),
     });
+    const payload = await response.json().catch(() => ({}));
     if (response.ok) {
-      setSaved("Saved.");
+      setSaved(lock ? "Finished and locked." : "Saved.");
+      setError("");
       router.refresh();
+      return;
     }
+    setError(payload.error || "Could not save that transcript.");
   }
 
   return (
@@ -57,8 +67,11 @@ export function LetterEditor({
         <h2 className="font-display text-2xl">{heading}</h2>
       )}
       <p className="mt-4 font-sans text-xs uppercase tracking-[0.2em] text-gold">Original</p>
+      <p className="mt-2 font-sans text-sm text-gold" data-testid="transcript-credit">
+        {credit || (locked ? "This transcript is finished and locked" : "")}
+      </p>
       <textarea
-        readOnly={!canEdit}
+        readOnly={!canEdit || locked}
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={12}
@@ -82,13 +95,22 @@ export function LetterEditor({
         </label>
       ) : null}
       {canEdit ? (
-        <div className="mt-4 flex items-center gap-3">
-          <button type="button" onClick={save} className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => save()} className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" disabled={locked}>
             Save transcript
+          </button>
+          <button
+            type="button"
+            onClick={() => save(!locked)}
+            className="rounded-full border border-bark/20 px-4 py-2 font-sans text-sm"
+            data-testid="lock-transcript"
+          >
+            {locked ? "Unlock transcript" : "Lock this transcript"}
           </button>
           <span className="font-sans text-sm text-moss">{saved}</span>
         </div>
       ) : null}
+      {error ? <p className="mt-2 font-sans text-sm text-seal">{error}</p> : null}
     </div>
   );
 }

@@ -23,6 +23,8 @@ export default async function HeirloomsPage() {
       <p className="mt-3 max-w-2xl text-bark">
         Objects the family still keeps, and who they belonged to.{" "}
         <Link href="/loans" className="text-seal">Who borrowed what</Link>.
+        {" · "}
+        <Link href="/heirlooms" className="text-seal">Provenance is on each object</Link>.
       </p>
       {canWrite(ctx.role) ? (
         <HeirloomForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
@@ -30,7 +32,7 @@ export default async function HeirloomsPage() {
       <ul className="mt-10 space-y-3" data-testid="heirlooms-list">
         {heirlooms.map((item) => (
           <li key={item.id} className="paper-card p-5">
-            <p className="font-display text-2xl">{item.title}</p>
+            <Link href={`/heirlooms/${item.id}`} className="font-display text-2xl text-seal">{item.title}</Link>
             {item.person ? (
               <Link href={`/people/${item.person.id}`} className="font-sans text-sm text-seal">{item.person.displayName}</Link>
             ) : null}

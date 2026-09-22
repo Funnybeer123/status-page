@@ -109,6 +109,8 @@ model User {
   bookmarks      PersonBookmark[]
   follows        PersonFollow[]
   shareOpens     ShareLinkOpen[]
+  transcripts    Document[]      @relation("TranscriptCredit")
+  meetings       FamilyMeeting[]
 }
 
 model Family {
@@ -196,6 +198,7 @@ model Family {
   schoolClasses SchoolClass[]
   suggestions   FactSuggestion[]
   journals      JournalEntry[]
+  meetings      FamilyMeeting[]
 }
 
 model Membership {
@@ -308,6 +311,8 @@ model Person {
   shareConsents  ShareConsent[]
   bookmarks      PersonBookmark[]
   follows        PersonFollow[]
+  heirloomHolds  HeirloomHold[]
+  meetings       FamilyMeetingPerson[]
 }
 
 model Relationship {
@@ -360,6 +365,7 @@ model Asset {
   photoNotes     PhotoNote[]
   censusScans    CensusHousehold[]
   voyageManifests Voyage[]
+  landDeeds      LandRecord[]
 }
 
 model PersonTag {
@@ -406,6 +412,9 @@ model Document {
   adoptionPapers AdoptionPaper[]
   militaryPapers MilitaryPaper[]
   keepOutOfAsk Boolean          @default(false)
+  transcribedById String?
+  transcriptLockedAt DateTime?
+  transcribedBy User?           @relation("TranscriptCredit", fields: [transcribedById], references: [id], onDelete: SetNull)
 }
 
 model DocumentPerson {
@@ -659,6 +668,7 @@ model Heirloom {
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
   loans      HeirloomLoan[]
+  holds      HeirloomHold[]
 
   @@index([familyId])
 }
@@ -1010,6 +1020,8 @@ model LandRecord {
   family     Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
   home       FamilyHome? @relation(fields: [homeId], references: [id], onDelete: SetNull)
+  assetId    String?
+  deed       Asset?     @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId, personId])
 }
@@ -1773,6 +1785,8 @@ model PersonFollow {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
 
+  mutedAt   DateTime?
+
   @@id([userId, personId])
   @@index([personId])
 }
@@ -1787,4 +1801,42 @@ model ShareLinkOpen {
   user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([shareLinkId, openedAt])
+}
+
+model HeirloomHold {
+  id         String    @id @default(cuid())
+  heirloomId String
+  personId   String
+  heldFrom   DateTime? @db.Date
+  heldUntil  DateTime? @db.Date
+  note       String?
+  createdAt  DateTime  @default(now())
+  heirloom   Heirloom  @relation(fields: [heirloomId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([heirloomId, heldFrom])
+}
+
+model FamilyMeeting {
+  id          String    @id @default(cuid())
+  familyId    String
+  title       String
+  happenedOn  DateTime? @db.Date
+  notes       String
+  createdById String
+  createdAt   DateTime  @default(now())
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  attendees   FamilyMeetingPerson[]
+
+  @@index([familyId, happenedOn])
+}
+
+model FamilyMeetingPerson {
+  meetingId String
+  personId  String
+  meeting   FamilyMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  person    Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, personId])
 }

@@ -28,7 +28,8 @@
     "test:ui:places": "tsx tests/ui-places-layer.ts",
     "test:ui:year": "tsx tests/ui-year-layer.ts",
     "test:ui:attach": "tsx tests/ui-attach-layer.ts",
-    "test:ui:follow": "tsx tests/ui-follow-layer.ts"
+    "test:ui:follow": "tsx tests/ui-follow-layer.ts",
+    "test:ui:box": "tsx tests/ui-box-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

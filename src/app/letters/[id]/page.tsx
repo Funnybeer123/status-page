@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
 import { KeepOutToggle } from "@/app/follow/ui";
 import { clippingPageHeading } from "@/lib/clippingPage";
+import { isTranscriptLocked, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
 
 export default async function LetterPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -21,6 +22,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
       people: { include: { person: true } },
       comments: { include: { author: true } },
       revisions: { include: { editedBy: { select: { name: true } } }, orderBy: { editedAt: "desc" } },
+      transcribedBy: { select: { name: true } },
       replyTo: true,
       replies: { orderBy: { writtenAt: "asc" } },
       handwritingSamples: { include: { person: true } },
@@ -36,6 +38,7 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
         {formatDate(letter.writtenAt, "Undated")}
         {letter.people.length ? ` · ${letter.people.map((item) => item.person.displayName).join(", ")}` : ""}
         {letter.needsReview ? " · Needs a transcript check" : ""}
+        {isTranscriptLocked(letter) ? ` · ${transcriptLockHeading(true)}` : ""}
       </p>
       <p className="mt-3 font-sans text-sm">
         <Link href={`/letters/${letter.id}/room`} className="text-seal" data-testid="reading-room-link">
@@ -70,6 +73,8 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           writtenAt={letter.writtenAt ? letter.writtenAt.toISOString().slice(0, 10) : ""}
           needsReview={letter.needsReview}
           canEdit={canWrite(ctx.role)}
+          locked={isTranscriptLocked(letter)}
+          credit={transcriptCreditLine(letter.transcribedBy?.name)}
         />
       </div>
       {letter.translation ? (

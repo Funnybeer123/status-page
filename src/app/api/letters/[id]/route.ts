@@ -4,6 +4,7 @@ import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { replaceChunks } from "@/lib/chunk";
+import { isTranscriptLocked, lockConflictMessage, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
 
 const schema = z.object({
   title: z.string().min(1).max(200).optional(),
@@ -12,6 +13,7 @@ const schema = z.object({
   writtenAt: z.string().optional().nullable(),
   needsReview: z.boolean().optional(),
   replyToId: z.string().optional().nullable(),
+  lock: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,9 +22,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid letter." }, { status: 400 });
-  const existing = await prisma.document.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
+  const existing = await prisma.document.findFirst({
+    where: { id, familyId: ctx.family.id, deletedAt: null },
+    include: { transcribedBy: { select: { name: true } } },
+  });
   if (!existing) return NextResponse.json({ error: "Letter not found." }, { status: 404 });
-  if (body.data.transcript !== undefined && body.data.transcript !== existing.transcript) {
+  const transcriptChanged = body.data.transcript !== undefined && body.data.transcript !== existing.transcript;
+  if (isTranscriptLocked(existing) && transcriptChanged) {
+    return NextResponse.json({ error: lockConflictMessage() }, { status: 409 });
+  }
+  if (transcriptChanged) {
     await prisma.documentRevision.create({
       data: {
         documentId: existing.id,
@@ -31,6 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       },
     });
   }
+  const lock = body.data.lock;
   const document = await prisma.document.update({
     where: { id },
     data: {
@@ -45,7 +55,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           : body.data.writtenAt
             ? new Date(body.data.writtenAt)
             : null,
+      transcribedById:
+        transcriptChanged || lock === true ? ctx.session.user.id : existing.transcribedById,
+      transcriptLockedAt:
+        lock === true ? new Date() : lock === false ? null : existing.transcriptLockedAt,
     },
+    include: { transcribedBy: { select: { name: true } } },
   });
   if (body.data.transcript !== undefined || body.data.translation !== undefined) {
     await replaceChunks({
@@ -54,5 +69,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       transcript: [document.transcript, document.translation].filter(Boolean).join("\n\n"),
     });
   }
-  return NextResponse.json({ document });
+  return NextResponse.json({
+    document,
+    credit: transcriptCreditLine(document.transcribedBy?.name),
+    lockHeading: transcriptLockHeading(isTranscriptLocked(document)),
+  });
 }

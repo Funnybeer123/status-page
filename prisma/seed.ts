@@ -2281,6 +2281,119 @@ async function ensureHartArchive() {
         },
       });
     }
+    const unsortedPath = writeMedia(
+      family.id,
+      "unsorted-harvest-program.svg",
+      svgScene("Harvest program", "Still in the box", "1947", "#4a3a2a"),
+    );
+    let unsorted = await prisma.asset.findFirst({
+      where: { familyId: family.id, title: "Harvest program still in the box" },
+    });
+    if (!unsorted) {
+      unsorted = await prisma.asset.create({
+        data: {
+          id: "asset-unsorted-program",
+          familyId: family.id,
+          kind: AssetKind.photo,
+          title: "Harvest program still in the box",
+          mimeType: "image/svg+xml",
+          storagePath: unsortedPath,
+          capturedAt: new Date("1947-10-18"),
+          uploadedById: demoUser.id,
+        },
+      });
+    }
+    const deedPath = writeMedia(
+      family.id,
+      "north-farm-deed.svg",
+      svgScene("North farm deed", "The north forty", "1948", "#2f3d2e"),
+    );
+    let deedAsset = await prisma.asset.findFirst({
+      where: { familyId: family.id, title: "North farm deed, 1948" },
+    });
+    if (!deedAsset) {
+      deedAsset = await prisma.asset.create({
+        data: {
+          id: "asset-north-farm-deed",
+          familyId: family.id,
+          kind: AssetKind.letter,
+          title: "North farm deed, 1948",
+          mimeType: "image/svg+xml",
+          storagePath: deedPath,
+          capturedAt: new Date("1948-06-14"),
+          uploadedById: demoUser.id,
+        },
+      });
+    }
+    await prisma.landRecord.update({
+      where: { id: "land-north-farm" },
+      data: { assetId: deedAsset.id },
+    });
+    const chest = await prisma.heirloom.findUnique({ where: { id: "heirloom-cedar-chest" } });
+    if (chest && margaret && lily) {
+      for (const hold of [
+        {
+          id: "hold-chest-eleanor",
+          personId: eleanor.id,
+          heldFrom: new Date("1948-06-14"),
+          heldUntil: new Date("1995-09-01"),
+          note: "Ellie kept the harvest letter in the tray.",
+        },
+        {
+          id: "hold-chest-margaret",
+          personId: margaret.id,
+          heldFrom: new Date("1995-09-01"),
+          heldUntil: new Date("2024-06-01"),
+          note: "Meg kept it in the upstairs hall.",
+        },
+        {
+          id: "hold-chest-lily",
+          personId: lily.id,
+          heldFrom: new Date("2024-06-01"),
+          heldUntil: null,
+          note: "Lily has it for the reunion display.",
+        },
+      ]) {
+        await prisma.heirloomHold.upsert({
+          where: { id: hold.id },
+          create: { ...hold, heirloomId: chest.id },
+          update: { heldFrom: hold.heldFrom, heldUntil: hold.heldUntil, note: hold.note },
+        });
+      }
+    }
+    const harvestLetter = await prisma.document.findUnique({ where: { id: "doc-harvest" } });
+    if (harvestLetter) {
+      await prisma.document.update({
+        where: { id: "doc-harvest" },
+        data: {
+          transcribedById: demoUser.id,
+          transcriptLockedAt: new Date("2026-03-01"),
+        },
+      });
+    }
+    if (samuel) {
+      await prisma.personFollow.upsert({
+        where: { userId_personId: { userId: demoUser.id, personId: samuel.id } },
+        create: { userId: demoUser.id, personId: samuel.id, mutedAt: new Date("2026-04-01") },
+        update: { mutedAt: new Date("2026-04-01") },
+      });
+    }
+    const meetingPeople = [eleanor.id, lily?.id, margaret?.id].filter(Boolean) as string[];
+    await prisma.familyMeeting.upsert({
+      where: { id: "meeting-harvest-planning" },
+      create: {
+        id: "meeting-harvest-planning",
+        familyId: family.id,
+        title: "Harvest planning at Meg's",
+        happenedOn: new Date("2026-03-20"),
+        notes: "Bring the cedar chest to the reunion. Lily will file the leftover program once we know whose lap it sat on.",
+        createdById: demoUser.id,
+        attendees: { create: meetingPeople.map((personId) => ({ personId })) },
+      },
+      update: {
+        notes: "Bring the cedar chest to the reunion. Lily will file the leftover program once we know whose lap it sat on.",
+      },
+    });
   }
 
   if (demoUser) {

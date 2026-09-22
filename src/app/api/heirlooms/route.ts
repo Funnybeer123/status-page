@@ -17,7 +17,7 @@ export async function GET() {
   if ("error" in ctx) return ctx.error;
   const heirlooms = await prisma.heirloom.findMany({
     where: { familyId: ctx.family.id },
-    include: { person: true },
+    include: { person: true, holds: { include: { person: true }, orderBy: { heldFrom: "asc" } } },
     orderBy: { title: "asc" },
   });
   return NextResponse.json({ heirlooms });

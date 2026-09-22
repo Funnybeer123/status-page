@@ -4,12 +4,13 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { landAbstractLine } from "@/lib/landAbstract";
 import { formatDate } from "@/lib/dates";
+import { deedHeading, hasDeed } from "@/lib/deed";
 
 export default async function AbstractsPage() {
   const ctx = await requireFamily();
   const records = await prisma.landRecord.findMany({
     where: { familyId: ctx.family.id, abstract: { not: null } },
-    include: { person: true, home: true },
+    include: { person: true, home: true, deed: true },
     orderBy: { acquiredOn: "asc" },
   });
   const rows = records.filter((row) => row.abstract?.trim());
@@ -40,6 +41,13 @@ export default async function AbstractsPage() {
                 abstract: row.abstract,
               })}
             </p>
+            {hasDeed(row) && row.deed ? (
+              <figure className="mt-4" data-testid="deed-image">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/api/media/${row.deed.storagePath}`} alt={deedHeading(row.title)} className="w-full bg-cream" />
+                <figcaption className="mt-2 font-sans text-sm text-gold">{deedHeading(row.title)}</figcaption>
+              </figure>
+            ) : null}
           </li>
         ))}
         {!rows.length ? <li className="text-bark">No abstracts yet.</li> : null}

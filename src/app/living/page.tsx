@@ -19,7 +19,10 @@ export default async function LivingPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="living-heading">Still living</h1>
-      <p className="mt-3 max-w-2xl text-bark">Relatives without a death date, so a reunion invitation list is close at hand.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Relatives without a death date, so a reunion invitation list is close at hand.{" "}
+        <Link href="/living/pyramid" className="text-seal">Age pyramid</Link>.
+      </p>
       <ul className="mt-10 space-y-3" data-testid="living-list">
         {living.map((person) => (
           <li key={person.id} className="paper-card p-5">

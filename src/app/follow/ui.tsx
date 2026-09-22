@@ -32,9 +32,10 @@ export function BookmarkButton({ personId, bookmarked }: { personId: string; boo
   );
 }
 
-export function FollowButton({ personId, following }: { personId: string; following: boolean }) {
+export function FollowButton({ personId, following, muted = false }: { personId: string; following: boolean; muted?: boolean }) {
   const router = useRouter();
   const [on, setOn] = useState(following);
+  const [quiet, setQuiet] = useState(muted);
   const [error, setError] = useState("");
   async function toggle() {
     const next = !on;
@@ -49,6 +50,23 @@ export function FollowButton({ personId, following }: { personId: string; follow
       return;
     }
     setOn(next);
+    if (!next) setQuiet(false);
+    router.refresh();
+  }
+  async function toggleMute() {
+    const next = !quiet;
+    const response = await fetch("/api/follows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ personId, muted: next }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error || "Could not mute that person.");
+      return;
+    }
+    setOn(true);
+    setQuiet(next);
     router.refresh();
   }
   return (
@@ -56,6 +74,17 @@ export function FollowButton({ personId, following }: { personId: string; follow
       <button type="button" onClick={toggle} className="rounded-full border border-bark/20 px-4 py-2 font-sans text-sm">
         {on ? "Stop following" : "Follow this person"}
       </button>
+      {on ? (
+        <button
+          type="button"
+          onClick={toggleMute}
+          className="ml-2 rounded-full border border-bark/20 px-4 py-2 font-sans text-sm"
+          data-testid="mute-follow"
+        >
+          {quiet ? "Unmute notices" : "Mute notices"}
+        </button>
+      ) : null}
+      {quiet ? <p className="mt-2 font-sans text-sm text-gold">Notices from this person are muted</p> : null}
       {error ? <p className="mt-2 font-sans text-sm text-seal">{error}</p> : null}
     </div>
   );

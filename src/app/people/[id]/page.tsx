@@ -490,7 +490,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             />
           ) : null}
           <BookmarkButton personId={person.id} bookmarked={Boolean(bookmarked)} />
-          <FollowButton personId={person.id} following={Boolean(following)} />
+          <FollowButton personId={person.id} following={Boolean(following)} muted={Boolean(following?.mutedAt)} />
           {canWrite(ctx.role) && !living ? <ShareLinkButton kind="memorial" entityId={person.id} /> : null}
           {canWrite(ctx.role) ? <TrashRestore type="person" id={person.id} /> : null}
           {canWrite(ctx.role) ? (

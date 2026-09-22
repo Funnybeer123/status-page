@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
-import { followHeading, followLine } from "@/lib/follows";
+import { followHeading, muteLine } from "@/lib/follows";
 
 export default async function FollowingPage() {
   const ctx = await requireFamily();
@@ -20,13 +20,15 @@ export default async function FollowingPage() {
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
         When someone adds a story, photograph, or letter about them, you get a notice.{" "}
-        <Link href="/following/new" className="text-seal">What is new about them</Link>.
+        <Link href="/following/new" className="text-seal">What is new about them</Link>
+        {" · "}
+        <Link href="/following/muted" className="text-seal">Muted follows</Link>.
       </p>
       <ul className="mt-10 space-y-3" data-testid="following-list">
         {follows.map((item) => (
           <li key={`${item.userId}-${item.personId}`} className="paper-card p-5">
             <Link href={`/people/${item.person.id}`} className="font-display text-2xl text-seal">
-              {followLine(item.person.displayName)}
+              {muteLine(item.person.displayName, Boolean(item.mutedAt))}
             </Link>
           </li>
         ))}

@@ -26,6 +26,21 @@ export function followFeedHeading(count: number) {
   return `${count} new things about people you follow`;
 }
 
+export function muteHeading(muted: boolean) {
+  return muted ? "Notices from this person are muted" : "You will get notices about this person";
+}
+
+export function mutedFollowsHeading(count: number) {
+  if (!count) return "No muted follows";
+  if (count === 1) return "1 muted follow";
+  return `${count} muted follows`;
+}
+
+export function muteLine(name: string, muted: boolean) {
+  const who = name.trim() || "this person";
+  return muted ? `${who} · notices muted` : followLine(who);
+}
+
 export type FollowKind = "story" | "photo" | "letter";
 
 export function followHref(kind: FollowKind, entityId: string) {
@@ -46,7 +61,7 @@ export async function notifyFollowers(input: {
   const personIds = [...new Set(input.personIds.filter(Boolean))];
   if (!personIds.length) return 0;
   const follows = await prisma.personFollow.findMany({
-    where: { personId: { in: personIds }, userId: { not: input.actorId } },
+    where: { personId: { in: personIds }, userId: { not: input.actorId }, mutedAt: null },
     include: { person: { select: { displayName: true } } },
   });
   if (!follows.length) return 0;
