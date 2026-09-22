@@ -216,7 +216,7 @@ test("a relative can print a funeral program, compare two letters, and keep the 
     assert.equal(cedar.href, `/places/${ids.place}`);
     const page = await maya.html("/atlas");
     assert.match(page.text, /Cedar Falls/);
-    assert.match(page.text, `/places/${ids.place}`);
+    assert.ok(page.text.includes(`/places/${ids.place}`));
     const places = await maya.html("/places");
     assert.match(places.text, /places-heading/);
     const empty = await maya.json<{ heading: string; places: { name: string }[] }>("/api/atlas/empty");

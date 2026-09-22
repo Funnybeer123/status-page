@@ -153,6 +153,7 @@ export default async function MapPage({
                   <circle cx={point.x} cy={point.y} r={stopIndex >= 0 ? 9 : 7} className={stopIndex >= 0 ? "fill-seal" : "fill-moss"} />
                   <text x={point.x + 12} y={point.y + 4} className="fill-ink" fontSize="14">
                     {stopIndex >= 0 ? `${stopIndex + 1}. ${place.name}` : place.name}
+                    {place.gps ? ` · GPS ${place.gps}` : ""}
                   </text>
                 </g>
               );
@@ -192,9 +193,9 @@ export default async function MapPage({
               {place.latitude != null && place.longitude != null ? (
                 <p className="font-sans text-sm text-bark">
                   {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
+                  {place.gps ? ` · GPS ${place.gps}` : ""}
                 </p>
-              ) : null}
-              {place.gps ? (
+              ) : place.gps ? (
                 <p className="font-sans text-sm text-gold" data-testid={`map-gps-${place.id}`}>
                   GPS {place.gps}
                 </p>
@@ -224,6 +225,15 @@ export default async function MapPage({
           {!visible.length ? <li className="text-bark">No places yet. Record a residence from a person page.</li> : null}
         </ul>
       )}
+      {visible.some((place) => place.gps) ? (
+        <ul className="mt-8 space-y-2" data-testid="map-gps-list">
+          {visible.filter((place) => place.gps).map((place) => (
+            <li key={`gps-${place.id}`} className="font-sans text-sm text-gold" data-testid={`map-gps-${place.id}`}>
+              GPS {place.gps} · {place.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </AppShell>
   );
 }
