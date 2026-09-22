@@ -170,8 +170,10 @@ test("a relative can pack a life, protect a child, and keep later family records
     assert.equal(hidden.body.person.childHidden, true);
     assert.equal(hidden.body.person.tags.length, 0);
     const childPage = await viewer.html(`/people/${ids.nora}`);
-    assert.match(childPage.text, /Living children are hidden|living child/i);
-    assert.doesNotMatch(childPage.text, /2018-06-14|Born 14 June 2018/);
+    assert.match(childPage.text, /data-testid="child-privacy-note"/);
+    assert.match(childPage.text, /Living children are hidden from viewers/);
+    assert.doesNotMatch(childPage.text, /Born 14 June 2018/);
+    assert.doesNotMatch(childPage.text, /Nora at the picnic/);
     const viewerMedia = await viewer.request(`/api/media/${paths.childPhoto}`);
     assert.equal(viewerMedia.status, 404);
     const viewerPacket = await viewer.request(`/api/people/${ids.nora}/packet`);
