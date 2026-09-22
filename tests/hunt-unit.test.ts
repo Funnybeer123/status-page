@@ -40,7 +40,12 @@ test("siblings line up in birth order", () => {
     { id: "helen", displayName: "Helen Whitaker", birthDate: "1954-09-12" },
     { id: "undated", displayName: "Baby Whitaker", birthDate: null },
   ]);
+  const fromDates = birthOrder([
+    { id: "june", displayName: "June Whitaker", birthDate: new Date("1956-04-01T00:00:00Z") },
+    { id: "helen", displayName: "Helen Whitaker", birthDate: new Date("1954-09-12T00:00:00Z") },
+  ]);
   assert.equal(ordered[0]?.displayName, "Helen Whitaker");
+  assert.equal(fromDates[0]?.displayName, "Helen Whitaker");
   assert.equal(ordered[0]?.order, 1);
   assert.equal(ordered[2]?.displayName, "Baby Whitaker");
   assert.match(birthOrderHeading("June Whitaker", 3), /Birth order/);

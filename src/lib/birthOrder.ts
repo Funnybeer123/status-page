@@ -4,12 +4,19 @@ export type BirthOrderPerson = {
   birthDate?: Date | string | null;
 };
 
+function birthKey(value?: Date | string | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toISOString();
+}
+
 export function sortByBirth<T extends BirthOrderPerson>(people: T[]) {
   return [...people].sort((a, b) => {
     if (!a.birthDate && !b.birthDate) return a.displayName.localeCompare(b.displayName);
     if (!a.birthDate) return 1;
     if (!b.birthDate) return -1;
-    return String(a.birthDate).localeCompare(String(b.birthDate));
+    return birthKey(a.birthDate).localeCompare(birthKey(b.birthDate));
   });
 }
 
