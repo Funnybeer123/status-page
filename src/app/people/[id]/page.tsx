@@ -60,6 +60,15 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     person.citations = [];
     person.events = person.events.filter((event) => !hideEventFromViewer(ctx.role, { ...event, person }));
   }
+  if (hideChild) {
+    person.notes = null;
+    person.birthDate = null;
+    person.tags = [];
+    person.documents = [];
+    person.citations = [];
+    person.storiesTold = [];
+    person.storyLinks = [];
+  }
   const letters = hideChild
     ? []
     : person.documents.filter((item) => item.document.kind !== "story" && !item.document.deletedAt);
