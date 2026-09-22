@@ -15,7 +15,7 @@ export function usualDocumentTypes() {
   return USUAL_DOCUMENT_TYPES.map((item) => ({ ...item }));
 }
 
-export function checklistHeading(done: number, total = USUAL_DOCUMENT_TYPES.length) {
+export function checklistHeading(done: number, total: number = USUAL_DOCUMENT_TYPES.length) {
   if (!total) return "Research checklist";
   if (!done) return `Research checklist — ${total} usual document types`;
   if (done >= total) return "Research checklist — every usual document is marked";
