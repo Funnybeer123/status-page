@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { RelatedForm } from "@/app/related/ui";
 import { requireFamily } from "@/lib/family";
@@ -32,6 +33,14 @@ export default async function RelatedPage({
       <h1 className="mt-2 font-display text-4xl" data-testid="related-heading">How are we related?</h1>
       <p className="mt-3 max-w-2xl text-bark">
         Follow parent and partner links already on the tree. The path is the chain of people a relative would walk at a reunion — not only the label.
+        {from && to ? (
+          <>
+            {" "}
+            <Link href={`/related/card?from=${from}&to=${to}`} className="text-seal">
+              Printable related card
+            </Link>
+          </>
+        ) : null}
       </p>
       <RelatedForm people={people} fromId={fromId} toId={to} result={result} pathSvg={pathSvg} pathLabel={pathLabel} />
     </AppShell>

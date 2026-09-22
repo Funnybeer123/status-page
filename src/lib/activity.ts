@@ -90,6 +90,7 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "award") return "/awards";
   if (entityType === "club") return "/clubs";
   if (entityType === "probate") return "/probate";
+  if (entityType === "inheritance") return "/inheritances";
   if (entityType === "naturalization") return "/naturalizations";
   if (entityType === "address") return "/addresses";
   if (entityType === "apprenticeship") return "/apprentices";

@@ -90,6 +90,7 @@ model User {
   passwordHash String
   quietMode    Boolean      @default(false)
   nightMode    Boolean      @default(false)
+  askPreferTranslation Boolean @default(false)
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   assets       Asset[]      @relation("UploadedBy")
@@ -235,6 +236,8 @@ model Family {
   trashAudits   TrashAudit[]
   readLaterItems ReadLater[]
   interviewPlans InterviewPlan[]
+  inheritanceItems InheritanceItem[]
+  reunionShifts ReunionShift[]
 }
 
 model Membership {
@@ -284,6 +287,10 @@ model Person {
   photoGuesses   PhotoGuess[]
   spokenAssets   Asset[]          @relation("SpokenBy")
   interviewPlans InterviewPlan[]
+  favoriteAssetId String?
+  favoriteAsset  Asset?           @relation("FavoritePhoto", fields: [favoriteAssetId], references: [id], onDelete: SetNull)
+  inheritedItems InheritanceItem[] @relation("InheritedBy")
+  reunionShifts  ReunionShift[]
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -426,6 +433,7 @@ model Asset {
   filmCaptions   FilmCaption[] @relation("FilmCaptionFilm")
   oralCaptions   FilmCaption[] @relation("FilmCaptionOral")
   guesses        PhotoGuess[]
+  favoritedBy    Person[]      @relation("FavoritePhoto")
 }
 
 model PersonTag {
@@ -489,10 +497,12 @@ model Document {
   postmarkedAt   DateTime?        @db.Date
   stampText      String?
   postage        String?
+  foldPattern    String?
   weather        String?
   secretUntil    DateTime?        @db.Date
   ocrConfidence  Int?
   readLaterItems ReadLater[]
+  inheritances   InheritanceItem[]
 }
 
 model DocumentPerson {
@@ -1049,6 +1059,7 @@ model ReunionGathering {
   brings     ReunionBring[]
   seats      ReunionSeat[]
   shopItems  ReunionShopItem[]
+  shifts     ReunionShift[]
 
   @@index([familyId, happenedOn])
 }
@@ -1296,6 +1307,7 @@ model ProbateRecord {
   notes      String?
   family     Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  inheritances InheritanceItem[]
 
   @@index([familyId, personId])
 }
@@ -2264,6 +2276,40 @@ model InterviewPlan {
   person      Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([familyId, scheduledOn])
+}
+
+model InheritanceItem {
+  id         String         @id @default(cuid())
+  familyId   String
+  personId   String
+  documentId String?
+  probateId  String?
+  title      String
+  notes      String?
+  createdAt  DateTime       @default(now())
+  family     Family         @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person     Person         @relation("InheritedBy", fields: [personId], references: [id], onDelete: Cascade)
+  document   Document?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  probate    ProbateRecord? @relation(fields: [probateId], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@index([personId])
+}
+
+model ReunionShift {
+  id        String           @id @default(cuid())
+  familyId  String
+  reunionId String
+  personId  String
+  label     String
+  startsAt  String?
+  notes     String?
+  createdAt DateTime         @default(now())
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion   ReunionGathering @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  person    Person           @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, reunionId])
 }
 
 model ReadLater {

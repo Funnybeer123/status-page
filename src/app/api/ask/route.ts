@@ -7,6 +7,7 @@ import { askAndRemember, loadConversation, parseSources } from "@/lib/askConvers
 const schema = z.object({
   question: z.string().min(1).max(500),
   conversationId: z.string().optional(),
+  bilingual: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
     userId: ctx.session.user.id,
     question: body.data.question,
     conversationId: body.data.conversationId,
+    bilingual: body.data.bilingual,
   });
   return NextResponse.json(result);
 }

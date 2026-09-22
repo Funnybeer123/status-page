@@ -16,7 +16,10 @@ export default async function PromptsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="prompts-heading">Story prompts</h1>
-      <p className="mt-3 max-w-2xl text-bark">Questions a relative can answer in their own words.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Questions a relative can answer in their own words.{" "}
+        <Link href="/circles" className="text-seal">Story circles</Link>
+      </p>
       {canWrite(ctx.role) ? <PromptForm /> : null}
       <ul className="mt-10 space-y-4" data-testid="prompts-list">
         {prompts.map((prompt) => (

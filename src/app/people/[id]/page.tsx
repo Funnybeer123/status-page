@@ -22,6 +22,8 @@ import { childPublicName } from "@/lib/children";
 import { qualityLabel } from "@/lib/sourceQuality";
 import { placeLabel } from "@/lib/places";
 import { compileSameDay, emptySameDayHeading, sameDayHeading } from "@/lib/sameDay";
+import { FavoriteStarForm } from "@/app/story-circle/ui";
+import { favoritePhotoHeading } from "@/lib/favoritePhoto";
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -69,6 +71,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   ]);
   const profile = person.profileAssetId
     ? await prisma.asset.findUnique({ where: { id: person.profileAssetId } })
+    : null;
+  const favorite = person.favoriteAssetId
+    ? await prisma.asset.findFirst({
+        where: { id: person.favoriteAssetId, familyId: ctx.family.id, deletedAt: null },
+        include: { tags: { include: { person: true } } },
+      })
     : null;
   const living = isLiving(person);
   const hidden = shouldHideLivingFacts(ctx.role, person);
@@ -119,6 +127,13 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         (tag) => !tag.asset.deletedAt && !hidePhotoFromAudience(ctx.role, tag.asset.tags.map((item) => item.person)),
       );
   const showProfile = profile && !hideChild;
+  const showFavorite =
+    favorite &&
+    !hideChild &&
+    !hidePhotoFromAudience(
+      ctx.role,
+      favorite.tags.map((tag) => tag.person),
+    );
   const chapters = hideChild
     ? []
     : compileLifeChapters({
@@ -343,6 +358,27 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <p className="paper-card p-4 font-sans text-sm text-bark" data-testid="living-privacy-note">
               Some dates, notes, and places are hidden because this person is living. Contributors and owners still see the full record.
             </p>
+          ) : null}
+          {showFavorite ? (
+            <aside className="paper-card overflow-hidden p-5" data-testid="favorite-photo">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">
+                {favoritePhotoHeading(person.displayName)}
+              </p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/media/${favorite.storagePath}`}
+                alt={favorite.title || person.displayName}
+                className="mt-3 w-full bg-cream"
+              />
+              {favorite.title ? <p className="mt-2 text-bark">{favorite.title}</p> : null}
+            </aside>
+          ) : null}
+          {!hideChild && canWrite(ctx.role) ? (
+            <FavoriteStarForm
+              personId={person.id}
+              favoriteAssetId={person.favoriteAssetId}
+              photos={archiveTags.map((tag) => ({ id: tag.asset.id, title: tag.asset.title }))}
+            />
           ) : null}
           {!hideChild ? (
             <aside className="paper-card p-5" data-testid="same-day-strip">

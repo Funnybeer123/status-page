@@ -3710,6 +3710,207 @@ async function ensureHartArchive() {
     },
     update: { happenedOn: new Date("1947-09-22"), title: "Eleanor hems the harvest dress" },
   });
+
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: { foldPattern: "in thirds" },
+  });
+  const eleanorFavorite = await prisma.asset.findFirst({
+    where: { familyId: family.id, title: "Eleanor Hart, about 1948", deletedAt: null },
+  });
+  if (eleanorFavorite) {
+    await prisma.person.update({
+      where: { id: eleanor.id },
+      data: { favoriteAssetId: eleanorFavorite.id },
+    });
+    await prisma.asset.update({
+      where: { id: eleanorFavorite.id },
+      data: { createdAt: new Date("2016-03-12T14:00:00Z") },
+    });
+  }
+  if (lilyLiving) {
+    await prisma.inheritanceItem.upsert({
+      where: { id: "inherit-hatband" },
+      create: {
+        id: "inherit-hatband",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        documentId: "doc-samuel-will",
+        probateId: "probate-samuel",
+        title: "Navy hatband",
+        notes: "Whoever still keeps Sunday rolls.",
+      },
+      update: { title: "Navy hatband", documentId: "doc-samuel-will", probateId: "probate-samuel" },
+    });
+  }
+  if (robertLiving) {
+    await prisma.inheritanceItem.upsert({
+      where: { id: "inherit-north-farm" },
+      create: {
+        id: "inherit-north-farm",
+        familyId: family.id,
+        personId: robertLiving.id,
+        documentId: "doc-samuel-will",
+        probateId: "probate-samuel",
+        title: "North farm",
+        notes: "The bee yard stays with the children.",
+      },
+      update: { title: "North farm", documentId: "doc-samuel-will", probateId: "probate-samuel" },
+    });
+  }
+  await prisma.storyPrompt.upsert({
+    where: { id: "prompt-sunday-rolls" },
+    create: {
+      id: "prompt-sunday-rolls",
+      familyId: family.id,
+      title: "Who still makes the Sunday rolls?",
+      body: "Name the bowl and the hands.",
+    },
+    update: { title: "Who still makes the Sunday rolls?" },
+  });
+  if (demoUser && lilyLiving && margaretLiving) {
+    const lilyCircle = await prisma.document.upsert({
+      where: { id: "doc-circle-lily-met" },
+      create: {
+        id: "doc-circle-lily-met",
+        familyId: family.id,
+        title: "Lily Chen on how the grandparents met",
+        kind: DocKind.story,
+        transcript: "Grandma said the cider was too sweet and Grandpa asked to walk her home past the cottonwoods.",
+        writtenAt: new Date("2024-07-04"),
+        people: { create: [{ personId: lilyLiving.id }] },
+      },
+      update: { transcript: "Grandma said the cider was too sweet and Grandpa asked to walk her home past the cottonwoods." },
+    });
+    const lilyStory = await prisma.story.upsert({
+      where: { id: "story-circle-lily-met" },
+      create: {
+        id: "story-circle-lily-met",
+        familyId: family.id,
+        title: "Lily Chen on how the grandparents met",
+        body: lilyCircle.transcript,
+        recordedAt: new Date("2024-07-04"),
+        tellerPersonId: lilyLiving.id,
+        documentId: lilyCircle.id,
+        people: { create: [{ personId: lilyLiving.id }] },
+      },
+      update: { body: lilyCircle.transcript, documentId: lilyCircle.id },
+    });
+    await prisma.storyPromptAnswer.upsert({
+      where: { id: "answer-circle-lily-met" },
+      create: {
+        id: "answer-circle-lily-met",
+        promptId: "prompt-how-met",
+        storyId: lilyStory.id,
+        authorId: demoUser.id,
+      },
+      update: { storyId: lilyStory.id },
+    });
+    const megCircle = await prisma.document.upsert({
+      where: { id: "doc-circle-meg-met" },
+      create: {
+        id: "doc-circle-meg-met",
+        familyId: family.id,
+        title: "Margaret Chen on how the grandparents met",
+        kind: DocKind.story,
+        transcript: "Mother handed me the harvest letter. That is still how I tell it: the Grange hall, then the cottonwoods.",
+        writtenAt: new Date("2016-03-12"),
+        people: { create: [{ personId: margaretLiving.id }] },
+      },
+      update: { transcript: "Mother handed me the harvest letter. That is still how I tell it: the Grange hall, then the cottonwoods." },
+    });
+    const megStory = await prisma.story.upsert({
+      where: { id: "story-circle-meg-met" },
+      create: {
+        id: "story-circle-meg-met",
+        familyId: family.id,
+        title: "Margaret Chen on how the grandparents met",
+        body: megCircle.transcript,
+        recordedAt: new Date("2016-03-12"),
+        tellerPersonId: margaretLiving.id,
+        documentId: megCircle.id,
+        people: { create: [{ personId: margaretLiving.id }] },
+      },
+      update: { body: megCircle.transcript, documentId: megCircle.id },
+    });
+    await prisma.storyPromptAnswer.upsert({
+      where: { id: "answer-circle-meg-met" },
+      create: {
+        id: "answer-circle-meg-met",
+        promptId: "prompt-how-met",
+        storyId: megStory.id,
+        authorId: demoUser.id,
+      },
+      update: { storyId: megStory.id },
+    });
+    const rollsDoc = await prisma.document.upsert({
+      where: { id: "doc-circle-meg-rolls" },
+      create: {
+        id: "doc-circle-meg-rolls",
+        familyId: family.id,
+        title: "Margaret Chen on Sunday rolls",
+        kind: DocKind.story,
+        transcript: "The navy-blue bowl is still in the upstairs hall. Lily warms the milk now.",
+        writtenAt: new Date("2024-03-31"),
+        people: { create: [{ personId: margaretLiving.id }] },
+      },
+      update: { transcript: "The navy-blue bowl is still in the upstairs hall. Lily warms the milk now." },
+    });
+    const rollsStory = await prisma.story.upsert({
+      where: { id: "story-circle-meg-rolls" },
+      create: {
+        id: "story-circle-meg-rolls",
+        familyId: family.id,
+        title: "Margaret Chen on Sunday rolls",
+        body: rollsDoc.transcript,
+        recordedAt: new Date("2024-03-31"),
+        tellerPersonId: margaretLiving.id,
+        documentId: rollsDoc.id,
+        people: { create: [{ personId: margaretLiving.id }] },
+      },
+      update: { body: rollsDoc.transcript, documentId: rollsDoc.id },
+    });
+    await prisma.storyPromptAnswer.upsert({
+      where: { id: "answer-circle-meg-rolls" },
+      create: {
+        id: "answer-circle-meg-rolls",
+        promptId: "prompt-sunday-rolls",
+        storyId: rollsStory.id,
+        authorId: demoUser.id,
+      },
+      update: { storyId: rollsStory.id },
+    });
+  }
+  if (lilyLiving) {
+    await prisma.reunionShift.upsert({
+      where: { id: "shift-lily-morning" },
+      create: {
+        id: "shift-lily-morning",
+        familyId: family.id,
+        reunionId: "reunion-hart-harvest-2026",
+        personId: lilyLiving.id,
+        label: "Morning scanner",
+        startsAt: "morning",
+        notes: "Bring the portable scanner for the harvest letters.",
+      },
+      update: { label: "Morning scanner", startsAt: "morning" },
+    });
+  }
+  if (margaretLiving) {
+    await prisma.reunionShift.upsert({
+      where: { id: "shift-margaret-afternoon" },
+      create: {
+        id: "shift-margaret-afternoon",
+        familyId: family.id,
+        reunionId: "reunion-hart-harvest-2026",
+        personId: margaretLiving.id,
+        label: "Afternoon indexer",
+        startsAt: "afternoon",
+        notes: "Write titles on the new scans.",
+      },
+      update: { label: "Afternoon indexer", startsAt: "afternoon" },
+    });
+  }
 }
 
 async function writeHartMedia() {

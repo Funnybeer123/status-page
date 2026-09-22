@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { RecordForm } from "@/app/records/ui";
 import { requireFamily } from "@/lib/family";
@@ -19,7 +20,10 @@ export default async function DigitizePage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="digitize-heading">Digitization queue</h1>
-      <p className="mt-3 max-w-2xl text-bark">Physical letters, photographs, and Bibles that still need a scan.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Physical letters, photographs, and Bibles that still need a scan.{" "}
+        <Link href="/reunions/shifts/missing" className="text-seal">Digitizing shifts</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="digitize"

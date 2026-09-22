@@ -17,7 +17,10 @@ export default async function ActivityPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="activity-heading">Activity</h1>
-      <p className="mt-3 max-w-2xl text-bark">Who added what — people, letters, photographs, stories, and comments.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Who added what — people, letters, photographs, stories, and comments.{" "}
+        <Link href="/activity/heatmap" className="text-seal">Activity heatmap</Link>
+      </p>
       <ol className="mt-10 space-y-3" data-testid="activity-list">
         {activities.map((item) => (
           <li key={item.id} className="paper-card p-5">

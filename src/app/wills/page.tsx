@@ -21,7 +21,10 @@ export default async function WillsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="wills-heading">Wills</h1>
-      <p className="mt-3 max-w-2xl text-bark">What someone left in writing, and who they named.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        What someone left in writing, and who they named.{" "}
+        <Link href="/inheritances" className="text-seal">Who inherited what</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <WillForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
       ) : null}

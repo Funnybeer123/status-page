@@ -28,6 +28,7 @@ import { nightQuietHeading } from "@/lib/nightMode";
 import { GuestBookForm } from "@/app/then-now/ui";
 import { emptyGuestBookHeading, guestBookHeading, guestBookLine } from "@/lib/guestBook";
 import { compileFamilyHour } from "@/lib/familyHour";
+import { anniversaryLine, yearsSinceFirstUpload } from "@/lib/anniversary";
 
 export default async function HomePage() {
   const session = await auth();
@@ -176,10 +177,16 @@ export default async function HomePage() {
     );
   }
 
-  const [reunions, interviewPlans] = await Promise.all([
+  const [reunions, interviewPlans, firstUpload] = await Promise.all([
     prisma.reunionGathering.findMany({ where: { familyId: ctx.family.id } }),
     prisma.interviewPlan.findMany({ where: { familyId: ctx.family.id }, include: { person: true } }),
+    prisma.asset.findFirst({
+      where: { familyId: ctx.family.id, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { createdAt: true },
+    }),
   ]);
+  const homeAnniversaryYears = yearsSinceFirstUpload(firstUpload?.createdAt);
   const homeHour = compileFamilyHour([
     ...reunions.map((reunion) => ({
       id: reunion.id,
@@ -224,6 +231,15 @@ export default async function HomePage() {
           <p className="mt-2 font-display text-2xl">{homeHour.line}</p>
           <Link href="/hour" className="mt-2 inline-block font-sans text-sm text-seal">
             Open the countdown
+          </Link>
+        </aside>
+      ) : null}
+      {firstUpload ? (
+        <aside className="mt-4 paper-card p-5" data-testid="home-anniversary">
+          <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Archive anniversary</p>
+          <p className="mt-2 font-display text-2xl">{anniversaryLine(homeAnniversaryYears, firstUpload.createdAt)}</p>
+          <Link href="/anniversary" className="mt-2 inline-block font-sans text-sm text-seal">
+            Years since the first upload
           </Link>
         </aside>
       ) : null}

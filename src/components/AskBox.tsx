@@ -28,6 +28,7 @@ export function AskBox({
   action = "/api/ask",
   persist = true,
   storyHref: initialStoryHref,
+  bilingual = false,
 }: {
   suggested: string;
   conversationId?: string;
@@ -36,6 +37,7 @@ export function AskBox({
   action?: string;
   persist?: boolean;
   storyHref?: string;
+  bilingual?: boolean;
 }) {
   const router = useRouter();
   const [question, setQuestion] = useState(initialMessages.length ? "" : suggested);
@@ -58,7 +60,11 @@ export function AskBox({
       const response = await fetch(action, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text, conversationId: persist ? conversationId || undefined : undefined }),
+        body: JSON.stringify({
+          question: text,
+          conversationId: persist ? conversationId || undefined : undefined,
+          ...(bilingual ? { bilingual: true } : {}),
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error || "Ask failed.");

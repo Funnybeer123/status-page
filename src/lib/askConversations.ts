@@ -29,6 +29,7 @@ export async function askAndRemember(input: {
   userId: string;
   question: string;
   conversationId?: string | null;
+  bilingual?: boolean;
 }): Promise<AskResult & { conversationId: string }> {
   let conversation = input.conversationId
     ? await loadConversation(input.familyId, input.userId, input.conversationId)
@@ -44,7 +45,15 @@ export async function askAndRemember(input: {
     });
   }
   const prior = turnsToPrior(conversation.turns);
-  const result = await answerQuestion(input.familyId, input.question, prior);
+  let bilingual = input.bilingual;
+  if (bilingual == null) {
+    const user = await prisma.user.findUnique({
+      where: { id: input.userId },
+      select: { askPreferTranslation: true },
+    });
+    bilingual = Boolean(user?.askPreferTranslation);
+  }
+  const result = await answerQuestion(input.familyId, input.question, prior, { bilingual });
   await prisma.askTurn.create({
     data: { conversationId: conversation.id, role: "user", text: input.question.trim() },
   });

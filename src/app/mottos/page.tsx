@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { RecordForm } from "@/app/records/ui";
 import { requireFamily } from "@/lib/family";
@@ -12,7 +13,10 @@ export default async function MottosPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="mottos-heading">Family mottos</h1>
-      <p className="mt-3 max-w-2xl text-bark">Words the family still repeats.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Words the family still repeats.{" "}
+        <Link href="/tents" className="text-seal">Table tents</Link>
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="motto"

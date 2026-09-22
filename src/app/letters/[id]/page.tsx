@@ -19,7 +19,9 @@ import { CiteBlock } from "@/components/CiteBlock";
 import { PostmarkForm } from "@/app/then-now/ui";
 import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
 import { PostageForm } from "@/app/family-hour/ui";
+import { FoldForm } from "@/app/story-circle/ui";
 import { hasPostage, postageLine } from "@/lib/postage";
+import { foldLine, hasFold } from "@/lib/letterFold";
 import { SecretUntilForm, WeatherForm, OcrConfidenceForm } from "@/app/memory-lane/ui";
 import { ReadLaterButton } from "@/app/alive-when/ui";
 import { hiddenSecretBody, isSecretLocked, secretUntilLine } from "@/lib/secretUntil";
@@ -98,6 +100,10 @@ export default async function LetterPage({
         {" · "}
         <Link href="/letters/postage" className="text-seal" data-testid="postage-link">
           Postage
+        </Link>
+        {" · "}
+        <Link href={`/letters/${letter.id}/fold`} className="text-seal" data-testid="fold-link">
+          Fold
         </Link>
         {letter.people[0] ? (
           <>
@@ -253,6 +259,12 @@ export default async function LetterPage({
         <section className="mt-10" data-testid="letter-postage">
           <h2 className="font-display text-2xl">{postageLine(letter.postage)}</h2>
           {canWrite(ctx.role) ? <PostageForm letterId={letter.id} postage={letter.postage} /> : null}
+        </section>
+      ) : null}
+      {hasFold(letter) || canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-fold">
+          <h2 className="font-display text-2xl">{foldLine(letter.foldPattern)}</h2>
+          {canWrite(ctx.role) ? <FoldForm letterId={letter.id} foldPattern={letter.foldPattern} /> : null}
         </section>
       ) : null}
       <CiteBlock title={letter.title} path={`/letters/${letter.id}`} />

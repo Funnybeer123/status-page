@@ -70,6 +70,25 @@ const HART_MEETING_ANSWER =
 
 export type AskTurnInput = { role: "user" | "assistant"; text: string };
 
+export type AskOptions = { bilingual?: boolean };
+
+export function preferAskText(transcript?: string | null, translation?: string | null, bilingual = false) {
+  const original = transcript?.trim() || "";
+  const rendered = translation?.trim() || "";
+  if (bilingual && rendered) return rendered;
+  return original;
+}
+
+export function bilingualAskHeading(on: boolean) {
+  return on ? "Ask · prefer the translation" : "Ask · original wording";
+}
+
+export function missingTranslationHeading(count: number) {
+  if (!count) return "Every letter already has a translation";
+  if (count === 1) return "1 letter still needs a translation";
+  return `${count} letters still need a translation`;
+}
+
 export function isFollowUp(question: string) {
   const q = question.trim();
   if (!q) return false;
@@ -95,15 +114,17 @@ export async function answerQuestion(
   familyId: string,
   question: string,
   prior: AskTurnInput[] = [],
+  options: AskOptions = {},
 ): Promise<AskResult> {
   const trimmed = question.trim();
   if (!trimmed) {
     return { answer: "Ask a question about this family’s letters and notes.", sources: [], mode: "seeded" };
   }
 
+  const bilingual = Boolean(options.bilingual);
   const lookup = expandAskQuery(trimmed, prior);
-  const retrieved = await retrieve(familyId, lookup);
-  const harvestInThisFamily = await loadDocumentSource(familyId, "doc-harvest");
+  const retrieved = await retrieve(familyId, lookup, bilingual);
+  const harvestInThisFamily = await loadDocumentSource(familyId, "doc-harvest", bilingual);
 
   if (isMeetingQuestion(lookup) && harvestInThisFamily) {
     const harvest =
@@ -138,7 +159,11 @@ export async function answerQuestion(
   };
 }
 
-async function loadDocumentSource(familyId: string, documentId: string): Promise<AskSource | null> {
+async function loadDocumentSource(
+  familyId: string,
+  documentId: string,
+  bilingual = false,
+): Promise<AskSource | null> {
   const doc = await prisma.document.findFirst({
     where: { id: documentId, familyId, keepOutOfAsk: false },
   });
@@ -148,19 +173,26 @@ async function loadDocumentSource(familyId: string, documentId: string): Promise
     title: doc.title,
     writtenAt: doc.writtenAt ? formatDate(doc.writtenAt) : null,
     kind: doc.kind,
-    excerpt: doc.transcript.slice(0, 420),
+    excerpt: preferAskText(doc.transcript, doc.translation, bilingual).slice(0, 420),
   };
 }
 
-async function retrieve(familyId: string, question: string): Promise<AskSource[]> {
+async function retrieve(familyId: string, question: string, bilingual = false): Promise<AskSource[]> {
   const key = process.env.OPENAI_API_KEY;
   if (key) {
     const embedding = await createEmbedding(question);
     if (embedding) {
       const rows = await prisma.$queryRaw<
-        { documentId: string; content: string; title: string; writtenAt: Date | null; kind: string }[]
+        {
+          documentId: string;
+          content: string;
+          title: string;
+          writtenAt: Date | null;
+          kind: string;
+          translation: string | null;
+        }[]
       >`
-        SELECT c."documentId", c.content, d.title, d."writtenAt", d.kind::text
+        SELECT c."documentId", c.content, d.title, d."writtenAt", d.kind::text, d.translation
         FROM "Chunk" c
         JOIN "Document" d ON d.id = c."documentId"
         WHERE c."familyId" = ${familyId}
@@ -176,7 +208,7 @@ async function retrieve(familyId: string, question: string): Promise<AskSource[]
             title: row.title,
             writtenAt: row.writtenAt ? formatDate(row.writtenAt) : null,
             kind: row.kind,
-            excerpt: row.content,
+            excerpt: preferAskText(row.content, row.translation, bilingual),
           })),
         );
       }
@@ -189,16 +221,21 @@ async function retrieve(familyId: string, question: string): Promise<AskSource[]
   });
   return uniqueSources(
     chunks
-      .map((chunk) => ({
-        score: scoreOverlap(question, `${chunk.document.title} ${chunk.content}`),
-        source: {
-          documentId: chunk.documentId,
-          title: chunk.document.title,
-          writtenAt: chunk.document.writtenAt ? formatDate(chunk.document.writtenAt) : null,
-          kind: chunk.document.kind,
-          excerpt: chunk.content,
-        },
-      }))
+      .map((chunk) => {
+        const scored = bilingual
+          ? `${chunk.content} ${chunk.document.translation || ""}`
+          : chunk.content;
+        return {
+          score: scoreOverlap(question, `${chunk.document.title} ${scored}`),
+          source: {
+            documentId: chunk.documentId,
+            title: chunk.document.title,
+            writtenAt: chunk.document.writtenAt ? formatDate(chunk.document.writtenAt) : null,
+            kind: chunk.document.kind,
+            excerpt: preferAskText(chunk.content, chunk.document.translation, bilingual),
+          },
+        };
+      })
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)

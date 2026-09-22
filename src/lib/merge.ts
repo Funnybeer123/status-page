@@ -75,6 +75,7 @@ export async function mergePeople(input: { familyId: string; keepId: string; dro
         notes: [keep.notes, drop.notes].filter(Boolean).join("\n\n") || null,
         sex: keep.sex || drop.sex,
         profileAssetId: keep.profileAssetId || drop.profileAssetId,
+        favoriteAssetId: keep.favoriteAssetId || drop.favoriteAssetId,
       },
     });
     await tx.person.delete({ where: { id: drop.id } });
