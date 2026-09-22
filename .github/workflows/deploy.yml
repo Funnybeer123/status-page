@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Publish image"]
+    types: [completed]
+    branches: [family-lineage]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    name: Deploy published image
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Pull image and restart host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/family-lineage:${{ github.event.workflow_run.head_sha || github.sha }}
+          LATEST: ghcr.io/${{ github.repository_owner }}/family-lineage:latest
+        run: |
+          set -eu
+          if [ -z "${DEPLOY_HOST:-}" ] || [ -z "${DEPLOY_USER:-}" ] || [ -z "${DEPLOY_SSH_KEY:-}" ]; then
+            echo "Deploy did not run. The production environment is missing DEPLOY_HOST, DEPLOY_USER, or DEPLOY_SSH_KEY."
+            echo "Those secrets are documented in README.md. This workflow will not invent credentials."
+            exit 0
+          fi
+          key="$(mktemp)"
+          printf '%s\n' "$DEPLOY_SSH_KEY" > "$key"
+          chmod 600 "$key"
+          port="${DEPLOY_PORT:-22}"
+          remote_path="${DEPLOY_PATH:-/opt/family-lineage}"
+          ssh -i "$key" -p "$port" -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -eu
+             cd '$remote_path'
+             docker pull '$IMAGE' || docker pull '$LATEST'
+             if [ -f docker-compose.yml ]; then
+               FAMILY_LINEAGE_IMAGE='$IMAGE' docker compose pull
+               FAMILY_LINEAGE_IMAGE='$IMAGE' docker compose up -d
+             else
+               docker stop family-lineage || true
+               docker rm family-lineage || true
+               docker run -d --name family-lineage --restart unless-stopped -p 3000:3000 \
+                 --env-file .env '$IMAGE'
+             fi"
+          rm -f "$key"
+          echo "Deployed $IMAGE to $DEPLOY_USER@$DEPLOY_HOST"

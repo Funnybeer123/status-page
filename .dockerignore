@@ -1,8 +1,11 @@
 node_modules
 .next
-.git
+out
 data
-*.md
 .env
 .env.local
+*.log
+.git
+.github
 tests
+/cursor
