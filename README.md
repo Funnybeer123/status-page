@@ -87,7 +87,7 @@ Set these on the `production` environment (Settings → Environments → product
 
 On the host, keep real runtime secrets in `.env` (never commit them): `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, and optional `OPENAI_API_KEY`. Point compose at `ghcr.io/<lowercase-owner>/family-lineage` or set `FAMILY_LINEAGE_IMAGE`.
 
-Trigger deploy with **Actions → Deploy → Run workflow**, or let it follow a successful **Publish image** run.
+After a successful GHCR push, the **Publish image** workflow also runs a **Deploy published image** job on the `production` environment. The standalone **Deploy** workflow can be started with **Actions → Deploy → Run workflow** (select the `family-lineage` branch). Both skip SSH when the secrets above are missing.
 
 ## Local development (without rebuilding the image)
 
