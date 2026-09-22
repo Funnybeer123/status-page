@@ -5,11 +5,14 @@ import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { absoluteMediaPath } from "@/lib/media";
+import { hidePhotoFromAudience, type Audience } from "@/lib/privacy";
+
+const tagPeople = { tags: { include: { person: true } } } as const;
 
 async function sharedAsset(storagePath: string) {
   const asset = await prisma.asset.findFirst({
     where: { storagePath, deletedAt: null },
-    include: { albumItems: true, tags: true },
+    include: { albumItems: true, ...tagPeople },
   });
   if (!asset) return null;
   const albumIds = asset.albumItems.map((item) => item.albumId);
@@ -31,14 +34,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
   const storagePath = path.join("/");
   if (storagePath.includes("..")) return NextResponse.json({ error: "Invalid path." }, { status: 400 });
   const ctx = await apiFamily();
+  const audience: Audience = "error" in ctx ? "share" : ctx.role;
   const asset =
     "error" in ctx
       ? await sharedAsset(storagePath)
       : await prisma.asset.findFirst({
           where: { familyId: ctx.family.id, storagePath },
+          include: tagPeople,
         });
   if (!asset) {
     if ("error" in ctx) return ctx.error;
+    return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+  if (hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person))) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
   const full = absoluteMediaPath(asset.storagePath);

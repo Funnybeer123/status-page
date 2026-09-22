@@ -8,6 +8,8 @@ import { recordActivity } from "@/lib/activity";
 const schema = z.object({
   assetId: z.string(),
   personId: z.string(),
+  x: z.number().min(0).max(100).optional().nullable(),
+  y: z.number().min(0).max(100).optional().nullable(),
 });
 
 export async function POST(req: Request) {
@@ -22,8 +24,11 @@ export async function POST(req: Request) {
   if (!asset || !person) return NextResponse.json({ error: "That photograph or person is not in this family." }, { status: 404 });
   const tag = await prisma.personTag.upsert({
     where: { assetId_personId: { assetId: asset.id, personId: person.id } },
-    create: { assetId: asset.id, personId: person.id },
-    update: {},
+    create: { assetId: asset.id, personId: person.id, x: body.data.x ?? null, y: body.data.y ?? null },
+    update: {
+      x: body.data.x === undefined ? undefined : body.data.x,
+      y: body.data.y === undefined ? undefined : body.data.y,
+    },
     include: { person: true, asset: true },
   });
   await recordActivity({

@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import Link from "next/link";
-import { RsvpButton, ReunionPhotoForm } from "@/app/reunions/ui";
+import { PotluckForm, RsvpButton, ReunionPhotoForm } from "@/app/reunions/ui";
+import { compilePotluck } from "@/lib/potluck";
+import { DocKind } from "@prisma/client";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
@@ -10,15 +12,24 @@ import { formatDate } from "@/lib/dates";
 export default async function ReunionPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
-  const [reunion, assets] = await Promise.all([
+  const [reunion, assets, recipes, people] = await Promise.all([
     prisma.reunionGathering.findFirst({
       where: { id, familyId: ctx.family.id },
-      include: { guests: { include: { person: true } }, photos: { include: { asset: true } } },
+      include: {
+        guests: { include: { person: true } },
+        photos: { include: { asset: true } },
+        dishes: { include: { person: true, recipe: true }, orderBy: { title: "asc" } },
+      },
     }),
     prisma.asset.findMany({
       where: { familyId: ctx.family.id, deletedAt: null, kind: "photo" },
       orderBy: { title: "asc" },
     }),
+    prisma.document.findMany({
+      where: { familyId: ctx.family.id, kind: DocKind.recipe, deletedAt: null },
+      orderBy: { title: "asc" },
+    }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
   ]);
   if (!reunion) notFound();
   const coming = reunion.guests.filter((guest) => guest.coming);
@@ -46,6 +57,38 @@ export default async function ReunionPage({ params }: { params: Promise<{ id: st
             </li>
           ))}
           {!coming.length ? <li className="text-bark">No one has said they are coming.</li> : null}
+        </ul>
+      </section>
+      <section className="mt-10" data-testid="potluck">
+        <h2 className="font-display text-3xl">Potluck</h2>
+        <p className="mt-2 text-bark">Dishes tied to a cookbook recipe and to who is bringing them.</p>
+        {canWrite(ctx.role) ? (
+          <PotluckForm
+            reunionId={reunion.id}
+            people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+            recipes={recipes.map((recipe) => ({ id: recipe.id, title: recipe.title }))}
+          />
+        ) : null}
+        <ul className="mt-4 space-y-2" data-testid="potluck-list">
+          {compilePotluck(
+            reunion.dishes.map((dish) => ({
+              id: dish.id,
+              title: dish.title,
+              notes: dish.notes,
+              personName: dish.person?.displayName ?? null,
+              recipeTitle: dish.recipe?.title ?? null,
+              recipeId: dish.recipeId,
+            })),
+          ).map((dish) => (
+            <li key={dish.id} className="paper-card p-4">
+              <p className="font-display text-xl">{dish.title}</p>
+              <p className="text-bark">{dish.line}</p>
+              {dish.recipeId ? (
+                <Link href={`/letters/${dish.recipeId}`} className="font-sans text-sm text-seal">Cookbook recipe</Link>
+              ) : null}
+            </li>
+          ))}
+          {!reunion.dishes.length ? <li className="text-bark">No dishes listed yet.</li> : null}
         </ul>
       </section>
       <section className="mt-10">

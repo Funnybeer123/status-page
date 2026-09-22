@@ -1,8 +1,42 @@
 import { Role } from "@prisma/client";
+import { ageAt } from "@/lib/dates";
 import { hasAtLeast } from "@/lib/roles";
+
+export type Audience = Role | "share";
 
 export function isLiving(person?: { deathDate?: Date | string | null } | null) {
   return Boolean(person) && !person?.deathDate;
+}
+
+export function isLivingMinor(
+  person?: { deathDate?: Date | string | null; birthDate?: Date | string | null } | null,
+  on = new Date(),
+) {
+  if (!isLiving(person) || !person?.birthDate) return false;
+  const age = ageAt(person.birthDate, on);
+  return age != null && age < 18;
+}
+
+export function hideMinorDetails(
+  audience: Audience,
+  person?: { deathDate?: Date | string | null; birthDate?: Date | string | null } | null,
+) {
+  if (!isLivingMinor(person)) return false;
+  if (audience === "share") return true;
+  return !canSeeLivingFacts(audience);
+}
+
+export function hidePhotoFromAudience(
+  audience: Audience,
+  tagged: { deathDate?: Date | string | null; birthDate?: Date | string | null }[],
+) {
+  return tagged.some((person) => hideMinorDetails(audience, person));
+}
+
+export function filterAssetsForAudience<
+  T extends { tags: { person: { deathDate?: Date | string | null; birthDate?: Date | string | null } }[] },
+>(assets: T[], audience: Audience) {
+  return assets.filter((asset) => !hidePhotoFromAudience(audience, asset.tags.map((tag) => tag.person)));
 }
 
 export function canSeeLivingFacts(role: Role) {

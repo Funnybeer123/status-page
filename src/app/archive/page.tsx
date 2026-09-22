@@ -4,6 +4,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { formatDate } from "@/lib/dates";
+import { filterAssetsForAudience } from "@/lib/privacy";
 
 export default async function ArchivePage({
   searchParams,
@@ -27,7 +28,10 @@ export default async function ArchivePage({
         .filter((value): value is number => Boolean(value)),
     ),
   ].sort((a, b) => b - a);
-  const visible = year ? assets.filter((asset) => asset.capturedAt?.getUTCFullYear() === Number(year)) : assets;
+  const visible = filterAssetsForAudience(
+    year ? assets.filter((asset) => asset.capturedAt?.getUTCFullYear() === Number(year)) : assets,
+    ctx.role,
+  );
 
   return (
     <AppShell>

@@ -9,7 +9,7 @@ export default async function PromptsPage() {
   const ctx = await requireFamily();
   const prompts = await prisma.storyPrompt.findMany({
     where: { familyId: ctx.family.id },
-    include: { answers: { include: { story: true, author: { select: { name: true } } } } },
+    include: { answers: { include: { story: true, asset: true, author: { select: { name: true } } } } },
     orderBy: { createdAt: "desc" },
   });
   return (
@@ -29,6 +29,9 @@ export default async function PromptsPage() {
                   <Link href={`/stories/${answer.story.id}`} className="text-seal">{answer.story.title}</Link>
                   <span className="ml-2 font-sans text-sm text-bark">{answer.author.name}</span>
                   {answer.story.body ? <p className="mt-1 text-bark">{answer.story.body}</p> : null}
+                  {answer.asset ? (
+                    <audio controls src={`/api/media/${answer.asset.storagePath}`} className="mt-2 w-full" data-testid="spoken-answer" />
+                  ) : null}
                 </li>
               ))}
             </ul>

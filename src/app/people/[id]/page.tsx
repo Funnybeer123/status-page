@@ -12,7 +12,9 @@ import { prisma } from "@/lib/prisma";
 import { ageLabel, formatDate, lifespan, qualifyDate } from "@/lib/dates";
 import { PersonDetailsForm } from "@/app/people/[id]/details";
 import { canWrite } from "@/lib/roles";
-import { hideEventFromViewer, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
+import { hideEventFromViewer, hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
+import { childPublicName } from "@/lib/children";
+import { qualityLabel } from "@/lib/sourceQuality";
 import { placeLabel } from "@/lib/places";
 
 export default async function PersonPage({ params }: { params: Promise<{ id: string }> }) {
@@ -22,7 +24,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     prisma.person.findFirst({
       where: { id, familyId: ctx.family.id, deletedAt: null },
       include: {
-        tags: { include: { asset: true } },
+        tags: { include: { asset: { include: { tags: { include: { person: true } } } } } },
         documents: { include: { document: true } },
         fromRels: { include: { toPerson: true } },
         toRels: { include: { fromPerson: true } },
@@ -50,6 +52,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     : null;
   const living = isLiving(person);
   const hidden = shouldHideLivingFacts(ctx.role, person);
+  const hideChild = hideMinorDetails(ctx.role, person);
   if (hidden) {
     person.notes = null;
     person.birthDate = null;
@@ -57,8 +60,12 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     person.citations = [];
     person.events = person.events.filter((event) => !hideEventFromViewer(ctx.role, { ...event, person }));
   }
-  const letters = person.documents.filter((item) => item.document.kind !== "story" && !item.document.deletedAt);
-  const stories = [
+  const letters = hideChild
+    ? []
+    : person.documents.filter((item) => item.document.kind !== "story" && !item.document.deletedAt);
+  const stories = hideChild
+    ? []
+    : [
     ...person.storiesTold.map((story) => ({ id: story.id, title: story.title, recordedAt: story.recordedAt })),
     ...person.storyLinks.map((link) => ({ id: link.story.id, title: link.story.title, recordedAt: link.story.recordedAt })),
   ].filter((story, index, all) => all.findIndex((item) => item.id === story.id) === index);
@@ -71,23 +78,34 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
       return a.happenedOn.getTime() - b.happenedOn.getTime();
     });
   const residences = hideResidenceForViewer(ctx.role, person) ? [] : person.residences;
-  const citations = hidden ? [] : person.citations;
+  const citations = hidden || hideChild ? [] : person.citations;
+  const archiveTags = hideChild
+    ? []
+    : person.tags.filter(
+        (tag) => !tag.asset.deletedAt && !hidePhotoFromAudience(ctx.role, tag.asset.tags.map((item) => item.person)),
+      );
+  const showProfile = profile && !hideChild;
 
   return (
     <AppShell>
       <div className="grid gap-8 md:grid-cols-[280px_1fr]">
         <aside className="paper-card overflow-hidden">
           <div className="aspect-[4/5] bg-cedar/10">
-            {profile ? (
+            {showProfile ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={`/api/media/${profile.storagePath}`} alt={person.displayName} className="h-full w-full object-cover" />
             ) : null}
           </div>
           <div className="p-5">
-            <h1 className="font-display text-3xl">{person.displayName}</h1>
+            <h1 className="font-display text-3xl">{hideChild ? childPublicName(person) : person.displayName}</h1>
             <p className="mt-2 font-sans text-sm text-bark">
-              {hidden ? "Living" : lifespan(person.birthDate, person.deathDate)}
+              {hideChild || hidden ? "Living" : lifespan(person.birthDate, person.deathDate)}
             </p>
+            {!hideChild && person.pronunciation ? (
+              <p className="mt-2 font-sans text-sm text-gold" data-testid="person-pronunciation">
+                Said {person.pronunciation}
+              </p>
+            ) : null}
             {person.names.length ? (
               <ul className="mt-3 space-y-1 font-sans text-sm text-bark" data-testid="person-names">
                 {person.names.map((name) => (
@@ -130,6 +148,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/people/${person.id}/report`} className="mt-2 block font-sans text-sm text-seal">
               Descendant report
             </Link>
+            {!hideChild ? (
+              <Link href={`/people/${person.id}/packet`} className="mt-2 block font-sans text-sm text-seal" data-testid="packet-link">
+                Person packet
+              </Link>
+            ) : null}
             <Link href="/handwriting" className="mt-2 block font-sans text-sm text-seal">
               Handwriting
             </Link>
@@ -146,7 +169,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           </div>
         </aside>
         <section className="space-y-8">
-          {hidden ? (
+          {hideChild ? (
+            <p className="paper-card p-4 font-sans text-sm text-bark" data-testid="child-privacy-note">
+              Living children are hidden from viewers and share links. Contributors and owners still see the full record.
+            </p>
+          ) : hidden ? (
             <p className="paper-card p-4 font-sans text-sm text-bark" data-testid="living-privacy-note">
               Some dates, notes, and places are hidden because this person is living. Contributors and owners still see the full record.
             </p>
@@ -274,6 +301,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                     </>
                   ) : null}
                   {citation.pageNote ? <span className="font-sans text-sm text-bark"> ({citation.pageNote})</span> : null}
+                  {citation.quality ? <span className="ml-2 font-sans text-xs uppercase tracking-wide text-gold">{qualityLabel(citation.quality)}</span> : null}
                 </li>
               ))}
               {!citations.length ? <li className="text-bark">{hidden ? "Sources on living facts are hidden." : "None yet."}</li> : null}
@@ -311,7 +339,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">In the archive</p>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {person.tags.filter((tag) => !tag.asset.deletedAt).map((tag) => (
+              {archiveTags.map((tag) => (
                 <Link key={tag.id} href={`/archive/${tag.asset.id}`} className="paper-card overflow-hidden">
                   {tag.asset.mimeType.startsWith("video/") ? (
                     <video src={`/api/media/${tag.asset.storagePath}`} className="aspect-square w-full object-cover" />
@@ -354,6 +382,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
               causeOfDeath={person.causeOfDeath || ""}
               languages={person.languages || ""}
               burialPlot={person.burialPlot || ""}
+              pronunciation={person.pronunciation || ""}
             />
           ) : null}
           {canWrite(ctx.role) ? (

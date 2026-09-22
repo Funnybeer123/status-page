@@ -6,6 +6,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { ShareLinkButton } from "@/app/share/ui";
+import { hidePhotoFromAudience } from "@/lib/privacy";
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -13,13 +14,16 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
   const [album, assets, documents] = await Promise.all([
     prisma.album.findFirst({
       where: { id, familyId: ctx.family.id },
-      include: { items: { include: { asset: true, document: true, story: true } }, createdBy: true },
+      include: { items: { include: { asset: { include: { tags: { include: { person: true } } } }, document: true, story: true } }, createdBy: true },
     }),
     prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { createdAt: "desc" } }),
     prisma.document.findMany({ where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!album) notFound();
-  const slides = album.items
+  const items = album.items.filter(
+    (item) => !item.asset || !hidePhotoFromAudience(ctx.role, item.asset.tags.map((tag) => tag.person)),
+  );
+  const slides = items
     .filter((item) => item.asset && item.asset.mimeType.startsWith("image/"))
     .map((item) => ({
       src: `/api/media/${item.asset!.storagePath}`,
@@ -40,7 +44,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         />
       ) : null}
       <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-        {album.items.map((item) => {
+        {items.map((item) => {
           if (item.asset) {
             return (
               <li key={item.id} className="paper-card overflow-hidden">

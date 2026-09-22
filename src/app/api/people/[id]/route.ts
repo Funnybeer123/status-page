@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { syncVitalEvents } from "@/lib/events";
-import { hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
+import { hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
 import { isoDay, recordPersonChanges } from "@/lib/personChanges";
 
 const schema = z.object({
@@ -17,6 +17,7 @@ const schema = z.object({
   causeOfDeath: z.string().max(400).optional().nullable(),
   languages: z.string().max(200).optional().nullable(),
   burialPlot: z.string().max(200).optional().nullable(),
+  pronunciation: z.string().max(160).optional().nullable(),
 });
 
 const personInclude = {
@@ -28,7 +29,7 @@ const personInclude = {
   storyLinks: { include: { story: true } },
   citations: { include: { document: true, asset: true, event: true, name: true } },
   documents: { include: { document: true } },
-  tags: { include: { asset: true } },
+  tags: { include: { asset: { include: { tags: { include: { person: true } } } } } },
 } as const;
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -41,13 +42,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   });
   if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
   const redacted = redactPerson(person, ctx.role);
+  const hideChild = hideMinorDetails(ctx.role, person);
+  const tags = hideChild
+    ? []
+    : person.tags.filter((tag) => !hidePhotoFromAudience(ctx.role, tag.asset.tags.map((item) => item.person)));
   return NextResponse.json({
     person: {
       ...redacted,
       residences: hideResidenceForViewer(ctx.role, person) ? [] : person.residences,
-      citations: shouldHideLivingFacts(ctx.role, person) ? [] : person.citations,
+      citations: shouldHideLivingFacts(ctx.role, person) || hideChild ? [] : person.citations,
+      tags,
       living: !person.deathDate,
-      factsHidden: shouldHideLivingFacts(ctx.role, person),
+      factsHidden: shouldHideLivingFacts(ctx.role, person) || hideChild,
+      childHidden: hideChild,
     },
   });
 }
@@ -101,6 +108,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       causeOfDeath: body.data.causeOfDeath === undefined ? existing.causeOfDeath : body.data.causeOfDeath || null,
       languages: body.data.languages === undefined ? existing.languages : body.data.languages || null,
       burialPlot: body.data.burialPlot === undefined ? existing.burialPlot : body.data.burialPlot || null,
+      pronunciation: body.data.pronunciation === undefined ? existing.pronunciation : body.data.pronunciation || null,
     },
   });
   await syncVitalEvents({

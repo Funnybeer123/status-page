@@ -1,13 +1,15 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { CommentThread } from "@/components/CommentThread";
-import { PhotoTagForm } from "@/app/archive/tag";
+import { PhotoLocateForm, PhotoTagForm } from "@/app/archive/tag";
 import { PhotoPlaceForm } from "@/app/archive/place";
 import { TranscribeForm } from "@/app/oral/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
+import { hidePhotoFromAudience } from "@/lib/privacy";
+import { placedOnPhoto } from "@/lib/whoWhere";
 import Link from "next/link";
 import { TrashRestore } from "@/app/trash/ui";
 
@@ -23,6 +25,16 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
   ]);
   if (!asset) notFound();
+  if (hidePhotoFromAudience(ctx.role, asset.tags.map((tag) => tag.person))) notFound();
+  const marks = placedOnPhoto(
+    asset.tags.map((tag) => ({
+      id: tag.id,
+      personId: tag.personId,
+      name: tag.person.displayName,
+      x: tag.x,
+      y: tag.y,
+    })),
+  );
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{asset.kind}</p>
@@ -38,8 +50,20 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
         ) : asset.mimeType.startsWith("audio/") || asset.kind === "audio" ? (
           <audio controls src={`/api/media/${asset.storagePath}`} className="w-full" data-testid="oral-audio" />
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/api/media/${asset.storagePath}`} alt={asset.title ?? ""} className="w-full" />
+          <div className="relative" data-testid="who-where">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`/api/media/${asset.storagePath}`} alt={asset.title ?? ""} className="w-full" />
+            {marks.map((mark) => (
+              <span
+                key={mark.id}
+                className="absolute -translate-x-1/2 -translate-y-full rounded-full bg-seal px-2 py-1 font-sans text-xs text-cream"
+                style={{ left: `${mark.x}%`, top: `${mark.y}%` }}
+                data-testid="who-where-mark"
+              >
+                {mark.name}
+              </span>
+            ))}
+          </div>
         )}
       </div>
       <p className="mt-4 font-sans text-sm">
@@ -51,6 +75,17 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
           assetId={asset.id}
           people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
           taggedIds={asset.tags.map((tag) => tag.personId)}
+        />
+      ) : null}
+      {canWrite(ctx.role) && asset.kind === "photo" ? (
+        <PhotoLocateForm
+          assetId={asset.id}
+          tags={asset.tags.map((tag) => ({
+            personId: tag.personId,
+            name: tag.person.displayName,
+            x: tag.x,
+            y: tag.y,
+          }))}
         />
       ) : null}
       {canWrite(ctx.role) && asset.kind === "photo" ? (

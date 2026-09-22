@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
+import { hidePhotoFromAudience } from "@/lib/privacy";
 
 export default async function SharedPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -51,7 +52,7 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
 
   const album = await prisma.album.findFirst({
     where: { id: link.entityId, familyId: link.familyId },
-    include: { items: { include: { asset: true, document: true, story: true } } },
+    include: { items: { include: { asset: { include: { tags: { include: { person: true } } } }, document: true, story: true } } },
   });
   if (!album) notFound();
   return (
@@ -60,7 +61,7 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
       <h1 className="mt-2 font-display text-5xl" data-testid="share-album">{album.title}</h1>
       {album.summary ? <p className="mt-3 text-bark">{album.summary}</p> : null}
       <ul className="mt-10 grid gap-4 sm:grid-cols-2">
-        {album.items.map((item) => (
+        {album.items.filter((item) => !item.asset || !hidePhotoFromAudience("share", item.asset.tags.map((tag) => tag.person))).map((item) => (
           <li key={item.id} className="paper-card overflow-hidden p-4">
             {item.asset ? (
               item.asset.mimeType.startsWith("image/") ? (

@@ -36,6 +36,11 @@ export default async function WorksheetsPage() {
               { name: "place", placeholder: "Cedar Falls" },
               { name: "detail", placeholder: "ED 7-12, sheet 4" },
               { name: "documentId", options: letterOpts, label: "Source" },
+              { name: "quality", options: [
+                { id: "original", label: "Original" },
+                { id: "copy", label: "A copy" },
+                { id: "unsure", label: "Unsure" },
+              ], label: "Source quality" },
             ]}
           />
           <RecordForm
@@ -49,6 +54,11 @@ export default async function WorksheetsPage() {
               { name: "place", placeholder: "Cedar Falls" },
               { name: "detail", placeholder: "County register, p. 12" },
               { name: "documentId", options: letterOpts, label: "Source" },
+              { name: "quality", options: [
+                { id: "original", label: "Original" },
+                { id: "copy", label: "A copy" },
+                { id: "unsure", label: "Unsure" },
+              ], label: "Source quality" },
             ]}
           />
           <RecordForm
@@ -62,6 +72,11 @@ export default async function WorksheetsPage() {
               { name: "place", placeholder: "Cedar Falls" },
               { name: "detail", placeholder: "Certificate 441" },
               { name: "documentId", options: letterOpts, label: "Source" },
+              { name: "quality", options: [
+                { id: "original", label: "Original" },
+                { id: "copy", label: "A copy" },
+                { id: "unsure", label: "Unsure" },
+              ], label: "Source quality" },
             ]}
           />
         </div>
@@ -75,6 +90,7 @@ export default async function WorksheetsPage() {
             ) : null}
             <p className="mt-2 text-bark">{row.claim}</p>
             {row.pageNote ? <p className="font-sans text-sm text-gold">{row.pageNote}</p> : null}
+            {row.quality ? <p className="font-sans text-sm text-gold">{row.quality}</p> : null}
           </li>
         ))}
         {!citations.length ? <li className="text-bark">No worksheets yet.</li> : null}

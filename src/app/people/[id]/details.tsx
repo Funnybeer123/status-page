@@ -8,11 +8,13 @@ export function PersonDetailsForm({
   causeOfDeath,
   languages,
   burialPlot,
+  pronunciation,
 }: {
   personId: string;
   causeOfDeath: string;
   languages: string;
   burialPlot: string;
+  pronunciation: string;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState("");
@@ -27,6 +29,7 @@ export function PersonDetailsForm({
         causeOfDeath: data.get("causeOfDeath"),
         languages: data.get("languages"),
         burialPlot: data.get("burialPlot"),
+        pronunciation: data.get("pronunciation"),
       }),
     });
     if (response.ok) {
@@ -37,7 +40,8 @@ export function PersonDetailsForm({
 
   return (
     <form onSubmit={onSubmit} className="paper-card grid gap-3 p-5" data-testid="person-details">
-      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Death, languages, burial</p>
+      <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Death, languages, burial, how to say the name</p>
+      <input name="pronunciation" defaultValue={pronunciation} placeholder="EL-uh-nor hart" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="pronunciation-input" />
       <input name="causeOfDeath" defaultValue={causeOfDeath} placeholder="Cause of death" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <input name="languages" defaultValue={languages} placeholder="Languages spoken" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       <input name="burialPlot" defaultValue={burialPlot} placeholder="Burial plot" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />

@@ -7,6 +7,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { saveUpload } from "@/lib/media";
 import { recordActivity } from "@/lib/activity";
+import { filterAssetsForAudience } from "@/lib/privacy";
 
 export async function GET(req: Request) {
   const ctx = await apiFamily();
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
   const filtered = year
     ? assets.filter((asset) => asset.capturedAt && asset.capturedAt.getUTCFullYear() === Number(year))
     : assets;
-  return NextResponse.json({ assets: filtered });
+  return NextResponse.json({ assets: filterAssetsForAudience(filtered, ctx.role) });
 }
 
 export async function POST(req: Request) {

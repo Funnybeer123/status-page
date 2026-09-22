@@ -11,6 +11,7 @@ import { howRelated } from "@/lib/related";
 import { alive } from "@/lib/alive";
 import { canWrite } from "@/lib/roles";
 import { PinMemoryForm } from "@/app/homes/pin-form";
+import { compileThisWeek, thisWeekHeading, thisWeekSince } from "@/lib/thisWeek";
 
 export default async function HomePage() {
   const session = await auth();
@@ -49,7 +50,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, mePeople, relationships, pins, pinChoices] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -57,6 +58,12 @@ export default async function HomePage() {
       include: { actor: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
       take: 6,
+    }),
+    prisma.activity.findMany({
+      where: { familyId: ctx.family.id, createdAt: { gte: thisWeekSince() } },
+      include: { actor: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 40,
     }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive }, select: { id: true, displayName: true } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
@@ -91,6 +98,16 @@ export default async function HomePage() {
     : [];
   const today = collectOnThisDay({ ...sources, role: ctx.role });
   const week = remindersThisWeek(reminders);
+  const thisWeek = compileThisWeek(
+    weekActivities.map((item) => ({
+      id: item.id,
+      title: item.title,
+      verb: item.verb,
+      actorName: item.actor.name,
+      createdAt: item.createdAt,
+      href: activityHref(item.entityType, item.entityId),
+    })),
+  );
 
   return (
     <AppShell>
@@ -177,6 +194,22 @@ export default async function HomePage() {
             </li>
           ))}
           {!today.length ? <li className="text-bark">Nothing in the archive falls on today&apos;s month and day yet.</li> : null}
+        </ul>
+      </section>
+
+      <section className="mt-10" data-testid="this-week">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{thisWeekHeading(thisWeek.length)}</h2>
+          <Link href="/week" className="font-sans text-sm text-seal">This week</Link>
+        </div>
+        <ul className="mt-4 space-y-3" data-testid="this-week-list">
+          {thisWeek.slice(0, 8).map((item) => (
+            <li key={item.id} className="paper-card p-4">
+              <p className="font-sans text-sm text-gold">{item.actorName} {item.verb}</p>
+              <Link href={item.href || "/activity"} className="font-display text-xl text-seal">{item.title}</Link>
+            </li>
+          ))}
+          {!thisWeek.length ? <li className="text-bark">Nothing new in the last seven days.</li> : null}
         </ul>
       </section>
 

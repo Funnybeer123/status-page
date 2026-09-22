@@ -96,6 +96,63 @@ export function ReunionPhotoForm({
   );
 }
 
+export function PotluckForm({
+  reunionId,
+  people,
+  recipes,
+}: {
+  reunionId: string;
+  people: Person[];
+  recipes: { id: string; title: string }[];
+}) {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const response = await fetch("/api/reunions/dishes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reunionId,
+        title: data.get("title"),
+        personId: data.get("personId") || undefined,
+        recipeId: data.get("recipeId") || undefined,
+        notes: data.get("notes"),
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error || "Could not save that dish.");
+      return;
+    }
+    event.currentTarget.reset();
+    router.refresh();
+  }
+  return (
+    <form onSubmit={onSubmit} className="paper-card mt-6 grid gap-3 p-5" data-testid="potluck-form">
+      <input name="title" required placeholder="Sunday rolls" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <select name="personId" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">Who is bringing it</option>
+        {people.map((person) => (
+          <option key={person.id} value={person.id}>{person.displayName}</option>
+        ))}
+      </select>
+      <select name="recipeId" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">Cookbook recipe</option>
+        {recipes.map((recipe) => (
+          <option key={recipe.id} value={recipe.id}>{recipe.title}</option>
+        ))}
+      </select>
+      <input name="notes" placeholder="Warm, in the navy-blue bowl" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
+      <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+        Add a potluck dish
+      </button>
+    </form>
+  );
+}
+
 export function RsvpButton({ reunionId, personId, coming }: { reunionId: string; personId: string; coming: boolean }) {
   const router = useRouter();
   async function toggle() {

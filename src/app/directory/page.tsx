@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
 import { directoryRows } from "@/lib/moreFamily";
 import { lifespan } from "@/lib/dates";
+import { isLivingMinor } from "@/lib/privacy";
+import { canWrite } from "@/lib/roles";
 
 export default async function DirectoryPage() {
   const ctx = await requireFamily();
@@ -16,7 +18,7 @@ export default async function DirectoryPage() {
     }),
   ]);
   const rows = directoryRows(
-    people,
+    canWrite(ctx.role) ? people : people.filter((person) => !isLivingMinor(person)),
     memberships.map((item) => ({ personId: item.personId, userName: item.user.name })),
   );
   return (

@@ -1719,6 +1719,69 @@ async function ensureHartArchive() {
     },
     update: { kind: "death" },
   });
+
+  await prisma.person.update({
+    where: { id: eleanor.id },
+    data: { pronunciation: "EL-uh-nor hart" },
+  });
+  const lily = await prisma.person.findUnique({ where: { id: "person-lily" } });
+  if (lily) {
+    const nora = await prisma.person.upsert({
+      where: { id: "person-nora" },
+      create: {
+        id: "person-nora",
+        familyId: family.id,
+        displayName: "Nora Chen",
+        givenName: "Nora",
+        familyName: "Chen",
+        birthDate: new Date("2018-06-14"),
+        notes: "Lily’s daughter. Keep her photographs off share links.",
+      },
+      update: { birthDate: new Date("2018-06-14") },
+    });
+    const alreadyChild = await prisma.relationship.findFirst({
+      where: { familyId: family.id, fromPersonId: lily.id, toPersonId: nora.id, type: RelType.parent },
+    });
+    if (!alreadyChild) {
+      await prisma.relationship.create({
+        data: { familyId: family.id, type: RelType.parent, fromPersonId: lily.id, toPersonId: nora.id },
+      });
+    }
+  }
+  await prisma.document.upsert({
+    where: { id: "doc-sunday-rolls" },
+    create: {
+      id: "doc-sunday-rolls",
+      familyId: family.id,
+      title: "Sunday rolls",
+      kind: DocKind.recipe,
+      transcript: "Warm milk, a cake of yeast, and the navy-blue bowl. Bake them the night before the harvest-dance anniversary.",
+      writtenAt: new Date("1961-07-02"),
+      people: { create: [{ personId: eleanor.id }] },
+    },
+    update: { title: "Sunday rolls" },
+  });
+  await prisma.reunionDish.upsert({
+    where: { id: "dish-sunday-rolls" },
+    create: {
+      id: "dish-sunday-rolls",
+      familyId: family.id,
+      reunionId: "reunion-hart-2026",
+      personId: "person-margaret",
+      recipeId: "doc-sunday-rolls",
+      title: "Sunday rolls",
+      notes: "Warm, in the navy-blue bowl",
+    },
+    update: { title: "Sunday rolls", recipeId: "doc-sunday-rolls" },
+  });
+  await prisma.citation.updateMany({
+    where: { id: "cite-marriage" },
+    data: { quality: "original" },
+  });
+  await prisma.personTag.updateMany({
+    where: { personId: "person-eleanor", x: null },
+    data: { x: 48, y: 42 },
+  });
 }
 
 async function writeHartMedia() {

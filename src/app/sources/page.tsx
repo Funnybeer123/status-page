@@ -5,6 +5,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { shouldHideLivingFacts } from "@/lib/privacy";
+import { qualityLabel } from "@/lib/sourceQuality";
 
 export default async function SourcesPage() {
   const ctx = await requireFamily();
@@ -46,6 +47,7 @@ export default async function SourcesPage() {
                 </>
               ) : null}
               {citation.pageNote ? ` (${citation.pageNote})` : ""}
+              {citation.quality ? ` · ${qualityLabel(citation.quality)}` : ""}
             </p>
           </li>
         ))}

@@ -14,6 +14,7 @@ const schema = z.object({
   place: z.string().optional(),
   detail: z.string().optional(),
   documentId: z.string().optional(),
+  quality: z.enum(["original", "copy", "unsure"]).optional(),
 });
 
 export async function GET() {
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       kind: draft.kind,
       claim: draft.claim,
       pageNote: draft.pageNote,
+      quality: body.data.quality || null,
     },
     include: { person: true, event: true, document: true },
   });

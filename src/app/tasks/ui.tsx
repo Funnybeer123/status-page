@@ -10,15 +10,7 @@ export function TaskForm({ people }: { people: { id: string; displayName: string
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const response = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: data.get("title"),
-        body: data.get("body"),
-        personId: data.get("personId") || undefined,
-      }),
-    });
+    const response = await fetch("/api/tasks", { method: "POST", body: data });
     const payload = await response.json();
     if (!response.ok) {
       setError(payload.error || "Could not save that task.");
@@ -38,6 +30,10 @@ export function TaskForm({ people }: { people: { id: string; displayName: string
           <option key={person.id} value={person.id}>{person.displayName}</option>
         ))}
       </select>
+      <label className="font-sans text-sm text-bark">
+        Attach a file
+        <input name="file" type="file" className="mt-1 block w-full" data-testid="task-file" />
+      </label>
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
       <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
         Add a research task

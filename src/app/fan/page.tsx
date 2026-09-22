@@ -28,7 +28,14 @@ export default async function FanPage({
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="fan-heading">Ancestor fan</h1>
-      <p className="mt-3 max-w-2xl text-bark">Parents and grandparents arranged the way a paper fan chart is drawn.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Parents and grandparents arranged the way a paper fan chart is drawn.{" "}
+        {rootId ? (
+          <Link href={`/fan/print?personId=${rootId}`} className="text-seal" data-testid="fan-print-link">
+            Printable fan
+          </Link>
+        ) : null}
+      </p>
       {tree ? (
         <div className="paper-card mt-8 overflow-hidden p-4" data-testid="fan-chart">
           <svg viewBox="0 0 720 420" className="h-96 w-full bg-[#f3ead8]" role="img" aria-label="Ancestor fan">

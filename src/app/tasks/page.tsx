@@ -11,7 +11,7 @@ export default async function TasksPage() {
     prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
     prisma.researchTask.findMany({
       where: { familyId: ctx.family.id },
-      include: { person: true },
+      include: { person: true, asset: true },
       orderBy: [{ doneAt: "asc" }, { createdAt: "desc" }],
     }),
   ]);
@@ -34,6 +34,13 @@ export default async function TasksPage() {
               <Link href={`/people/${item.person.id}`} className="font-sans text-sm text-seal">{item.person.displayName}</Link>
             ) : null}
             <p className="text-bark">{item.body}</p>
+            {item.asset ? (
+              <p className="mt-2 font-sans text-sm">
+                <Link href={`/archive/${item.asset.id}`} className="text-seal" data-testid="task-attachment">
+                  Attached file · {item.asset.title}
+                </Link>
+              </p>
+            ) : null}
             {canWrite(ctx.role) ? <TaskDone id={item.id} done={Boolean(item.doneAt)} /> : null}
           </li>
         ))}

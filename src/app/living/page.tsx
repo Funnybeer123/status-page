@@ -4,6 +4,8 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
 import { livingPeople } from "@/lib/moreFamily";
+import { isLivingMinor } from "@/lib/privacy";
+import { canWrite } from "@/lib/roles";
 import { lifespan } from "@/lib/dates";
 
 export default async function LivingPage() {
@@ -12,7 +14,7 @@ export default async function LivingPage() {
     where: { familyId: ctx.family.id, ...alive },
     orderBy: { displayName: "asc" },
   });
-  const living = livingPeople(people);
+  const living = livingPeople(people).filter((person) => canWrite(ctx.role) || !isLivingMinor(person));
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>

@@ -12,12 +12,13 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const story = await prisma.story.findFirst({
     where: { id, familyId: ctx.family.id },
-    include: {
+      include: {
       teller: true,
       people: { include: { person: true } },
       document: true,
       citations: { include: { document: true, asset: true } },
       comments: { include: { author: true } },
+      promptAnswers: { include: { asset: true, prompt: true } },
     },
   });
   if (!story) notFound();
@@ -36,6 +37,14 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
         ) : null}
       </p>
       <article className="paper-card mt-8 whitespace-pre-wrap p-6 text-lg leading-relaxed">{story.body}</article>
+      {story.promptAnswers[0]?.asset ? (
+        <audio
+          controls
+          src={`/api/media/${story.promptAnswers[0].asset.storagePath}`}
+          className="mt-6 w-full"
+          data-testid="story-spoken"
+        />
+      ) : null}
       <div className="mt-8">
         <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">People</p>
         <ul className="mt-3 flex flex-wrap gap-3">

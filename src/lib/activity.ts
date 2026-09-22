@@ -59,7 +59,7 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "pair") return "/pairs";
   if (entityType === "voyage") return "/voyages";
   if (entityType === "school") return "/schools";
-  if (entityType === "reunion") return `/reunions/${entityId}`;
+  if (entityType === "reunion" || entityType === "dish") return `/reunions/${entityId}`;
   if (entityType === "recipe") return `/recipes`;
   if (entityType === "tradition") return "/traditions";
   if (entityType === "task") return "/tasks";

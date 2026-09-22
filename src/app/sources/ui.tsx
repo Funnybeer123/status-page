@@ -24,6 +24,7 @@ export function SourceForm({
         personId: data.get("personId") || undefined,
         documentId: data.get("documentId") || undefined,
         pageNote: data.get("pageNote"),
+        quality: data.get("quality") || undefined,
       }),
     });
     const payload = await response.json();
@@ -53,6 +54,12 @@ export function SourceForm({
         </select>
       </div>
       <input name="pageNote" placeholder="p. 1, second paragraph" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
+      <select name="quality" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" data-testid="source-quality">
+        <option value="">Source quality</option>
+        <option value="original">Original</option>
+        <option value="copy">A copy</option>
+        <option value="unsure">Unsure</option>
+      </select>
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
       <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
         Save the source

@@ -168,6 +168,7 @@ model Family {
   handwritingSamples HandwritingSample[]
   inscriptions  GravestoneInscription[]
   holidays      FamilyHoliday[]
+  reunionDishes ReunionDish[]
 }
 
 model Membership {
@@ -209,6 +210,7 @@ model Person {
   causeOfDeath   String?
   languages      String?
   burialPlot     String?
+  pronunciation  String?
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -262,6 +264,7 @@ model Person {
   handwritingSamples HandwritingSample[]
   inscriptions   GravestoneInscription[]
   guestbook      Comment[]
+  potluckDishes  ReunionDish[]
 }
 
 model Relationship {
@@ -307,12 +310,16 @@ model Asset {
   reunionPhotos ReunionPhoto[]
   handwritingSamples HandwritingSample[]
   pinnedMemories PinnedMemory[]
+  promptAnswers  StoryPromptAnswer[]
+  researchTasks  ResearchTask[]
 }
 
 model PersonTag {
   id       String @id @default(cuid())
   assetId  String
   personId String
+  x        Float?
+  y        Float?
   asset    Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
   person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
 
@@ -347,6 +354,7 @@ model Document {
   custody     CustodyRecord[]
   handwritingSamples HandwritingSample[]
   pinnedMemories PinnedMemory[]
+  potluckDishes ReunionDish[]
 }
 
 model DocumentPerson {
@@ -485,6 +493,7 @@ model Citation {
   assetId     String?
   pageNote    String?
   kind        String?
+  quality     String?
   family      Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person      Person?     @relation(fields: [personId], references: [id], onDelete: Cascade)
   event       LifeEvent?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -621,6 +630,8 @@ model ResearchTask {
   family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person      Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
   createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  assetId     String?
+  asset       Asset?    @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([familyId, doneAt])
 }
@@ -642,10 +653,12 @@ model StoryPromptAnswer {
   promptId  String
   storyId   String
   authorId  String
+  assetId   String?
   createdAt DateTime    @default(now())
   prompt    StoryPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
   story     Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
   author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  asset     Asset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
 
   @@index([promptId])
 }
@@ -855,6 +868,7 @@ model ReunionGathering {
   family     Family          @relation(fields: [familyId], references: [id], onDelete: Cascade)
   guests     ReunionGuest[]
   photos     ReunionPhoto[]
+  dishes     ReunionDish[]
 
   @@index([familyId, happenedOn])
 }
@@ -1326,4 +1340,21 @@ model FamilyHoliday {
   family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
+}
+
+model ReunionDish {
+  id        String            @id @default(cuid())
+  familyId  String
+  reunionId String
+  personId  String?
+  recipeId  String?
+  title     String
+  notes     String?
+  createdAt DateTime          @default(now())
+  family    Family            @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  reunion   ReunionGathering  @relation(fields: [reunionId], references: [id], onDelete: Cascade)
+  person    Person?           @relation(fields: [personId], references: [id], onDelete: SetNull)
+  recipe    Document?         @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([familyId, reunionId])
 }

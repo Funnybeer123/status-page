@@ -15,6 +15,7 @@ const schema = z.object({
   documentId: z.string().optional(),
   assetId: z.string().optional(),
   pageNote: z.string().max(240).optional(),
+  quality: z.enum(["original", "copy", "unsure"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -66,6 +67,7 @@ export async function POST(req: Request) {
       documentId: body.data.documentId || null,
       assetId: body.data.assetId || null,
       pageNote: body.data.pageNote?.trim() || null,
+      quality: body.data.quality || null,
     },
     include: { document: true, asset: true, event: true, name: true, story: true, person: true },
   });
