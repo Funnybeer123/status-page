@@ -4,6 +4,7 @@ import { PartnershipEnd, RelType, Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { isPartnerRel, recordMarriageEvent, recordPartnershipEnd } from "@/lib/events";
+import { isoDay, recordRelationshipChange } from "@/lib/personChanges";
 
 const schema = z.object({
   fromPersonId: z.string(),
@@ -39,9 +40,18 @@ export async function POST(req: Request) {
       startedAt: body.data.startedAt ? new Date(body.data.startedAt) : null,
     },
   });
+  const from = people.find((person) => person.id === body.data.fromPersonId)!;
+  const to = people.find((person) => person.id === body.data.toPersonId)!;
+  await recordRelationshipChange({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    fromPersonId: from.id,
+    toPersonId: to.id,
+    fromName: from.displayName,
+    toName: to.displayName,
+    summary: body.data.type,
+  });
   if (isPartnerRel(body.data.type)) {
-    const from = people.find((person) => person.id === body.data.fromPersonId)!;
-    const to = people.find((person) => person.id === body.data.toPersonId)!;
     await recordMarriageEvent({
       familyId: ctx.family.id,
       fromPersonId: from.id,
@@ -73,6 +83,15 @@ export async function PATCH(req: Request) {
       endedKind: body.data.endedKind,
     },
     include: { fromPerson: true, toPerson: true },
+  });
+  await recordRelationshipChange({
+    familyId: ctx.family.id,
+    actorId: ctx.session.user.id,
+    fromPersonId: relationship.fromPersonId,
+    toPersonId: relationship.toPersonId,
+    fromName: relationship.fromPerson.displayName,
+    toName: relationship.toPerson.displayName,
+    summary: `${body.data.endedKind} on ${isoDay(relationship.endedAt)}`,
   });
   await recordPartnershipEnd({
     familyId: ctx.family.id,

@@ -40,7 +40,10 @@ export async function saveFamilyDocument(input: {
     const asset = await prisma.asset.create({
       data: {
         familyId: input.familyId,
-        kind: input.kind === DocKind.letter || input.kind === DocKind.clipping ? AssetKind.letter : AssetKind.photo,
+        kind:
+          input.kind === DocKind.letter || input.kind === DocKind.clipping || input.kind === DocKind.capsule
+            ? AssetKind.letter
+            : AssetKind.photo,
         title: input.title,
         mimeType: file.type || "application/octet-stream",
         storagePath,
@@ -96,7 +99,9 @@ export async function saveFamilyDocument(input: {
             ? "obituary"
             : input.kind === DocKind.will
               ? "will"
-              : "document",
+              : input.kind === DocKind.capsule
+                ? "capsule"
+                : "document",
     entityId: document.id,
     title: input.title,
     summary: pages > 1 ? `${input.kind} · ${pages} pages` : input.kind,

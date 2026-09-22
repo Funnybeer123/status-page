@@ -120,6 +120,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/compare?from=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
               Compare lives
             </Link>
+            <Link href={`/people/${person.id}/history`} className="mt-2 block font-sans text-sm text-seal">
+              Edit history
+            </Link>
             {childMarks(person.id, [...person.fromRels, ...person.toRels]).length ? (
               <p className="mt-3 font-sans text-xs uppercase tracking-wide text-gold">
                 {childMarks(person.id, [...person.fromRels, ...person.toRels]).join(" · ")}

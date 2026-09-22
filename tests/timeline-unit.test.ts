@@ -52,6 +52,7 @@ test("filterHistory keeps a person or a generation", () => {
   ];
   assert.deepEqual(filterHistory(items, { personId: "rose" }).map((item) => item.id), ["a", "c"]);
   assert.deepEqual(filterHistory(items, { generation: 1 }).map((item) => item.id), ["b", "c"]);
+  assert.deepEqual(filterHistory(items, { personIds: ["rose"] }).map((item) => item.id), ["a", "c"]);
 });
 
 test("buildTimelineRows inserts decade marks and gaps", () => {
@@ -88,6 +89,7 @@ test("kindLabel names every source the way a relative would read it", () => {
   assert.equal(kindLabel("photo", "photo"), "Photograph");
   assert.equal(kindLabel("video", "video"), "Film");
   assert.equal(kindLabel("residence", "event"), "Move");
+  assert.equal(kindLabel("capsule", "letter"), "Time capsule");
 });
 
 test("filterMissing keeps only the person or generation in view", () => {

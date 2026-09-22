@@ -22,26 +22,35 @@ function chipClass(active: boolean) {
 export default async function TimelinePage({
   searchParams,
 }: {
-  searchParams: Promise<{ personId?: string; generation?: string; after?: string; before?: string }>;
+  searchParams: Promise<{ personId?: string; generation?: string; after?: string; before?: string; branchId?: string }>;
 }) {
   const ctx = await requireFamily();
   const params = await searchParams;
   const generation = params.generation != null && params.generation !== "" ? Number(params.generation) : null;
+  const branches = await prisma.familyBranch.findMany({
+    where: { familyId: ctx.family.id },
+    include: { members: true },
+    orderBy: { name: "asc" },
+  });
+  const branch = branches.find((item) => item.id === params.branchId);
   const history = await familyHistory(ctx.family.id, ctx.role, {
     personId: params.personId,
     generation: generation != null && !Number.isNaN(generation) ? generation : null,
+    personIds: branch ? branch.members.map((member) => member.personId) : null,
   });
   const places = await prisma.place.findMany({
     where: { familyId: ctx.family.id },
     orderBy: { name: "asc" },
   });
   const rows = buildTimelineRows(history.entries, history.gaps);
-  const query = (next: { personId?: string; generation?: string | number | null }) => {
+  const query = (next: { personId?: string; generation?: string | number | null; branchId?: string | null }) => {
     const search = new URLSearchParams();
     const personId = next.personId === undefined ? params.personId : next.personId;
     const gen = next.generation === undefined ? params.generation : next.generation;
+    const branchId = next.branchId === undefined ? params.branchId : next.branchId;
     if (personId) search.set("personId", personId);
     if (gen != null && gen !== "") search.set("generation", String(gen));
+    if (branchId) search.set("branchId", branchId);
     const text = search.toString();
     return text ? `/timeline?${text}` : "/timeline";
   };
@@ -74,6 +83,14 @@ export default async function TimelinePage({
           {history.people.map((person) => (
             <Link key={person.id} href={query({ personId: person.id })} className={chipClass(params.personId === person.id)}>
               {person.displayName}
+            </Link>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2" data-testid="timeline-branches">
+          <Link href={query({ branchId: "" })} className={chipClass(!params.branchId)}>All branches</Link>
+          {branches.map((item) => (
+            <Link key={item.id} href={query({ branchId: item.id })} className={chipClass(params.branchId === item.id)}>
+              {item.name}
             </Link>
           ))}
         </div>

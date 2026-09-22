@@ -36,6 +36,18 @@ const BEE_STORY = `Sam kept bees after he stopped farming. He swore the cottonwo
 
 — told by Margaret Chen at the kitchen table, Easter 2014`;
 
+const CAPSULE_LETTER = `Cedar Falls, Iowa
+18 October 1948
+
+Lily, if that is still your name when this is opened,
+
+I am writing this the autumn after I married Sam. The cottonwoods still hold the walk home. If you ask how we met, it was the harvest dance, the cider too sweet, and he called me Whitaker as if it were a compliment. Open this in 2047 and tell the children the fiddle ran a little sharp.
+
+Your grandmother,
+Eleanor`;
+
+const INTERVIEW_MEET = `He asked to walk me home past the cottonwoods after the third dance. I still smell the cider when I say it. That is the whole of how I met Sam.`;
+
 function mediaRoot() {
   return process.env.MEDIA_ROOT || join(process.cwd(), "data", "media");
 }
@@ -766,6 +778,354 @@ async function ensureHartArchive() {
       });
     }
   }
+
+  const lily = people.find((person) => person.id === "person-lily");
+  const capsuleDoc = await prisma.document.upsert({
+    where: { id: "doc-capsule-lily" },
+    create: {
+      id: "doc-capsule-lily",
+      familyId: family.id,
+      title: "Eleanor’s letter for Lily, to open in 2047",
+      kind: DocKind.capsule,
+      transcript: `Time capsule for Lily Chen, to be opened 2047-10-18.\n\n${CAPSULE_LETTER}`,
+      writtenAt: new Date("1948-10-18"),
+      people: {
+        create: [
+          { personId: eleanor.id },
+          ...(lily ? [{ personId: lily.id }] : []),
+        ],
+      },
+    },
+    update: { transcript: `Time capsule for Lily Chen, to be opened 2047-10-18.\n\n${CAPSULE_LETTER}` },
+  });
+  await prisma.chunk.deleteMany({ where: { documentId: capsuleDoc.id } });
+  await prisma.chunk.create({
+    data: { familyId: family.id, documentId: capsuleDoc.id, personId: eleanor.id, content: capsuleDoc.transcript },
+  });
+  await prisma.timeCapsule.upsert({
+    where: { id: "capsule-lily-2047" },
+    create: {
+      id: "capsule-lily-2047",
+      familyId: family.id,
+      documentId: capsuleDoc.id,
+      addresseeName: "Lily Chen",
+      addresseePersonId: lily?.id,
+      fromPersonId: eleanor.id,
+      openOn: new Date("2047-10-18"),
+    },
+    update: { addresseeName: "Lily Chen", openOn: new Date("2047-10-18") },
+  });
+
+  if (margaret) {
+    const interviewDoc = await prisma.document.upsert({
+      where: { id: "doc-interview-meg-meet" },
+      create: {
+        id: "doc-interview-meg-meet",
+        familyId: family.id,
+        title: "Margaret Chen on “How did you meet the person you married?”",
+        kind: DocKind.story,
+        transcript: INTERVIEW_MEET,
+        writtenAt: new Date("2014-04-20"),
+        people: { create: [{ personId: margaret.id }] },
+      },
+      update: { transcript: INTERVIEW_MEET },
+    });
+    await prisma.chunk.deleteMany({ where: { documentId: interviewDoc.id } });
+    await prisma.chunk.create({
+      data: { familyId: family.id, documentId: interviewDoc.id, personId: margaret.id, content: INTERVIEW_MEET },
+    });
+    const interviewStory = await prisma.story.upsert({
+      where: { id: "story-interview-meg-meet" },
+      create: {
+        id: "story-interview-meg-meet",
+        familyId: family.id,
+        title: "Margaret Chen on “How did you meet the person you married?”",
+        body: INTERVIEW_MEET,
+        recordedAt: new Date("2014-04-20"),
+        tellerPersonId: margaret.id,
+        documentId: interviewDoc.id,
+        people: { create: [{ personId: margaret.id }] },
+      },
+      update: { body: INTERVIEW_MEET, documentId: interviewDoc.id },
+    });
+    await prisma.interviewAnswer.upsert({
+      where: { personId_promptKey: { personId: margaret.id, promptKey: "meet" } },
+      create: {
+        familyId: family.id,
+        personId: margaret.id,
+        promptKey: "meet",
+        question: "How did you meet the person you married?",
+        storyId: interviewStory.id,
+      },
+      update: { storyId: interviewStory.id },
+    });
+  }
+
+  if (demo) {
+    await prisma.personChange.createMany({
+      data: [
+        {
+          id: "change-eleanor-name",
+          familyId: family.id,
+          personId: eleanor.id,
+          actorId: demo.id,
+          field: "name",
+          before: "Eleanor Whitaker",
+          after: "Eleanor Hart",
+        },
+        {
+          id: "change-eleanor-death",
+          familyId: family.id,
+          personId: eleanor.id,
+          actorId: demo.id,
+          field: "deathDate",
+          before: "2015-06-04",
+          after: "2015-06-03",
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
+
+  const branchMembers = ["person-eleanor", "person-samuel", "person-margaret", "person-robert", "person-lily"]
+    .filter((personId) => people.some((person) => person.id === personId));
+  await prisma.familyBranch.upsert({
+    where: { id: "branch-cedar-falls-harts" },
+    create: {
+      id: "branch-cedar-falls-harts",
+      familyId: family.id,
+      name: "the Cedar Falls Harts",
+      summary: "The Iowa line that stayed by the cottonwoods.",
+      members: { create: branchMembers.map((personId) => ({ personId })) },
+    },
+    update: { name: "the Cedar Falls Harts" },
+  });
+
+  const cemetery = await prisma.cemetery.upsert({
+    where: { id: "cemetery-fairview" },
+    create: {
+      id: "cemetery-fairview",
+      familyId: family.id,
+      name: "Fairview Cemetery",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      notes: "North of town, past the cottonwoods.",
+    },
+    update: { name: "Fairview Cemetery" },
+  });
+  const existingPlot = await prisma.cemeteryPlot.findFirst({
+    where: { cemeteryId: cemetery.id, personId: eleanor.id },
+  });
+  if (!existingPlot) {
+    await prisma.cemeteryPlot.create({
+      data: {
+        cemeteryId: cemetery.id,
+        personId: eleanor.id,
+        plot: "Lot 14",
+        notes: "Next to the cedar the children planted.",
+      },
+    });
+  }
+
+  const nowPath = writeMedia(
+    family.id,
+    "grange-now.svg",
+    svgScene("Grange hall today", "Cedar Falls, the same doors", "2024", "#6b5344"),
+  );
+  if (demo) {
+    const thenPhoto = await prisma.asset.findFirst({ where: { familyId: family.id, title: "Harvest dance, Grange hall" } });
+    let nowPhoto = await prisma.asset.findFirst({ where: { id: "asset-grange-now" } });
+    if (!nowPhoto) {
+      nowPhoto = await prisma.asset.create({
+        data: {
+          id: "asset-grange-now",
+          familyId: family.id,
+          kind: AssetKind.photo,
+          title: "Grange hall today",
+          mimeType: "image/svg+xml",
+          storagePath: nowPath,
+          capturedAt: new Date("2024-06-01"),
+          uploadedById: demo.id,
+        },
+      });
+    }
+    if (thenPhoto) {
+      await prisma.photoPair.upsert({
+        where: { id: "pair-grange" },
+        create: {
+          id: "pair-grange",
+          familyId: family.id,
+          title: "The Grange hall, then and now",
+          thenAssetId: thenPhoto.id,
+          nowAssetId: nowPhoto.id,
+          notes: "The same doors Ellie walked through in 1947.",
+        },
+        update: { title: "The Grange hall, then and now" },
+      });
+    }
+  }
+
+  if (wei) {
+    const voyage = await prisma.voyage.upsert({
+      where: { id: "voyage-wei-pacific" },
+      create: {
+        id: "voyage-wei-pacific",
+        familyId: family.id,
+        ship: "SS Eastern Star",
+        departedFrom: "Hong Kong",
+        arrivedAt: "San Francisco",
+        departedOn: new Date("1972-03-04"),
+        arrivedOn: new Date("1972-03-22"),
+        notes: "Wei kept the boarding card in the same envelope as his naturalization papers.",
+      },
+      update: { ship: "SS Eastern Star" },
+    });
+    const linked = await prisma.voyagePerson.findUnique({
+      where: { voyageId_personId: { voyageId: voyage.id, personId: wei.id } },
+    });
+    if (!linked) {
+      await prisma.voyagePerson.create({ data: { voyageId: voyage.id, personId: wei.id } });
+    }
+    await prisma.passportRecord.upsert({
+      where: { id: "passport-wei" },
+      create: {
+        id: "passport-wei",
+        familyId: family.id,
+        personId: wei.id,
+        numberNote: "kept with the boarding card",
+        issuedOn: new Date("1972-02-10"),
+        place: "Hong Kong",
+      },
+      update: {},
+    });
+  }
+
+  await prisma.schooling.upsert({
+    where: { id: "school-eleanor-cfhs" },
+    create: {
+      id: "school-eleanor-cfhs",
+      familyId: family.id,
+      personId: eleanor.id,
+      school: "Cedar Falls High",
+      place: "Cedar Falls, Iowa",
+      startedOn: new Date("1941-09-02"),
+      endedOn: new Date("1945-05-28"),
+      notes: "She finished in the spring before the last wartime harvest.",
+    },
+    update: { school: "Cedar Falls High" },
+  });
+
+  const reunion = await prisma.reunionGathering.upsert({
+    where: { id: "reunion-hart-2026" },
+    create: {
+      id: "reunion-hart-2026",
+      familyId: family.id,
+      title: "Hart reunion at the north farm",
+      place: "North farm, Cedar Falls",
+      happenedOn: new Date("2026-07-04"),
+      notes: "Cold chicken under the cottonwoods.",
+    },
+    update: { title: "Hart reunion at the north farm" },
+  });
+  for (const personId of ["person-lily", "person-margaret", "person-robert"].filter((id) =>
+    people.some((person) => person.id === id),
+  )) {
+    await prisma.reunionGuest.upsert({
+      where: { reunionId_personId: { reunionId: reunion.id, personId } },
+      create: { reunionId: reunion.id, personId, coming: true },
+      update: { coming: true },
+    });
+  }
+
+  await prisma.occupationRecord.upsert({
+    where: { id: "occ-sam-bees" },
+    create: {
+      id: "occ-sam-bees",
+      familyId: family.id,
+      personId: samuel.id,
+      title: "Beekeeper",
+      employer: "North farm",
+      place: "Cedar Falls",
+      startedOn: new Date("1988-06-01"),
+    },
+    update: { title: "Beekeeper" },
+  });
+  if (margaret) {
+    await prisma.godparent.upsert({
+      where: { id: "godparent-eleanor-margaret" },
+      create: {
+        id: "godparent-eleanor-margaret",
+        familyId: family.id,
+        childId: margaret.id,
+        godparentId: eleanor.id,
+        notes: "Stood at St. John's.",
+      },
+      update: {},
+    });
+  }
+  await prisma.congregation.upsert({
+    where: { id: "cong-eleanor-stjohns" },
+    create: {
+      id: "cong-eleanor-stjohns",
+      familyId: family.id,
+      personId: eleanor.id,
+      name: "St. John's",
+      place: "Cedar Falls",
+      startedOn: new Date("1928-04-08"),
+    },
+    update: { name: "St. John's" },
+  });
+  await prisma.landRecord.upsert({
+    where: { id: "land-north-farm" },
+    create: {
+      id: "land-north-farm",
+      familyId: family.id,
+      personId: samuel.id,
+      title: "North farm",
+      place: "Cedar Falls, Iowa",
+      acquiredOn: new Date("1948-06-14"),
+      notes: "The bee yard stayed with the children.",
+    },
+    update: { title: "North farm" },
+  });
+  await prisma.militaryService.upsert({
+    where: { id: "mil-samuel-draft" },
+    create: {
+      id: "mil-samuel-draft",
+      familyId: family.id,
+      personId: samuel.id,
+      branch: "County draft board",
+      unit: "Processing",
+      startedOn: new Date("1944-09-22"),
+      endedOn: new Date("1944-09-29"),
+      notes: "A week of processing, then home for harvest.",
+    },
+    update: { branch: "County draft board" },
+  });
+  await prisma.bibleRecord.upsert({
+    where: { id: "bible-hart" },
+    create: {
+      id: "bible-hart",
+      familyId: family.id,
+      title: "Hart family Bible",
+      holderId: eleanor.id,
+      body: "Married this morning at St. John's. Sam put a sprig of cedar in his buttonhole.",
+      recordedAt: new Date("1948-06-14"),
+    },
+    update: { title: "Hart family Bible" },
+  });
+  await prisma.familyMotto.upsert({
+    where: { id: "motto-cottonwoods" },
+    create: {
+      id: "motto-cottonwoods",
+      familyId: family.id,
+      text: "Courtesy to the trees",
+      language: "English",
+      notes: "Sam said it of the cottonwoods.",
+    },
+    update: { text: "Courtesy to the trees" },
+  });
 }
 
 async function writeHartMedia() {
@@ -782,6 +1142,7 @@ async function writeHartMedia() {
   writeMedia(familyId, "wedding.svg", svgScene("Wedding day", "St. John's, then the cottonwoods", "14 June 1948", "#3d2b1f"));
   writeMedia(familyId, "picnic.svg", svgScene("Family picnic", "North farm meadow", "Summer 1961", "#4d5b3c"));
   writeMedia(familyId, "harvest-letter.svg", svgLetter(HARVEST_LETTER));
+  writeMedia(familyId, "grange-now.svg", svgScene("Grange hall today", "Cedar Falls, the same doors", "2024", "#6b5344"));
   tryWriteVideo(familyId, "picnic-1961.mp4");
 }
 

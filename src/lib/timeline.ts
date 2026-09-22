@@ -119,6 +119,7 @@ export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
     recipe: "Recipe",
     obituary: "Obituary",
     will: "Will",
+    capsule: "Time capsule",
     audio: "Oral history",
     letter: "Letter",
     note: "Oral note",
@@ -132,10 +133,12 @@ export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
 
 export function filterHistory(
   entries: TimelineEntry[],
-  opts: { personId?: string | null; generation?: number | null },
+  opts: { personId?: string | null; generation?: number | null; personIds?: string[] | null },
 ) {
+  const branch = opts.personIds?.length ? new Set(opts.personIds) : null;
   return entries.filter((entry) => {
     if (opts.personId && !entry.people.some((person) => person.id === opts.personId)) return false;
+    if (branch && !entry.people.some((person) => branch.has(person.id))) return false;
     if (opts.generation != null && !Number.isNaN(opts.generation) && !entry.generations.includes(opts.generation)) {
       return false;
     }
@@ -294,7 +297,7 @@ function attachPeople(
 export async function familyHistory(
   familyId: string,
   role: Role,
-  opts: { personId?: string | null; generation?: number | null } = {},
+  opts: { personId?: string | null; generation?: number | null; personIds?: string[] | null } = {},
 ): Promise<TimelineHistory> {
   const [people, relationships, events, documents, assets, stories, residences] = await Promise.all([
     prisma.person.findMany({ where: { familyId, deletedAt: null } }),
@@ -304,7 +307,7 @@ export async function familyHistory(
       include: { person: true, otherPerson: true, place: true },
     }),
     prisma.document.findMany({
-      where: { familyId, deletedAt: null, kind: { in: ["letter", "note", "clipping", "recipe", "obituary", "will"] } },
+      where: { familyId, deletedAt: null, kind: { in: ["letter", "note", "clipping", "recipe", "obituary", "will", "capsule"] } },
       include: { people: { include: { person: true } }, asset: true },
     }),
     prisma.asset.findMany({
@@ -394,7 +397,7 @@ export async function familyHistory(
       title: document.title,
       summary: document.transcript.slice(0, 220),
       happenedOn: iso(document.writtenAt),
-      href: `/letters/${document.id}`,
+      href: document.kind === "capsule" ? `/capsules/${document.id}` : `/letters/${document.id}`,
       people: peopleOn,
       generations: [...new Set(peopleOn.map((person) => person.generation))],
       place: null,
@@ -457,7 +460,9 @@ export async function familyHistory(
 
   const filtered = filterHistory(entries, opts);
   const gaps = computeGaps(filtered);
+  const branchSet = opts.personIds?.length ? new Set(opts.personIds) : null;
   const peopleOut = people
+    .filter((person) => !branchSet || branchSet.has(person.id))
     .map((person) => personRef(person.id, person.displayName))
     .sort((a, b) => a.generation - b.generation || a.displayName.localeCompare(b.displayName));
   const missing = filterMissing(

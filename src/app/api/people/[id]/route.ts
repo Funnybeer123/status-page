@@ -5,6 +5,7 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { syncVitalEvents } from "@/lib/events";
 import { hideResidenceForViewer, redactPerson, shouldHideLivingFacts } from "@/lib/privacy";
+import { isoDay, recordPersonChanges } from "@/lib/personChanges";
 
 const schema = z.object({
   displayName: z.string().min(1).max(120).optional(),
@@ -59,6 +60,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!body.success) return NextResponse.json({ error: "Invalid person." }, { status: 400 });
   const existing = await prisma.person.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
   if (!existing) return NextResponse.json({ error: "Person not found." }, { status: 404 });
+  const nextName = body.data.displayName ?? existing.displayName;
+  const nextGiven = body.data.givenName === undefined ? existing.givenName : body.data.givenName || null;
+  const nextFamily = body.data.familyName === undefined ? existing.familyName : body.data.familyName || null;
+  const nextBirth =
+    body.data.birthDate === undefined ? existing.birthDate : body.data.birthDate ? new Date(body.data.birthDate) : null;
+  const nextDeath =
+    body.data.deathDate === undefined ? existing.deathDate : body.data.deathDate ? new Date(body.data.deathDate) : null;
+  await recordPersonChanges({
+    familyId: ctx.family.id,
+    personId: existing.id,
+    actorId: ctx.session.user.id,
+    changes: [
+      { field: "name", before: existing.displayName, after: nextName },
+      { field: "givenName", before: existing.givenName, after: nextGiven },
+      { field: "familyName", before: existing.familyName, after: nextFamily },
+      { field: "birthDate", before: isoDay(existing.birthDate), after: isoDay(nextBirth) },
+      { field: "deathDate", before: isoDay(existing.deathDate), after: isoDay(nextDeath) },
+    ],
+  });
   const person = await prisma.person.update({
     where: { id },
     data: {

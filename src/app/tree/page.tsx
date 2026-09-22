@@ -7,23 +7,32 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
 import { redactPeople } from "@/lib/privacy";
+import { memberIdsForBranch, peopleInBranch, relationshipsInBranch } from "@/lib/branches";
 
 export default async function TreePage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; personId?: string }>;
+  searchParams: Promise<{ view?: string; personId?: string; branchId?: string }>;
 }) {
   const ctx = await requireFamily();
   const params = await searchParams;
-  const [people, relationships] = await Promise.all([
+  const [people, relationships, branches] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.familyBranch.findMany({
+      where: { familyId: ctx.family.id },
+      include: { members: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
+  const memberIds = memberIdsForBranch(branches, params.branchId);
+  const visiblePeople = peopleInBranch(people, memberIds);
+  const visibleRels = relationshipsInBranch(relationships, memberIds);
   const assets = await prisma.asset.findMany({
-    where: { id: { in: people.map((person) => person.profileAssetId).filter(Boolean) as string[] } },
+    where: { id: { in: visiblePeople.map((person) => person.profileAssetId).filter(Boolean) as string[] } },
   });
   const assetById = new Map(assets.map((asset) => [asset.id, asset]));
-  const treePeople = redactPeople(people, ctx.role).map((person) => ({
+  const treePeople = redactPeople(visiblePeople, ctx.role).map((person) => ({
     ...person,
     profileUrl: person.profileAssetId
       ? `/api/media/${assetById.get(person.profileAssetId)?.storagePath ?? ""}`
@@ -49,6 +58,17 @@ export default async function TreePage({
         <Link href="/tree?view=pedigree" className={`rounded-full px-3 py-1 ${params.view === "pedigree" ? "bg-seal text-cream" : "border border-bark/15"}`}>Ancestor chart</Link>
         <Link href="/surnames" className="rounded-full border border-bark/15 px-3 py-1">Surnames</Link>
         <Link href="/places" className="rounded-full border border-bark/15 px-3 py-1">Places</Link>
+        <Link href="/tree" className={`rounded-full px-3 py-1 ${!params.branchId ? "bg-seal text-cream" : "border border-bark/15"}`}>All branches</Link>
+        {branches.map((branch) => (
+          <Link
+            key={branch.id}
+            href={`/tree?branchId=${branch.id}${params.view ? `&view=${params.view}` : ""}`}
+            className={`rounded-full px-3 py-1 ${params.branchId === branch.id ? "bg-seal text-cream" : "border border-bark/15"}`}
+            data-testid={`tree-branch-${branch.id}`}
+          >
+            {branch.name}
+          </Link>
+        ))}
       </div>
       <div className="mt-10">
         {params.view === "pedigree" ? (
@@ -58,11 +78,11 @@ export default async function TreePage({
                 ? params.personId
                 : treePeople[treePeople.length - 1]?.id || "",
               treePeople,
-              relationships,
+              visibleRels,
             )}
           />
         ) : (
-          <TreeView people={treePeople} relationships={relationships} />
+          <TreeView people={treePeople} relationships={visibleRels} />
         )}
       </div>
     </AppShell>
