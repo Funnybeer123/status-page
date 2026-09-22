@@ -307,7 +307,7 @@ test("a relative can save Ask as a story, highlight a letter, and map a cemetery
 
   await t.test("every letter in the family is listed in date order", async () => {
     const list = await maya.json<{ heading: string; letters: { id: string; title: string }[] }>("/api/letters");
-    assert.match(list.body.heading, /letter in the family, in date order/);
+    assert.match(list.body.heading, /letters? in the family, in date order/);
     const datedIndex = list.body.letters.findIndex((letter) => letter.id === ids.letter);
     const undatedIndex = list.body.letters.findIndex((letter) => letter.id === ids.undated);
     assert.ok(datedIndex >= 0 && undatedIndex >= 0);
