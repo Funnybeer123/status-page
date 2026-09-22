@@ -251,7 +251,9 @@ test("a relative can file the box, record who held an heirloom, and lock a trans
     assert.equal(story.status, 200, story.body.error);
     const notices = await viewer.json<{ notifications: { title: string }[] }>("/api/notifications");
     const titles = notices.body.notifications.map((item) => item.title).join("\n");
-    assert.doesNotMatch(titles, /millinery hatband Rose kept after mute/);
+    assert.doesNotMatch(titles, /A story was added about Rose Whitaker/);
+    assert.doesNotMatch(titles, /A photograph was added about Rose Whitaker/);
+    assert.doesNotMatch(titles, /A letter was added about Rose Whitaker/);
     const mutedPage = await viewer.html("/following/muted");
     assert.match(mutedPage.text, /Rose Whitaker/);
     const following = await viewer.html("/following");
@@ -326,7 +328,7 @@ test("a relative can file the box, record who held an heirloom, and lock a trans
       "/api/surnames/map",
     );
     assert.equal(map.status, 200, map.body.error);
-    assert.match(map.body.heading, /surname clustered/);
+    assert.match(map.body.heading, /surnames clustered on the map/);
     assert.ok(map.body.clusters.some((cluster) => cluster.surname === "Whitaker" && cluster.count >= 2));
     const page = await maya.html("/surnames/map");
     assert.match(page.text, /Whitaker/);
