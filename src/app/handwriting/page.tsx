@@ -20,6 +20,13 @@ export default async function HandwritingPage() {
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="handwriting-heading">Handwriting</h1>
       <p className="mt-3 max-w-2xl text-bark">A sample of a relative’s hand, linked from a letter.</p>
+      {samples.length >= 2 ? (
+        <p className="mt-3 font-sans text-sm">
+          <Link href={`/handwriting/compare?a=${samples[0]!.id}&b=${samples[1]!.id}`} className="text-seal">
+            Compare two samples side by side
+          </Link>
+        </p>
+      ) : null}
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="handwriting"

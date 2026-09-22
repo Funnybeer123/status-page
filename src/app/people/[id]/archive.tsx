@@ -146,6 +146,7 @@ export function PersonArchiveForms({
               title: data.get("title"),
               summary: data.get("summary"),
               happenedOn: data.get("happenedOn"),
+              rangeEnd: data.get("rangeEnd") || undefined,
               placeId: data.get("placeId") || undefined,
               precision: data.get("precision") || undefined,
             },
@@ -186,6 +187,7 @@ export function PersonArchiveForms({
             </select>
           </label>
           <label className="font-sans text-sm">Date <input type="date" name="happenedOn" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" /></label>
+          <label className="font-sans text-sm">Through <input type="date" name="rangeEnd" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" /></label>
           <label className="font-sans text-sm">
             With
             <select name="otherPersonId" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2">

@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/dates";
+import { dateRange } from "@/lib/dateRange";
 import { placeLabel } from "@/lib/places";
 import { kindLabel } from "@/lib/timeline";
 
@@ -13,7 +14,7 @@ export function compileLifeStory(input: {
   person: { id: string; displayName: string; birthDate: Date | string | null; deathDate: Date | string | null; notes: string | null };
   names: { kind: string; name: string }[];
   residences: { place: { name: string; locality?: string | null; region?: string | null; country?: string | null }; startedAt: Date | string | null; endedAt: Date | string | null; notes: string | null }[];
-  events: { kind: string; title: string; summary: string | null; happenedOn: Date | string | null; place?: { name: string } | null }[];
+  events: { kind: string; title: string; summary: string | null; happenedOn: Date | string | null; rangeEnd?: Date | string | null; precision?: string | null; place?: { name: string } | null }[];
   letters: { title: string; writtenAt: Date | string | null; transcript: string }[];
   stories: { title: string; recordedAt: Date | string | null; body: string }[];
 }) {
@@ -43,7 +44,7 @@ export function compileLifeStory(input: {
   for (const event of input.events) {
     sections.push({
       heading: `${kindLabel(event.kind)} · ${event.title}`,
-      date: formatDate(event.happenedOn, ""),
+      date: dateRange(event.happenedOn, event.precision, event.rangeEnd, "").label,
       body: [event.summary, event.place ? event.place.name : ""].filter(Boolean).join(" "),
     });
   }

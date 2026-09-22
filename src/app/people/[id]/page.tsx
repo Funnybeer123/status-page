@@ -9,7 +9,8 @@ import { ShareLinkButton } from "@/app/share/ui";
 import { childMarks, isPartnerRel } from "@/lib/rels";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { ageLabel, formatDate, lifespan, qualifyDate } from "@/lib/dates";
+import { ageLabel, formatDate, lifespan } from "@/lib/dates";
+import { dateRange, rangeBarStyle } from "@/lib/dateRange";
 import { PersonDetailsForm } from "@/app/people/[id]/details";
 import { canWrite } from "@/lib/roles";
 import { canSeeOwnerNote, hideEventFromViewer, hideMinorDetails, hidePhotoFromAudience, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
@@ -296,12 +297,33 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                   <span className="font-sans text-xs uppercase tracking-wide text-gold">{event.kind}</span>
                   <span className="ml-2">{event.title}</span>
                   <span className="ml-2 font-sans text-sm text-bark">
-                    {qualifyDate(event.happenedOn, "precision" in event ? event.precision : null, "Date unknown")}
+                    {dateRange(
+                      event.happenedOn,
+                      "precision" in event ? event.precision : null,
+                      "rangeEnd" in event ? event.rangeEnd : null,
+                    ).label}
                     {ageLabel(person.birthDate, event.happenedOn) ? ` · ${ageLabel(person.birthDate, event.happenedOn)}` : ""}
                     {event.place ? ` · ${event.place.name}` : ""}
                     {"otherPerson" in event && event.otherPerson ? ` · ${event.otherPerson.displayName}` : ""}
                     {"person" in event && event.person && event.personId !== person.id ? ` · ${event.person.displayName}` : ""}
                   </span>
+                  {("precision" in event && event.precision !== "exact") || ("rangeEnd" in event && event.rangeEnd) ? (
+                    <div className="relative mt-1 h-2 w-full max-w-md bg-bark/10">
+                      <div
+                        className="absolute h-2 bg-gold/70"
+                        style={rangeBarStyle(
+                          dateRange(
+                            event.happenedOn,
+                            "precision" in event ? event.precision : null,
+                            "rangeEnd" in event ? event.rangeEnd : null,
+                          ),
+                          1900,
+                          2030,
+                        )}
+                        data-testid="date-range-bar"
+                      />
+                    </div>
+                  ) : null}
                   {event.summary ? <p className="text-bark">{event.summary}</p> : null}
                   {"witnesses" in event && event.witnesses?.length ? (
                     <p className="font-sans text-sm text-gold">

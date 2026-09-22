@@ -21,6 +21,7 @@ const schema = z.object({
   region: z.string().optional(),
   country: z.string().optional(),
   precision: z.nativeEnum(DatePrecision).optional(),
+  rangeEnd: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
       title: body.data.title.trim(),
       summary: body.data.summary?.trim() || null,
       happenedOn: parseDate(body.data.happenedOn),
+      rangeEnd: parseDate(body.data.rangeEnd),
       precision: body.data.precision ?? DatePrecision.exact,
     },
     include: { person: true, otherPerson: true, place: true },

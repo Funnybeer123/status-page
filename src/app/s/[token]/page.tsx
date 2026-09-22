@@ -5,6 +5,7 @@ import { formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { hidePhotoFromAudience } from "@/lib/privacy";
 import { grantedConsentIds } from "@/lib/consent";
+import { watermarkLabel } from "@/lib/watermark";
 
 export default async function SharedPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -57,6 +58,8 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
     include: { items: { include: { asset: { include: { tags: { include: { person: true } } } }, document: true, story: true } } },
   });
   if (!album) notFound();
+  const family = await prisma.family.findUnique({ where: { id: link.familyId } });
+  const mark = watermarkLabel(family?.name || "Family");
   const consented = grantedConsentIds(
     await prisma.shareConsent.findMany({
       where: { familyId: link.familyId },
@@ -73,8 +76,16 @@ export default async function SharedPage({ params }: { params: Promise<{ token: 
           <li key={item.id} className="paper-card overflow-hidden p-4">
             {item.asset ? (
               item.asset.mimeType.startsWith("image/") ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={`/api/media/${item.asset.storagePath}`} alt={item.asset.title ?? ""} className="w-full" />
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/api/media/${item.asset.storagePath}`} alt={item.asset.title ?? ""} className="w-full" />
+                  <p
+                    className="pointer-events-none absolute inset-x-0 bottom-2 text-center font-display text-lg text-seal/70"
+                    data-testid="share-watermark"
+                  >
+                    {mark}
+                  </p>
+                </div>
               ) : (
                 <p>{item.asset.title}</p>
               )

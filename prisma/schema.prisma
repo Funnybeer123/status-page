@@ -181,6 +181,7 @@ model Family {
   savedSearches SavedSearch[]
   photoNotes    PhotoNote[]
   shareConsents ShareConsent[]
+  adoptionPapers AdoptionPaper[]
 }
 
 model Membership {
@@ -298,6 +299,7 @@ model Relationship {
   family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
   fromPerson   Person   @relation("FromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
   toPerson     Person   @relation("ToPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
+  adoptionPaper AdoptionPaper?
 
   @@index([familyId, type])
 }
@@ -376,6 +378,7 @@ model Document {
   handwritingSamples HandwritingSample[]
   pinnedMemories PinnedMemory[]
   potluckDishes ReunionDish[]
+  adoptionPapers AdoptionPaper[]
 }
 
 model DocumentPerson {
@@ -408,13 +411,18 @@ model Place {
   country    String?
   latitude   Float?
   longitude  Float?
+  parentId   String?
+  kind       String?
   family     Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  parent     Place?      @relation("PlaceTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Place[]     @relation("PlaceTree")
   residences Residence[]
   events     LifeEvent[]
   homes      FamilyHome[]
   photos     Asset[]
 
   @@index([familyId])
+  @@index([parentId])
 }
 
 model PersonName {
@@ -458,6 +466,7 @@ model LifeEvent {
   title         String
   summary       String?
   happenedOn    DateTime?  @db.Date
+  rangeEnd      DateTime?  @db.Date
   preferred     Boolean    @default(false)
   precision     DatePrecision @default(exact)
   family        Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
@@ -1588,5 +1597,20 @@ model ShareConsent {
   person    Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, personId])
+  @@index([familyId])
+}
+
+model AdoptionPaper {
+  id             String       @id @default(cuid())
+  familyId       String
+  relationshipId String       @unique
+  documentId     String?
+  grantedOn      DateTime?    @db.Date
+  notes          String?
+  createdAt      DateTime     @default(now())
+  family         Family       @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  relationship   Relationship @relation(fields: [relationshipId], references: [id], onDelete: Cascade)
+  document       Document?    @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
   @@index([familyId])
 }

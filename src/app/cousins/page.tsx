@@ -26,6 +26,11 @@ export default async function CousinsPage() {
           </>
         )}
       </p>
+      <p className="mt-3 font-sans text-sm">
+        <Link href={me ? `/cousins/worksheet?personId=${me.id}` : "/cousins/worksheet"} className="text-seal">
+          Cousin worksheet
+        </Link>
+      </p>
       <ul className="mt-10 space-y-3" data-testid="cousins-list">
         {cousins.map((cousin) => (
           <li key={cousin.id} className="paper-card p-5">

@@ -1,12 +1,11 @@
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
-import { Readable } from "node:stream";
+import { readFile, stat } from "node:fs/promises";
 import { NextResponse } from "next/server";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { absoluteMediaPath } from "@/lib/media";
 import { hidePhotoFromAudience, type Audience } from "@/lib/privacy";
 import { grantedConsentIds } from "@/lib/consent";
+import { watermarkLabel, watermarkPhoto } from "@/lib/watermark";
 
 const tagPeople = { tags: { include: { person: true } } } as const;
 
@@ -65,8 +64,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ path: s
   } catch {
     return NextResponse.json({ error: "File missing." }, { status: 404 });
   }
-  const stream = createReadStream(full);
-  return new NextResponse(Readable.toWeb(stream) as ReadableStream, {
+  const bytes = await readFile(full);
+  if (audience === "share") {
+    const family = await prisma.family.findUnique({ where: { id: asset.familyId } });
+    const marked = watermarkPhoto(bytes, asset.mimeType, watermarkLabel(family?.name || "Family"));
+    return new NextResponse(new Uint8Array(marked.bytes), {
+      headers: {
+        "Content-Type": marked.mimeType,
+        "Cache-Control": "private, max-age=3600",
+        "X-Watermark": "share",
+      },
+    });
+  }
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       "Content-Type": asset.mimeType,
       "Cache-Control": "private, max-age=3600",

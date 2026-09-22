@@ -52,6 +52,15 @@ export default async function BookPage({
         <p className="mt-3 max-w-2xl text-bark">
           A printable life story from the facts, letters, and stories already in the archive.
         </p>
+        <p className="mt-4">
+          <a
+            href={params.personId ? `/api/book/pdf?personId=${params.personId}` : "/api/book/pdf"}
+            className="text-seal"
+            data-testid="book-pdf"
+          >
+            Download the family book as PDF
+          </a>
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link href="/book" className="rounded-full border border-bark/15 px-3 py-1 font-sans text-sm">Whole family</Link>
           {people.map((person) => (

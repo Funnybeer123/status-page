@@ -1,4 +1,4 @@
-import { PrismaClient, Role, RelType, AssetKind, DocKind, EventKind, NameKind } from "@prisma/client";
+import { PrismaClient, Role, RelType, AssetKind, DocKind, EventKind, NameKind, DatePrecision } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -206,25 +206,136 @@ async function ensureHartArchive() {
 
   const people = await prisma.person.findMany({ where: { familyId: family.id } });
 
+  const unitedStates = await prisma.place.upsert({
+    where: { id: "place-united-states" },
+    create: {
+      id: "place-united-states",
+      familyId: family.id,
+      name: "United States",
+      country: "United States",
+      kind: "country",
+    },
+    update: { kind: "country" },
+  });
+  const iowa = await prisma.place.upsert({
+    where: { id: "place-iowa" },
+    create: {
+      id: "place-iowa",
+      familyId: family.id,
+      name: "Iowa",
+      region: "Iowa",
+      country: "United States",
+      kind: "state",
+      parentId: unitedStates.id,
+      latitude: 41.878,
+      longitude: -93.0977,
+    },
+    update: { kind: "state", parentId: unitedStates.id },
+  });
+  const blackHawk = await prisma.place.upsert({
+    where: { id: "place-black-hawk" },
+    create: {
+      id: "place-black-hawk",
+      familyId: family.id,
+      name: "Black Hawk County",
+      locality: "Black Hawk County",
+      region: "Iowa",
+      country: "United States",
+      kind: "county",
+      parentId: iowa.id,
+      latitude: 42.47,
+      longitude: -92.31,
+    },
+    update: { kind: "county", parentId: iowa.id },
+  });
+  const johnson = await prisma.place.upsert({
+    where: { id: "place-johnson" },
+    create: {
+      id: "place-johnson",
+      familyId: family.id,
+      name: "Johnson County",
+      locality: "Johnson County",
+      region: "Iowa",
+      country: "United States",
+      kind: "county",
+      parentId: iowa.id,
+      latitude: 41.67,
+      longitude: -91.59,
+    },
+    update: { kind: "county", parentId: iowa.id },
+  });
   const cedar = await prisma.place.upsert({
     where: { id: "place-cedar-falls" },
-    create: { id: "place-cedar-falls", familyId: family.id, name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.5278, longitude: -92.4453 },
-    update: { name: "Cedar Falls", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.5278, longitude: -92.4453 },
+    create: {
+      id: "place-cedar-falls",
+      familyId: family.id,
+      name: "Cedar Falls",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      kind: "city",
+      parentId: blackHawk.id,
+      latitude: 42.5278,
+      longitude: -92.4453,
+    },
+    update: {
+      name: "Cedar Falls",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      kind: "city",
+      parentId: blackHawk.id,
+      latitude: 42.5278,
+      longitude: -92.4453,
+    },
   });
   const northFarm = await prisma.place.upsert({
     where: { id: "place-north-farm" },
-    create: { id: "place-north-farm", familyId: family.id, name: "North farm", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.54, longitude: -92.452 },
-    update: { name: "North farm", latitude: 42.54, longitude: -92.452 },
+    create: {
+      id: "place-north-farm",
+      familyId: family.id,
+      name: "North farm",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      kind: "place",
+      parentId: blackHawk.id,
+      latitude: 42.54,
+      longitude: -92.452,
+    },
+    update: { name: "North farm", kind: "place", parentId: blackHawk.id, latitude: 42.54, longitude: -92.452 },
   });
   const iowaCity = await prisma.place.upsert({
     where: { id: "place-iowa-city" },
-    create: { id: "place-iowa-city", familyId: family.id, name: "Iowa City", locality: "Iowa City", region: "Iowa", country: "United States", latitude: 41.6611, longitude: -91.5302 },
-    update: { name: "Iowa City", latitude: 41.6611, longitude: -91.5302 },
+    create: {
+      id: "place-iowa-city",
+      familyId: family.id,
+      name: "Iowa City",
+      locality: "Iowa City",
+      region: "Iowa",
+      country: "United States",
+      kind: "city",
+      parentId: johnson.id,
+      latitude: 41.6611,
+      longitude: -91.5302,
+    },
+    update: { name: "Iowa City", kind: "city", parentId: johnson.id, latitude: 41.6611, longitude: -91.5302 },
   });
   const grange = await prisma.place.upsert({
     where: { id: "place-grange" },
-    create: { id: "place-grange", familyId: family.id, name: "Grange hall", locality: "Cedar Falls", region: "Iowa", country: "United States", latitude: 42.529, longitude: -92.446 },
-    update: { name: "Grange hall", latitude: 42.529, longitude: -92.446 },
+    create: {
+      id: "place-grange",
+      familyId: family.id,
+      name: "Grange hall",
+      locality: "Cedar Falls",
+      region: "Iowa",
+      country: "United States",
+      kind: "place",
+      parentId: blackHawk.id,
+      latitude: 42.529,
+      longitude: -92.446,
+    },
+    update: { name: "Grange hall", kind: "place", parentId: blackHawk.id, latitude: 42.529, longitude: -92.446 },
   });
 
   await prisma.personName.upsert({
@@ -2088,6 +2199,101 @@ async function ensureHartArchive() {
       update: { granted: true },
     });
   }
+
+  await prisma.person.upsert({
+    where: { id: "person-agnes" },
+    create: {
+      id: "person-agnes",
+      familyId: family.id,
+      displayName: "Agnes Whitaker",
+      givenName: "Agnes",
+      familyName: "Whitaker",
+      birthDate: new Date("1926-04-08"),
+      sex: "F",
+      notes: "Eleanor’s older sister. Turns 100 in 2026.",
+    },
+    update: { birthDate: new Date("1926-04-08"), deathDate: null },
+  });
+
+  if (harvest) {
+    const harvestPeople = await prisma.documentPerson.findMany({ where: { documentId: harvest.id } });
+    await prisma.document.upsert({
+      where: { id: "doc-harvest-copy" },
+      create: {
+        id: "doc-harvest-copy",
+        familyId: family.id,
+        title: "Letter: Eleanor to Ruth, harvest dance (second typing)",
+        kind: DocKind.letter,
+        transcript: HARVEST_LETTER,
+        writtenAt: new Date("1947-10-18"),
+        people: { create: harvestPeople.map((row) => ({ personId: row.personId })) },
+      },
+      update: { transcript: HARVEST_LETTER, writtenAt: new Date("1947-10-18") },
+    });
+  }
+
+  await prisma.handwritingSample.upsert({
+    where: { id: "handwriting-samuel" },
+    create: {
+      id: "handwriting-samuel",
+      familyId: family.id,
+      personId: samuel.id,
+      documentId: "doc-wedding",
+      notes: "Short, upright strokes on the Bible note.",
+    },
+    update: { notes: "Short, upright strokes on the Bible note." },
+  });
+
+  const adoptive = await prisma.relationship.findFirst({
+    where: { familyId: family.id, fromPersonId: "person-robert", toPersonId: "person-peter", type: RelType.adoptive },
+  });
+  if (adoptive) {
+    const paperDoc = await prisma.document.upsert({
+      where: { id: "doc-peter-adoption" },
+      create: {
+        id: "doc-peter-adoption",
+        familyId: family.id,
+        title: "Adoption of Peter Hart",
+        kind: DocKind.note,
+        transcript: "Robert Hart adopted Peter after the flood year.",
+        writtenAt: new Date("1994-05-12"),
+        people: { create: [{ personId: "person-robert" }, { personId: "person-peter" }] },
+      },
+      update: { title: "Adoption of Peter Hart" },
+    });
+    await prisma.adoptionPaper.upsert({
+      where: { relationshipId: adoptive.id },
+      create: {
+        familyId: family.id,
+        relationshipId: adoptive.id,
+        documentId: paperDoc.id,
+        grantedOn: new Date("1994-05-12"),
+        notes: "After the flood year.",
+      },
+      update: { documentId: paperDoc.id, grantedOn: new Date("1994-05-12") },
+    });
+  }
+
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-about-dance" },
+    create: {
+      id: "event-about-dance",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: grange.id,
+      kind: EventKind.other,
+      title: "They met about harvest time",
+      summary: "The family says it was around the 1947 harvest, not a single day.",
+      happenedOn: new Date("1947-10-01"),
+      rangeEnd: new Date("1947-10-31"),
+      precision: DatePrecision.circa,
+    },
+    update: {
+      rangeEnd: new Date("1947-10-31"),
+      precision: DatePrecision.circa,
+      title: "They met about harvest time",
+    },
+  });
 }
 
 async function writeHartMedia() {

@@ -10,6 +10,8 @@ export async function findOrCreatePlace(input: {
   country?: string | null;
   latitude?: number | string | null;
   longitude?: number | string | null;
+  parentId?: string | null;
+  kind?: string | null;
 }) {
   if (input.placeId) {
     const existing = await prisma.place.findFirst({
@@ -29,10 +31,19 @@ export async function findOrCreatePlace(input: {
   const guessed = lookupCoordinates({ name, locality, region, country });
   const latitude = parseCoord(input.latitude) ?? guessed?.latitude ?? null;
   const longitude = parseCoord(input.longitude) ?? guessed?.longitude ?? null;
+  const parent = input.parentId
+    ? await prisma.place.findFirst({ where: { id: input.parentId, familyId: input.familyId } })
+    : null;
+  const kind = input.kind?.trim() || null;
   if (match) {
+    const data: { latitude?: number; longitude?: number; parentId?: string | null; kind?: string | null } = {};
     if ((match.latitude == null || match.longitude == null) && latitude != null && longitude != null) {
-      return prisma.place.update({ where: { id: match.id }, data: { latitude, longitude } });
+      data.latitude = latitude;
+      data.longitude = longitude;
     }
+    if (parent && !match.parentId) data.parentId = parent.id;
+    if (kind && !match.kind) data.kind = kind;
+    if (Object.keys(data).length) return prisma.place.update({ where: { id: match.id }, data });
     return match;
   }
   return prisma.place.create({
@@ -44,6 +55,8 @@ export async function findOrCreatePlace(input: {
       country,
       latitude,
       longitude,
+      parentId: parent?.id ?? null,
+      kind,
     },
   });
 }
