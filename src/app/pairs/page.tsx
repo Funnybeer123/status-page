@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { PairForm } from "@/app/pairs/ui";
 import { requireFamily } from "@/lib/family";
@@ -6,7 +7,7 @@ import { canWrite } from "@/lib/roles";
 
 export default async function PairsPage() {
   const ctx = await requireFamily();
-  const [assets, pairs] = await Promise.all([
+  const [assets, pairs, places] = await Promise.all([
     prisma.asset.findMany({
       where: { familyId: ctx.family.id, deletedAt: null, kind: "photo" },
       orderBy: { title: "asc" },
@@ -16,14 +17,24 @@ export default async function PairsPage() {
       include: { thenAsset: true, nowAsset: true },
       orderBy: { createdAt: "desc" },
     }),
+    prisma.place.findMany({
+      where: { familyId: ctx.family.id },
+      orderBy: { name: "asc" },
+    }),
   ]);
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="pairs-heading">Then and now</h1>
-      <p className="mt-3 max-w-2xl text-bark">Two photographs of the same place or face, years apart.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Two photographs of the same place or face, years apart.{" "}
+        <Link href="/map/then-now" className="text-seal">Then and now on the map</Link>
+      </p>
       {canWrite(ctx.role) ? (
-        <PairForm assets={assets.map((asset) => ({ id: asset.id, title: asset.title || "Untitled" }))} />
+        <PairForm
+          assets={assets.map((asset) => ({ id: asset.id, title: asset.title || "Untitled" }))}
+          places={places.map((place) => ({ id: place.id, name: place.name }))}
+        />
       ) : null}
       <ul className="mt-10 space-y-6" data-testid="pairs-list">
         {pairs.map((pair) => (

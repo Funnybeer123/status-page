@@ -25,6 +25,8 @@ import { AskBox } from "@/components/AskBox";
 import { TreeView } from "@/components/TreeView";
 import { quietHomeHeading } from "@/lib/quietMode";
 import { nightQuietHeading } from "@/lib/nightMode";
+import { GuestBookForm } from "@/app/then-now/ui";
+import { emptyGuestBookHeading, guestBookHeading, guestBookLine } from "@/lib/guestBook";
 
 export default async function HomePage() {
   const session = await auth();
@@ -63,7 +65,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits, mottos, quietUser, treePeople] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits, mottos, quietUser, treePeople, guestNotes] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -122,6 +124,12 @@ export default async function HomePage() {
     prisma.familyMotto.findMany({ where: { familyId: ctx.family.id }, orderBy: { id: "asc" } }),
     prisma.user.findUnique({ where: { id: session.user.id }, select: { quietMode: true, nightMode: true } }),
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive } }),
+    prisma.homeGuestBook.findMany({
+      where: { familyId: ctx.family.id },
+      include: { author: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
@@ -369,6 +377,23 @@ export default async function HomePage() {
           ))}
           {!thisWeek.length ? <li className="text-bark">Nothing new in the last seven days.</li> : null}
         </ul>
+      </section>
+
+      <section className="mt-10" data-testid="home-guestbook">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{guestNotes.length ? guestBookHeading(guestNotes.length) : emptyGuestBookHeading()}</h2>
+          <Link href="/guestbook" className="font-sans text-sm text-seal">Guest book</Link>
+        </div>
+        <p className="mt-2 max-w-2xl text-bark">Visiting relatives leave a note on the family home.</p>
+        <ul className="mt-4 space-y-3" data-testid="home-guestbook-list">
+          {guestNotes.map((note) => (
+            <li key={note.id} className="paper-card p-4">
+              <p className="text-bark">{guestBookLine(note.author.name, note.body)}</p>
+            </li>
+          ))}
+          {!guestNotes.length ? <li className="text-bark">{emptyGuestBookHeading()}</li> : null}
+        </ul>
+        <GuestBookForm />
       </section>
 
       <section className="mt-10">

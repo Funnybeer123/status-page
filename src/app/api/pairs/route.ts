@@ -9,6 +9,7 @@ const schema = z.object({
   title: z.string().min(1).max(160),
   thenAssetId: z.string(),
   nowAssetId: z.string(),
+  placeId: z.string().optional(),
   notes: z.string().max(800).optional(),
 });
 
@@ -39,15 +40,19 @@ export async function POST(req: Request) {
     },
   });
   if (assets.length !== 2) return NextResponse.json({ error: "Both photographs must belong to this family." }, { status: 400 });
+  const place = body.data.placeId
+    ? await prisma.place.findFirst({ where: { id: body.data.placeId, familyId: ctx.family.id } })
+    : null;
   const pair = await prisma.photoPair.create({
     data: {
       familyId: ctx.family.id,
       title: body.data.title.trim(),
       thenAssetId: body.data.thenAssetId,
       nowAssetId: body.data.nowAssetId,
+      placeId: place?.id ?? null,
       notes: body.data.notes?.trim() || null,
     },
-    include: { thenAsset: true, nowAsset: true },
+    include: { thenAsset: true, nowAsset: true, place: true },
   });
   await recordActivity({
     familyId: ctx.family.id,

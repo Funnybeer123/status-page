@@ -39,6 +39,10 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         <a href={`/api/albums/${album.id}/zip`} className="text-seal" data-testid="album-zip-link">
           Download photographs as a ZIP
         </a>
+        {" · "}
+        <Link href={`/albums/${album.id}/table`} className="text-seal" data-testid="album-table-link">
+          Reunion table sheet
+        </Link>
       </p>
       {canWrite(ctx.role) ? <ShareLinkButton kind="album" entityId={album.id} /> : null}
       {canWrite(ctx.role) ? (

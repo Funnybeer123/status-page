@@ -12,6 +12,8 @@ import { PlacePhotoForm } from "@/app/ask-save/ui";
 import { canWrite } from "@/lib/roles";
 import { parseGps, placeGpsHeading } from "@/lib/placeGps";
 import { PlaceGpsForm } from "@/app/funeral/ui";
+import { CiteBlock } from "@/components/CiteBlock";
+import { compileLivingHere, livingHereHeading } from "@/lib/livingHere";
 
 export default async function PlacePage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -71,6 +73,7 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
     }
   }
   const residences = place.residences.filter((item) => !hideResidenceForViewer(ctx.role, item.person));
+  const livingHere = compileLivingHere(residences);
   const chronicle = compileChronicle([
     ...residences.map((item) => ({
       id: `residence-${item.id}`,
@@ -215,6 +218,20 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         </ul>
       </section>
       <section className="mt-10">
+        <h2 className="font-display text-2xl" data-testid="living-here-heading">
+          {livingHereHeading(place.name, livingHere.length)}
+        </h2>
+        <ul className="mt-4 space-y-3" data-testid="living-here-list">
+          {livingHere.map((person) => (
+            <li key={person.id} className="paper-card p-4">
+              <Link href={person.href} className="font-display text-xl text-seal">{person.displayName}</Link>
+              <p className="font-sans text-sm text-bark">{person.line}</p>
+            </li>
+          ))}
+          {!livingHere.length ? <li className="text-bark">{livingHereHeading(place.name, 0)}</li> : null}
+        </ul>
+      </section>
+      <section className="mt-10">
         <h2 className="font-display text-2xl">Dated events</h2>
         <ul className="mt-4 space-y-3" data-testid="place-events">
           {events.map((event) => (
@@ -277,10 +294,15 @@ export default async function PlacePage({ params }: { params: Promise<{ id: stri
         {" · "}
         <Link href={`/places/${place.id}/together`} className="text-seal">Who lived here at the same time</Link>
         {" · "}
+        <Link href={`/places/${place.id}/living`} className="text-seal">People still living here</Link>
+        {" · "}
+        <Link href="/map/then-now" className="text-seal">Then and now</Link>
+        {" · "}
         <Link href="/map/pins" className="text-seal">Pinned letters and stories</Link>
         {" · "}
         <Link href="/atlas" className="text-seal">Family atlas</Link>
       </p>
+      <CiteBlock title={placeLabel(place)} path={`/places/${place.id}`} />
     </AppShell>
   );
 }

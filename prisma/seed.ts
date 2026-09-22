@@ -3299,6 +3299,119 @@ async function ensureHartArchive() {
       data: { pronunciationAssetId: spoken.id, pronunciation: "EL-uh-nor hart" },
     });
   }
+
+  await prisma.photoPair.updateMany({
+    where: { id: "pair-grange" },
+    data: { placeId: "place-grange" },
+  });
+  await prisma.document.updateMany({
+    where: { id: "doc-harvest" },
+    data: {
+      stampText: "Cedar Falls, Iowa",
+      postmarkedAt: new Date("1947-10-19"),
+    },
+  });
+  await prisma.lifeEvent.updateMany({
+    where: { id: "event-harvest-dance" },
+    data: { preferred: true },
+  });
+  await prisma.citation.updateMany({
+    where: { id: "cite-harvest-dance" },
+    data: { quality: "original" },
+  });
+  const lilyLiving = people.find((person) => person.id === "person-lily");
+  const margaretLiving = people.find((person) => person.id === "person-margaret");
+  const robertLiving = people.find((person) => person.id === "person-robert");
+  if (lilyLiving) {
+    await prisma.residence.upsert({
+      where: { id: "res-lily-cedar" },
+      create: {
+        id: "res-lily-cedar",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        placeId: cedar.id,
+        startedAt: new Date("2006-08-01"),
+        notes: "Lily still keeps Sunday rolls on Market Street.",
+      },
+      update: { endedAt: null, notes: "Lily still keeps Sunday rolls on Market Street." },
+    });
+    await prisma.familyPhoneContact.upsert({
+      where: { id: "phone-lily" },
+      create: {
+        id: "phone-lily",
+        familyId: family.id,
+        personId: lilyLiving.id,
+        phone: "319-555-1947",
+        callOrder: 1,
+        notes: "Call first when news spreads.",
+      },
+      update: { phone: "319-555-1947", callOrder: 1 },
+    });
+  }
+  if (margaretLiving) {
+    await prisma.residence.upsert({
+      where: { id: "res-margaret-cedar" },
+      create: {
+        id: "res-margaret-cedar",
+        familyId: family.id,
+        personId: margaretLiving.id,
+        placeId: cedar.id,
+        startedAt: new Date("1984-06-15"),
+        notes: "Home after Iowa City, still in Cedar Falls.",
+      },
+      update: { endedAt: null },
+    });
+    await prisma.familyPhoneContact.upsert({
+      where: { id: "phone-margaret" },
+      create: {
+        id: "phone-margaret",
+        familyId: family.id,
+        personId: margaretLiving.id,
+        phone: "319-555-1952",
+        callOrder: 2,
+        notes: "After Lily.",
+      },
+      update: { phone: "319-555-1952", callOrder: 2 },
+    });
+  }
+  if (robertLiving) {
+    await prisma.residence.upsert({
+      where: { id: "res-robert-farm" },
+      create: {
+        id: "res-robert-farm",
+        familyId: family.id,
+        personId: robertLiving.id,
+        placeId: northFarm.id,
+        startedAt: new Date("1980-05-01"),
+        notes: "Still on the north farm.",
+      },
+      update: { endedAt: null },
+    });
+    await prisma.familyPhoneContact.upsert({
+      where: { id: "phone-robert" },
+      create: {
+        id: "phone-robert",
+        familyId: family.id,
+        personId: robertLiving.id,
+        phone: "319-555-1955",
+        callOrder: 3,
+        notes: "If the farm line is busy, try the shed.",
+      },
+      update: { phone: "319-555-1955", callOrder: 3 },
+    });
+  }
+  if (demoUser) {
+    await prisma.homeGuestBook.upsert({
+      where: { id: "guestbook-lily" },
+      create: {
+        id: "guestbook-lily",
+        familyId: family.id,
+        authorId: demoUser.id,
+        body: "Lily Chen visited from Cedar Falls and left Sunday rolls on the table.",
+      },
+      update: { body: "Lily Chen visited from Cedar Falls and left Sunday rolls on the table." },
+    });
+  }
 }
 
 async function writeHartMedia() {

@@ -42,7 +42,9 @@ export default async function ArchivePage({
           <h1 className="mt-2 font-display text-4xl">Archive</h1>
           <p className="mt-3 max-w-xl text-bark">
             Photographs, films, letter scans, and oral-history audio, each with a date when we know it.{" "}
-            <Link href="/archive/uploaders" className="text-seal">Sort by who uploaded</Link>.
+            <Link href="/archive/uploaders" className="text-seal">Sort by who uploaded</Link>
+            {" · "}
+            <Link href="/archive/folders" className="text-seal">Decade folders</Link>.
           </p>
         </div>
       </div>

@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Asset = { id: string; title: string };
+type Place = { id: string; name: string };
 
-export function PairForm({ assets }: { assets: Asset[] }) {
+export function PairForm({ assets, places = [] }: { assets: Asset[]; places?: Place[] }) {
   const router = useRouter();
   const [error, setError] = useState("");
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -18,6 +19,7 @@ export function PairForm({ assets }: { assets: Asset[] }) {
         title: data.get("title"),
         thenAssetId: data.get("thenAssetId"),
         nowAssetId: data.get("nowAssetId"),
+        placeId: data.get("placeId") || undefined,
         notes: data.get("notes"),
       }),
     });
@@ -44,6 +46,14 @@ export function PairForm({ assets }: { assets: Asset[] }) {
           <option key={asset.id} value={asset.id}>{asset.title}</option>
         ))}
       </select>
+      {places.length ? (
+        <select name="placeId" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+          <option value="">Place on the map (optional)</option>
+          {places.map((place) => (
+            <option key={place.id} value={place.id}>{place.name}</option>
+          ))}
+        </select>
+      ) : null}
       <input name="notes" placeholder="What changed" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
       {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
       <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">

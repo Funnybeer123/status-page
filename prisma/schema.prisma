@@ -118,6 +118,7 @@ model User {
   huntFinishes   HuntFinish[]
   familyVisits   FamilyVisit[]
   vaultNotes     FamilyVaultNote[]
+  guestBookEntries HomeGuestBook[]
 }
 
 model Family {
@@ -221,6 +222,8 @@ model Family {
   familyVisits  FamilyVisit[]
   lifeDrafts    LifeDraft[]
   vaultNotes    FamilyVaultNote[]
+  phoneContacts FamilyPhoneContact[]
+  guestBookEntries HomeGuestBook[]
 }
 
 model Membership {
@@ -266,6 +269,7 @@ model Person {
   pronunciation  String?
   pronunciationAssetId String?
   ownerNote      String?
+  phoneContacts  FamilyPhoneContact[]
   deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   claimedBy      Membership[]     @relation("ClaimedBy")
@@ -460,6 +464,8 @@ model Document {
   envelopeAsset  Asset?           @relation("EnvelopeScan", fields: [envelopeAssetId], references: [id], onDelete: SetNull)
   holidayId      String?
   holiday        FamilyHoliday?   @relation(fields: [holidayId], references: [id], onDelete: SetNull)
+  postmarkedAt   DateTime?        @db.Date
+  stampText      String?
 }
 
 model DocumentPerson {
@@ -504,6 +510,7 @@ model Place {
   photos     Asset[]
   huntClues  HuntClue[]
   placePins  PlacePin[]
+  photoPairs PhotoPair[]
 
   @@index([familyId])
   @@index([parentId])
@@ -939,13 +946,16 @@ model PhotoPair {
   title       String
   thenAssetId String
   nowAssetId  String
+  placeId     String?
   notes       String?
   createdAt   DateTime @default(now())
   family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
   thenAsset   Asset    @relation("PairThen", fields: [thenAssetId], references: [id], onDelete: Cascade)
   nowAsset    Asset    @relation("PairNow", fields: [nowAssetId], references: [id], onDelete: Cascade)
+  place       Place?   @relation(fields: [placeId], references: [id], onDelete: SetNull)
 
   @@index([familyId])
+  @@index([placeId])
 }
 
 model Voyage {
@@ -1510,6 +1520,32 @@ model FamilyVaultNote {
   createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([familyId])
+}
+
+model FamilyPhoneContact {
+  id        String   @id @default(cuid())
+  familyId  String
+  personId  String
+  phone     String
+  callOrder Int      @default(1)
+  notes     String?
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, callOrder])
+}
+
+model HomeGuestBook {
+  id        String   @id @default(cuid())
+  familyId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, createdAt])
 }
 
 model ReunionDish {

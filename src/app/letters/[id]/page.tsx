@@ -15,6 +15,9 @@ import { clippingPageHeading } from "@/lib/clippingPage";
 import { isTranscriptLocked, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
 import { compareHeading, compareSideLabel, hasEdits, latestRevision } from "@/lib/transcriptCompare";
 import { highlightHeading, highlightHitCount, highlightSearchWords } from "@/lib/searchHighlight";
+import { CiteBlock } from "@/components/CiteBlock";
+import { PostmarkForm } from "@/app/then-now/ui";
+import { hasPostmark, postmarkHeading, postmarkWrittenLine } from "@/lib/postmark";
 
 export default async function LetterPage({
   params,
@@ -67,6 +70,10 @@ export default async function LetterPage({
         {" · "}
         <Link href={`/letters/${letter.id}/envelope`} className="text-seal" data-testid="envelope-link">
           Envelope
+        </Link>
+        {" · "}
+        <Link href="/letters/postmarks" className="text-seal" data-testid="postmark-link">
+          Postmarks
         </Link>
         {letter.people[0] ? (
           <>
@@ -184,6 +191,20 @@ export default async function LetterPage({
           </ul>
         </section>
       ) : null}
+      {hasPostmark(letter) || canWrite(ctx.role) ? (
+        <section className="mt-10" data-testid="letter-postmark">
+          <h2 className="font-display text-2xl">{postmarkHeading(letter.title)}</h2>
+          <p className="mt-2 text-bark">{postmarkWrittenLine(letter.writtenAt, letter.stampText, letter.postmarkedAt)}</p>
+          {canWrite(ctx.role) ? (
+            <PostmarkForm
+              letterId={letter.id}
+              stamp={letter.stampText}
+              when={letter.postmarkedAt ? letter.postmarkedAt.toISOString().slice(0, 10) : ""}
+            />
+          ) : null}
+        </section>
+      ) : null}
+      <CiteBlock title={letter.title} path={`/letters/${letter.id}`} />
       {canWrite(ctx.role) ? <FragileToggle letterId={letter.id} fragile={letter.fragileOriginal} /> : null}
       {canWrite(ctx.role) ? <KeepOutToggle kind="letter" id={letter.id} keepOut={letter.keepOutOfAsk} /> : null}
       {canWrite(ctx.role) ? <TrashRestore type="letter" id={letter.id} /> : null}
