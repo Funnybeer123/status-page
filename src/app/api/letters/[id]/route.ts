@@ -17,8 +17,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid letter." }, { status: 400 });
-  const existing = await prisma.document.findFirst({ where: { id, familyId: ctx.family.id } });
+  const existing = await prisma.document.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
   if (!existing) return NextResponse.json({ error: "Letter not found." }, { status: 404 });
+  if (body.data.transcript !== undefined && body.data.transcript !== existing.transcript) {
+    await prisma.documentRevision.create({
+      data: {
+        documentId: existing.id,
+        transcript: existing.transcript,
+        editedById: ctx.session.user.id,
+      },
+    });
+  }
   const document = await prisma.document.update({
     where: { id },
     data: {

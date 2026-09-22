@@ -55,6 +55,9 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "recipe") return `/recipes`;
   if (entityType === "tradition") return "/traditions";
   if (entityType === "task") return "/tasks";
+  if (entityType === "prompt") return "/prompts";
+  if (entityType === "photo") return `/archive/${entityId}`;
+  if (entityType === "letter") return `/letters/${entityId}`;
   if (entityType === "story") return `/stories/${entityId}`;
   if (entityType === "album") return `/albums/${entityId}`;
   if (entityType === "event") return `/timeline#event-${entityId}`;

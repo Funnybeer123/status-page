@@ -8,7 +8,7 @@ export async function GET() {
   const ctx = await apiFamily();
   if ("error" in ctx) return ctx.error;
   const letters = await prisma.document.findMany({
-    where: { familyId: ctx.family.id, kind: { in: [DocKind.letter, DocKind.note] } },
+    where: { familyId: ctx.family.id, kind: { in: [DocKind.letter, DocKind.note] }, deletedAt: null },
     include: { people: { include: { person: true } }, asset: true },
     orderBy: { writtenAt: "desc" },
   });

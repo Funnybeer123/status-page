@@ -21,7 +21,7 @@ export async function GET() {
   const ctx = await apiFamily();
   if ("error" in ctx) return ctx.error;
   const people = await prisma.person.findMany({
-    where: { familyId: ctx.family.id },
+    where: { familyId: ctx.family.id, deletedAt: null },
     include: { names: true },
     orderBy: { displayName: "asc" },
   });

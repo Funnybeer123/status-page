@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { LetterEditor } from "@/app/letters/[id]/ui";
 import { CommentThread } from "@/components/CommentThread";
+import { TrashRestore } from "@/app/trash/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
@@ -11,8 +12,13 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
   const ctx = await requireFamily();
   const { id } = await params;
   const letter = await prisma.document.findFirst({
-    where: { id, familyId: ctx.family.id },
-    include: { asset: true, people: { include: { person: true } }, comments: { include: { author: true } } },
+    where: { id, familyId: ctx.family.id, deletedAt: null },
+    include: {
+      asset: true,
+      people: { include: { person: true } },
+      comments: { include: { author: true } },
+      revisions: { include: { editedBy: { select: { name: true } } }, orderBy: { editedAt: "desc" } },
+    },
   });
   if (!letter) notFound();
 
@@ -41,6 +47,22 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
           canEdit={canWrite(ctx.role)}
         />
       </div>
+      {letter.revisions.length ? (
+        <section className="mt-10" data-testid="transcript-history">
+          <h2 className="font-display text-2xl">Earlier transcripts</h2>
+          <ol className="mt-4 space-y-3">
+            {letter.revisions.map((revision) => (
+              <li key={revision.id} className="paper-card p-4">
+                <p className="font-sans text-sm text-gold">
+                  {revision.editedBy.name} · {formatDate(revision.editedAt)}
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-bark">{revision.transcript}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+      {canWrite(ctx.role) ? <TrashRestore type="letter" id={letter.id} /> : null}
       <CommentThread comments={letter.comments} documentId={letter.id} canWrite={canWrite(ctx.role)} />
     </AppShell>
   );

@@ -16,7 +16,8 @@
     "test:ui:archive": "tsx tests/ui-archive-layer.ts",
     "test:ui:history": "tsx tests/ui-timeline-history.ts",
     "test:ui:next": "tsx tests/ui-next-layer.ts",
-    "test:ui:keep": "tsx tests/ui-keep-shipping.ts"
+    "test:ui:keep": "tsx tests/ui-keep-shipping.ts",
+    "test:ui:this": "tsx tests/ui-this-layer.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

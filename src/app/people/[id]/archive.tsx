@@ -147,6 +147,7 @@ export function PersonArchiveForms({
               summary: data.get("summary"),
               happenedOn: data.get("happenedOn"),
               placeId: data.get("placeId") || undefined,
+              precision: data.get("precision") || undefined,
             },
             "event",
           );
@@ -166,6 +167,7 @@ export function PersonArchiveForms({
             <option value="military">Military</option>
             <option value="census">Census</option>
             <option value="burial">Burial</option>
+            <option value="baptism">Baptism</option>
             <option value="naturalization">Naturalization</option>
             <option value="probate">Probate</option>
             <option value="other">Other</option>
@@ -174,6 +176,15 @@ export function PersonArchiveForms({
         </div>
         <textarea name="summary" rows={3} placeholder="What the family still tells" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
         <div className="grid gap-3 sm:grid-cols-2">
+          <label className="font-sans text-sm">
+            Date certainty
+            <select name="precision" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2">
+              <option value="exact">Exact</option>
+              <option value="circa">About</option>
+              <option value="before">Before</option>
+              <option value="after">After</option>
+            </select>
+          </label>
           <label className="font-sans text-sm">Date <input type="date" name="happenedOn" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2" /></label>
           <label className="font-sans text-sm">
             With
@@ -248,6 +259,48 @@ export function PersonArchiveForms({
         <input name="pageNote" placeholder="p. 1, second paragraph" className="rounded-lg border border-bark/15 bg-paper px-3 py-2" />
         <button disabled={busy === "cite"} className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
           {busy === "cite" ? "Saving…" : "Save citation"}
+        </button>
+      </form>
+
+      <form
+        className="paper-card grid gap-3 p-5"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          const ok = await post(
+            "/api/witnesses",
+            {
+              eventId: data.get("eventId"),
+              personId: data.get("witnessId"),
+              role: data.get("role"),
+            },
+            "witness",
+          );
+          if (ok) event.currentTarget.reset();
+        }}
+      >
+        <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">A witness</p>
+        <select name="eventId" required className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+          <option value="">Life event</option>
+          {events.map((event) => (
+            <option key={event.id} value={event.id}>{event.title}</option>
+          ))}
+        </select>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <select name="witnessId" required className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+            <option value="">Who stood there</option>
+            {people.filter((person) => person.id !== personId).map((person) => (
+              <option key={person.id} value={person.id}>{person.displayName}</option>
+            ))}
+          </select>
+          <select name="role" className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+            <option value="witness">Witness</option>
+            <option value="officiant">Officiant</option>
+            <option value="attendant">Attendant</option>
+          </select>
+        </div>
+        <button disabled={busy === "witness"} className="rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+          {busy === "witness" ? "Saving…" : "Save witness"}
         </button>
       </form>
     </div>

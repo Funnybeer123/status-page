@@ -1,4 +1,4 @@
-import { DocKind, EventKind, NameKind, RelType } from "@prisma/client";
+import { DatePrecision, DocKind, EventKind, NameKind, PartnershipEnd, RelType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { parseDate } from "@/lib/parse";
 
@@ -45,6 +45,9 @@ export async function restoreFamilyArchive(input: {
         deathDate: parseDate(asString(row.deathDate)),
         notes: asString(row.notes) || null,
         sex: asString(row.sex) || null,
+        causeOfDeath: asString(row.causeOfDeath) || null,
+        languages: asString(row.languages) || null,
+        burialPlot: asString(row.burialPlot) || null,
       },
     });
     if (asId(row.id)) personIds.set(asId(row.id), created.id);
@@ -115,6 +118,10 @@ export async function restoreFamilyArchive(input: {
         title: asString(row.title),
         summary: asString(row.summary) || null,
         happenedOn: parseDate(asString(row.happenedOn)),
+        precision:
+          row.precision === "circa" || row.precision === "before" || row.precision === "after"
+            ? (row.precision as DatePrecision)
+            : DatePrecision.exact,
       },
     });
   }
@@ -124,7 +131,14 @@ export async function restoreFamilyArchive(input: {
     const fromPersonId = personIds.get(asId(row.fromPersonId));
     const toPersonId = personIds.get(asId(row.toPersonId));
     if (!fromPersonId || !toPersonId) continue;
-    const type = row.type === "parent" ? RelType.parent : RelType.partner;
+    const type =
+      row.type === "adoptive"
+        ? RelType.adoptive
+        : row.type === "step"
+          ? RelType.step
+          : row.type === "parent"
+            ? RelType.parent
+            : RelType.partner;
     await prisma.relationship.create({
       data: {
         familyId: input.familyId,
@@ -133,6 +147,9 @@ export async function restoreFamilyArchive(input: {
         type,
         startedAt: parseDate(asString(row.startedAt)),
         endedAt: parseDate(asString(row.endedAt)),
+        endedKind: Object.values(PartnershipEnd).includes(row.endedKind as PartnershipEnd)
+          ? (row.endedKind as PartnershipEnd)
+          : null,
       },
     });
   }

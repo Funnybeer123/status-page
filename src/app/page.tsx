@@ -7,6 +7,8 @@ import { loadFamilyReminders, loadOnThisDaySources } from "@/lib/familyDates";
 import { collectOnThisDay, onThisDayHeading } from "@/lib/onThisDay";
 import { activityHref } from "@/lib/activity";
 import { remindersThisWeek } from "@/lib/reminders";
+import { howRelated } from "@/lib/related";
+import { alive } from "@/lib/alive";
 
 export default async function HomePage() {
   const session = await auth();
@@ -44,7 +46,8 @@ export default async function HomePage() {
     );
   }
 
-  const [{ upcoming, reminders }, sources, activities] = await Promise.all([
+  const meId = ctx.membership?.personId ?? null;
+  const [{ upcoming, reminders }, sources, activities, mePeople, relationships] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -53,7 +56,17 @@ export default async function HomePage() {
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive }, select: { id: true, displayName: true } }),
+    prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
   ]);
+  const me = mePeople.find((person) => person.id === meId) ?? null;
+  const myPeople = me
+    ? mePeople
+        .filter((person) => person.id !== me.id)
+        .map((person) => howRelated(mePeople, relationships, me.id, person.id))
+        .filter((item) => item.found)
+        .slice(0, 5)
+    : [];
   const today = collectOnThisDay({ ...sources, role: ctx.role });
   const week = remindersThisWeek(reminders);
 
@@ -61,7 +74,30 @@ export default async function HomePage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="dashboard-heading">Family home</h1>
-      <p className="mt-3 max-w-2xl text-bark">Upcoming dates, what happened on this day, and who added what.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Upcoming dates, what happened on this day, and who added what.
+        {me ? (
+          <>
+            {" "}You are <Link href={`/people/${me.id}`} className="text-seal" data-testid="home-me">{me.displayName}</Link>.
+          </>
+        ) : (
+          <>
+            {" "}<Link href="/me" className="text-seal">Say which person is you</Link>.
+          </>
+        )}
+      </p>
+      {myPeople.length ? (
+        <section className="mt-8" data-testid="home-related">
+          <h2 className="font-display text-2xl">How you are related</h2>
+          <ul className="mt-4 space-y-2">
+            {myPeople.map((item) => (
+              <li key={item.toId}>
+                <Link href={`/related?from=${me?.id}&to=${item.toId}`} className="text-seal">{item.sentence}</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="mt-10" data-testid="dashboard-dates">
         <div className="flex items-baseline justify-between">

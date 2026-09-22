@@ -1,4 +1,5 @@
-import { Person, Relationship, RelType } from "@prisma/client";
+import { Person, Relationship } from "@prisma/client";
+import { isParentRel, isPartnerRel } from "@/lib/rels";
 
 export type TreePerson = Person & { profileUrl: string | null };
 
@@ -15,10 +16,10 @@ export function buildGenerations(people: TreePerson[], relationships: Relationsh
   const partnersOf = new Map<string, string[]>();
 
   for (const rel of relationships) {
-    if (rel.type === RelType.parent) {
+    if (isParentRel(rel.type)) {
       parentsOf.set(rel.toPersonId, [...(parentsOf.get(rel.toPersonId) ?? []), rel.fromPersonId]);
       childrenOf.set(rel.fromPersonId, [...(childrenOf.get(rel.fromPersonId) ?? []), rel.toPersonId]);
-    } else {
+    } else if (isPartnerRel(rel.type)) {
       partnersOf.set(rel.fromPersonId, [...(partnersOf.get(rel.fromPersonId) ?? []), rel.toPersonId]);
       partnersOf.set(rel.toPersonId, [...(partnersOf.get(rel.toPersonId) ?? []), rel.fromPersonId]);
     }

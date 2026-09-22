@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { PersonArchiveForms } from "@/app/people/[id]/archive";
 import { MergeForm } from "@/app/people/[id]/merge";
+import { FamilyLinksForm } from "@/app/people/[id]/family";
+import { TrashRestore } from "@/app/trash/ui";
+import { ShareLinkButton } from "@/app/share/ui";
+import { childMarks, isPartnerRel } from "@/lib/rels";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { ageLabel, formatDate, lifespan } from "@/lib/dates";
+import { ageLabel, formatDate, lifespan, qualifyDate } from "@/lib/dates";
+import { PersonDetailsForm } from "@/app/people/[id]/details";
 import { canWrite } from "@/lib/roles";
 import { hideEventFromViewer, hideResidenceForViewer, isLiving, shouldHideLivingFacts } from "@/lib/privacy";
 import { placeLabel } from "@/lib/places";
@@ -15,7 +20,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const [person, people, places, documents, assets] = await Promise.all([
     prisma.person.findFirst({
-      where: { id, familyId: ctx.family.id },
+      where: { id, familyId: ctx.family.id, deletedAt: null },
       include: {
         tags: { include: { asset: true } },
         documents: { include: { document: true } },
@@ -23,20 +28,20 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
         toRels: { include: { fromPerson: true } },
         names: { include: { citations: { include: { document: true } } } },
         residences: { include: { place: true, citations: { include: { document: true } } } },
-        events: { include: { place: true, otherPerson: true, citations: { include: { document: true } } } },
+        events: { include: { place: true, otherPerson: true, citations: { include: { document: true } }, witnesses: { include: { person: true } } } },
         otherEvents: { include: { place: true, person: true } },
         storiesTold: true,
         storyLinks: { include: { story: true } },
         citations: { include: { document: true, asset: true, event: true, name: true } },
       },
     }),
-    prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.place.findMany({ where: { familyId: ctx.family.id }, orderBy: { name: "asc" } }),
     prisma.document.findMany({
-      where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] } },
+      where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null },
       orderBy: { title: "asc" },
     }),
-    prisma.asset.findMany({ where: { familyId: ctx.family.id }, orderBy: { title: "asc" } }),
+    prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!person) notFound();
   const profile = person.profileAssetId
@@ -51,7 +56,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     person.citations = [];
     person.events = person.events.filter((event) => !hideEventFromViewer(ctx.role, { ...event, person }));
   }
-  const letters = person.documents.filter((item) => item.document.kind !== "story");
+  const letters = person.documents.filter((item) => item.document.kind !== "story" && !item.document.deletedAt);
   const stories = [
     ...person.storiesTold.map((story) => ({ id: story.id, title: story.title, recordedAt: story.recordedAt })),
     ...person.storyLinks.map((link) => ({ id: link.story.id, title: link.story.title, recordedAt: link.story.recordedAt })),
@@ -109,6 +114,17 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <Link href={`/shared?from=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
               Shared ancestors
             </Link>
+            <Link href={`/map?personId=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Migration path
+            </Link>
+            <Link href={`/compare?from=${person.id}`} className="mt-2 block font-sans text-sm text-seal">
+              Compare lives
+            </Link>
+            {childMarks(person.id, [...person.fromRels, ...person.toRels]).length ? (
+              <p className="mt-3 font-sans text-xs uppercase tracking-wide text-gold">
+                {childMarks(person.id, [...person.fromRels, ...person.toRels]).join(" · ")}
+              </p>
+            ) : null}
             {!living ? (
               <Link href={`/people/${person.id}/memorial`} className="mt-2 block font-sans text-sm text-seal">
                 Memorial page
@@ -134,6 +150,14 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <div>
               <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Notes</p>
               <p className="mt-2 max-w-2xl text-lg leading-relaxed">{person.notes}</p>
+            </div>
+          ) : null}
+          {!hidden && (person.causeOfDeath || person.languages || person.burialPlot) ? (
+            <div data-testid="person-later-facts">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Later facts</p>
+              {person.causeOfDeath ? <p className="mt-2">Cause of death · {person.causeOfDeath}</p> : null}
+              {person.languages ? <p className="mt-1">Languages · {person.languages}</p> : null}
+              {person.burialPlot ? <p className="mt-1">Burial plot · {person.burialPlot}</p> : null}
             </div>
           ) : null}
           <div>
@@ -162,13 +186,18 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                   <span className="font-sans text-xs uppercase tracking-wide text-gold">{event.kind}</span>
                   <span className="ml-2">{event.title}</span>
                   <span className="ml-2 font-sans text-sm text-bark">
-                    {formatDate(event.happenedOn, "Date unknown")}
+                    {qualifyDate(event.happenedOn, "precision" in event ? event.precision : null, "Date unknown")}
                     {ageLabel(person.birthDate, event.happenedOn) ? ` · ${ageLabel(person.birthDate, event.happenedOn)}` : ""}
                     {event.place ? ` · ${event.place.name}` : ""}
                     {"otherPerson" in event && event.otherPerson ? ` · ${event.otherPerson.displayName}` : ""}
                     {"person" in event && event.person && event.personId !== person.id ? ` · ${event.person.displayName}` : ""}
                   </span>
                   {event.summary ? <p className="text-bark">{event.summary}</p> : null}
+                  {"witnesses" in event && event.witnesses?.length ? (
+                    <p className="font-sans text-sm text-gold">
+                      {event.witnesses.map((item) => `${item.role} ${item.person.displayName}`).join(" · ")}
+                    </p>
+                  ) : null}
                 </li>
               ))}
               {!events.length ? <li className="text-bark">None yet.</li> : null}
@@ -179,13 +208,29 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             <ul className="mt-3 space-y-2">
               {person.fromRels.map((rel) => (
                 <li key={rel.id}>
-                  {rel.type === "parent" ? "Parent of" : "Partner of"}{" "}
+                  {rel.type === "parent"
+                    ? "Parent of"
+                    : rel.type === "adoptive"
+                      ? "Adoptive parent of"
+                      : rel.type === "step"
+                        ? "Step-parent of"
+                        : rel.endedKind
+                          ? `${rel.endedKind === "divorce" ? "Former partner of" : "Separated from"}`
+                          : "Partner of"}{" "}
                   <Link className="text-seal" href={`/people/${rel.toPerson.id}`}>{rel.toPerson.displayName}</Link>
                 </li>
               ))}
               {person.toRels.map((rel) => (
                 <li key={rel.id}>
-                  {rel.type === "parent" ? "Child of" : "Partner of"}{" "}
+                  {rel.type === "parent"
+                    ? "Child of"
+                    : rel.type === "adoptive"
+                      ? "Adopted child of"
+                      : rel.type === "step"
+                        ? "Stepchild of"
+                        : rel.endedKind
+                          ? `${rel.endedKind === "divorce" ? "Former partner of" : "Separated from"}`
+                          : "Partner of"}{" "}
                   <Link className="text-seal" href={`/people/${rel.fromPerson.id}`}>{rel.fromPerson.displayName}</Link>
                 </li>
               ))}
@@ -236,7 +281,7 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
           <div>
             <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">In the archive</p>
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {person.tags.map((tag) => (
+              {person.tags.filter((tag) => !tag.asset.deletedAt).map((tag) => (
                 <Link key={tag.id} href={`/archive/${tag.asset.id}`} className="paper-card overflow-hidden">
                   {tag.asset.mimeType.startsWith("video/") ? (
                     <video src={`/api/media/${tag.asset.storagePath}`} className="aspect-square w-full object-cover" />
@@ -252,9 +297,33 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
           {canWrite(ctx.role) ? (
+            <FamilyLinksForm
+              personId={person.id}
+              people={people.map((item) => ({ id: item.id, displayName: item.displayName }))}
+              partners={[
+                ...person.fromRels
+                  .filter((rel) => isPartnerRel(rel.type) && !rel.endedAt)
+                  .map((rel) => ({ id: rel.id, name: rel.toPerson.displayName })),
+                ...person.toRels
+                  .filter((rel) => isPartnerRel(rel.type) && !rel.endedAt)
+                  .map((rel) => ({ id: rel.id, name: rel.fromPerson.displayName })),
+              ]}
+            />
+          ) : null}
+          {canWrite(ctx.role) && !living ? <ShareLinkButton kind="memorial" entityId={person.id} /> : null}
+          {canWrite(ctx.role) ? <TrashRestore type="person" id={person.id} /> : null}
+          {canWrite(ctx.role) ? (
             <MergeForm
               keepId={person.id}
               people={people.map((item) => ({ id: item.id, displayName: item.displayName }))}
+            />
+          ) : null}
+          {canWrite(ctx.role) ? (
+            <PersonDetailsForm
+              personId={person.id}
+              causeOfDeath={person.causeOfDeath || ""}
+              languages={person.languages || ""}
+              burialPlot={person.burialPlot || ""}
             />
           ) : null}
           {canWrite(ctx.role) ? (

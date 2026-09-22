@@ -16,7 +16,7 @@ export function buildDescendants(
   const byId = new Map(people.map((person) => [person.id, person]));
   const childrenOf = new Map<string, string[]>();
   for (const rel of relationships) {
-    if (rel.type === RelType.parent || rel.type === "parent") {
+    if (rel.type === RelType.parent || rel.type === RelType.adoptive || rel.type === RelType.step || rel.type === "parent" || rel.type === "adoptive" || rel.type === "step") {
       childrenOf.set(rel.fromPersonId, [...(childrenOf.get(rel.fromPersonId) ?? []), rel.toPersonId]);
     }
   }

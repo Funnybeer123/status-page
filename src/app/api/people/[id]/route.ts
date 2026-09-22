@@ -13,6 +13,9 @@ const schema = z.object({
   birthDate: z.string().optional().nullable(),
   deathDate: z.string().optional().nullable(),
   notes: z.string().max(4000).optional().nullable(),
+  causeOfDeath: z.string().max(400).optional().nullable(),
+  languages: z.string().max(200).optional().nullable(),
+  burialPlot: z.string().max(200).optional().nullable(),
 });
 
 const personInclude = {
@@ -32,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if ("error" in ctx) return ctx.error;
   const { id } = await params;
   const person = await prisma.person.findFirst({
-    where: { id, familyId: ctx.family.id },
+    where: { id, familyId: ctx.family.id, deletedAt: null },
     include: personInclude,
   });
   if (!person) return NextResponse.json({ error: "Person not found." }, { status: 404 });
@@ -54,7 +57,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const { id } = await params;
   const body = schema.safeParse(await req.json().catch(() => null));
   if (!body.success) return NextResponse.json({ error: "Invalid person." }, { status: 400 });
-  const existing = await prisma.person.findFirst({ where: { id, familyId: ctx.family.id } });
+  const existing = await prisma.person.findFirst({ where: { id, familyId: ctx.family.id, deletedAt: null } });
   if (!existing) return NextResponse.json({ error: "Person not found." }, { status: 404 });
   const person = await prisma.person.update({
     where: { id },
@@ -75,6 +78,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             ? new Date(body.data.deathDate)
             : null,
       notes: body.data.notes === undefined ? existing.notes : body.data.notes,
+      causeOfDeath: body.data.causeOfDeath === undefined ? existing.causeOfDeath : body.data.causeOfDeath || null,
+      languages: body.data.languages === undefined ? existing.languages : body.data.languages || null,
+      burialPlot: body.data.burialPlot === undefined ? existing.burialPlot : body.data.burialPlot || null,
     },
   });
   await syncVitalEvents({

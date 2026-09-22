@@ -1,4 +1,5 @@
 import { RelType, type Relationship } from "@prisma/client";
+import { childEdgeLabel, isParentRel, isPartnerRel, parentEdgeLabel, siblingKind } from "@/lib/rels";
 
 export type RelatedPerson = { id: string; displayName: string };
 
@@ -28,6 +29,14 @@ const RELATION_LABELS: Record<string, string> = {
   "parent of|parent of": "grandparent",
   "child of|child of": "grandchild",
   "child of|parent of": "sibling",
+  "adopted child of": "adopted child",
+  "adoptive parent of": "adoptive parent",
+  "stepchild of": "stepchild",
+  "step-parent of": "step-parent",
+  "adopted child of|parent of": "sibling",
+  "child of|adoptive parent of": "sibling",
+  "stepchild of|parent of": "step-sibling",
+  "child of|step-parent of": "step-sibling",
   "parent of|child of": "co-parent",
   "parent of|parent of|parent of": "great-grandparent",
   "child of|child of|child of": "great-grandchild",
@@ -54,10 +63,10 @@ export function buildRelationGraph(relationships: Pick<Relationship, "fromPerson
     }
   };
   for (const rel of relationships) {
-    if (rel.type === RelType.parent) {
-      add(rel.fromPersonId, rel.toPersonId, "parent of");
-      add(rel.toPersonId, rel.fromPersonId, "child of");
-    } else {
+    if (isParentRel(rel.type)) {
+      add(rel.fromPersonId, rel.toPersonId, parentEdgeLabel(rel.type));
+      add(rel.toPersonId, rel.fromPersonId, childEdgeLabel(rel.type));
+    } else if (isPartnerRel(rel.type) || rel.type === RelType.partner) {
       add(rel.fromPersonId, rel.toPersonId, "partner of");
       add(rel.toPersonId, rel.fromPersonId, "partner of");
     }
@@ -137,8 +146,13 @@ export function howRelated(
     });
   }
 
-  const relation = relationFromLabels(match.labels);
-  const article = /^(aunt|uncle|niece|nephew|first)/.test(relation) ? "" : "the ";
+  let relation = relationFromLabels(match.labels);
+  if (relation === "sibling") {
+    const kind = siblingKind(fromId, toId, relationships);
+    if (kind === "half") relation = "half-sibling";
+    if (kind === "step") relation = "step-sibling";
+  }
+  const article = /^(aunt|uncle|niece|nephew|first|half|step)/.test(relation) ? "" : "the ";
   return {
     fromId,
     toId,

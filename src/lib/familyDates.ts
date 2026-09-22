@@ -4,7 +4,7 @@ import { buildReminders, upcomingReminders } from "@/lib/reminders";
 
 export async function loadFamilyReminders(familyId: string, role: Role, from = new Date()) {
   const [people, events] = await Promise.all([
-    prisma.person.findMany({ where: { familyId } }),
+    prisma.person.findMany({ where: { familyId, deletedAt: null } }),
     prisma.lifeEvent.findMany({
       where: { familyId, happenedOn: { not: null } },
       include: { person: true },
@@ -54,7 +54,7 @@ export async function loadFamilyReminders(familyId: string, role: Role, from = n
 
 export async function loadOnThisDaySources(familyId: string) {
   const [people, events, documents, assets, stories] = await Promise.all([
-    prisma.person.findMany({ where: { familyId } }),
+    prisma.person.findMany({ where: { familyId, deletedAt: null } }),
     prisma.lifeEvent.findMany({ where: { familyId } }),
     prisma.document.findMany({ where: { familyId, kind: { in: ["letter", "note", "clipping", "obituary"] } } }),
     prisma.asset.findMany({ where: { familyId } }),

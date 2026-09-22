@@ -6,12 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { ageLabel, formatDate, lifespan } from "@/lib/dates";
 import { compileLifeStory } from "@/lib/book";
 import { isLiving } from "@/lib/privacy";
+import { ShareLinkButton } from "@/app/share/ui";
+import { canWrite } from "@/lib/roles";
 
 export default async function MemorialPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
   const person = await prisma.person.findFirst({
-    where: { id, familyId: ctx.family.id },
+    where: { id, familyId: ctx.family.id, deletedAt: null },
     include: {
       names: true,
       residences: { include: { place: true } },
@@ -68,6 +70,7 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
           </section>
         ))}
       </article>
+      {canWrite(ctx.role) ? <ShareLinkButton kind="memorial" entityId={person.id} /> : null}
       <p className="mt-8 font-sans text-sm">
         <Link href={`/people/${person.id}`} className="text-seal">Back to the record</Link>
         {" · "}

@@ -9,14 +9,14 @@ export async function exportFamilyArchive(familyId: string, includeMedia = false
   if (!family) return null;
   const [people, relationships, places, names, residences, events, documents, assets, stories, albums, comments, heirlooms, traditions, tasks] =
     await Promise.all([
-      prisma.person.findMany({ where: { familyId }, orderBy: { displayName: "asc" } }),
+      prisma.person.findMany({ where: { familyId, deletedAt: null }, orderBy: { displayName: "asc" } }),
       prisma.relationship.findMany({ where: { familyId } }),
       prisma.place.findMany({ where: { familyId } }),
       prisma.personName.findMany({ where: { familyId } }),
       prisma.residence.findMany({ where: { familyId }, include: { place: true } }),
       prisma.lifeEvent.findMany({ where: { familyId }, include: { place: true } }),
-      prisma.document.findMany({ where: { familyId }, include: { people: true } }),
-      prisma.asset.findMany({ where: { familyId }, include: { tags: true } }),
+      prisma.document.findMany({ where: { familyId, deletedAt: null }, include: { people: true } }),
+      prisma.asset.findMany({ where: { familyId, deletedAt: null }, include: { tags: true } }),
       prisma.story.findMany({ where: { familyId }, include: { people: true } }),
       prisma.album.findMany({ where: { familyId }, include: { items: true } }),
       prisma.comment.findMany({ where: { familyId }, include: { author: { select: { name: true } } } }),

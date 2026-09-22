@@ -167,7 +167,7 @@ export function exportGedcom(input: {
   }
 
   const partners = input.relationships.filter((rel) => rel.type === "partner");
-  const parents = input.relationships.filter((rel) => rel.type === "parent");
+  const parents = input.relationships.filter((rel) => rel.type === "parent" || rel.type === "adoptive" || rel.type === "step");
   let familyIndex = 1;
   const used = new Set<string>();
   for (const rel of partners) {

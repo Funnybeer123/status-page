@@ -17,6 +17,7 @@ export async function GET(req: Request) {
   const assets = await prisma.asset.findMany({
     where: {
       familyId: ctx.family.id,
+      deletedAt: null,
       ...(personId ? { tags: { some: { personId } } } : {}),
     },
     include: { tags: { include: { person: true } } },

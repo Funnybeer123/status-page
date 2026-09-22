@@ -13,13 +13,14 @@ export default async function RelatedPage({
   const { from, to } = await searchParams;
   const [people, relationships] = await Promise.all([
     prisma.person.findMany({
-      where: { familyId: ctx.family.id },
+      where: { familyId: ctx.family.id, deletedAt: null },
       select: { id: true, displayName: true },
       orderBy: { displayName: "asc" },
     }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
   ]);
-  const result = from && to ? howRelated(people, relationships, from, to) : null;
+  const fromId = from || ctx.membership.personId || undefined;
+  const result = fromId && to ? howRelated(people, relationships, fromId, to) : null;
 
   return (
     <AppShell>
@@ -28,7 +29,7 @@ export default async function RelatedPage({
       <p className="mt-3 max-w-2xl text-bark">
         Follow parent and partner links already on the tree. The path is the one a relative would walk at a reunion.
       </p>
-      <RelatedForm people={people} fromId={from} toId={to} result={result} />
+      <RelatedForm people={people} fromId={fromId} toId={to} result={result} />
     </AppShell>
   );
 }

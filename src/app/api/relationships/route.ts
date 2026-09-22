@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { RelType, Role } from "@prisma/client";
+import { PartnershipEnd, RelType, Role } from "@prisma/client";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { isPartnerRel, recordMarriageEvent } from "@/lib/events";
+import { isPartnerRel, recordMarriageEvent, recordPartnershipEnd } from "@/lib/events";
 
 const schema = z.object({
   fromPersonId: z.string(),
   toPersonId: z.string(),
   type: z.nativeEnum(RelType),
   startedAt: z.string().optional(),
+});
+
+const patchSchema = z.object({
+  id: z.string(),
+  endedAt: z.string(),
+  endedKind: z.nativeEnum(PartnershipEnd),
 });
 
 export async function POST(req: Request) {
@@ -45,5 +51,37 @@ export async function POST(req: Request) {
       toName: to.displayName,
     });
   }
+  return NextResponse.json({ relationship });
+}
+
+export async function PATCH(req: Request) {
+  const ctx = await apiFamily(Role.contributor);
+  if ("error" in ctx) return ctx.error;
+  const body = patchSchema.safeParse(await req.json().catch(() => null));
+  if (!body.success) return NextResponse.json({ error: "A partnership needs an end date and whether it was a divorce or a separation." }, { status: 400 });
+  const existing = await prisma.relationship.findFirst({
+    where: { id: body.data.id, familyId: ctx.family.id },
+    include: { fromPerson: true, toPerson: true },
+  });
+  if (!existing || !isPartnerRel(existing.type)) {
+    return NextResponse.json({ error: "That partnership was not found." }, { status: 404 });
+  }
+  const relationship = await prisma.relationship.update({
+    where: { id: existing.id },
+    data: {
+      endedAt: new Date(body.data.endedAt),
+      endedKind: body.data.endedKind,
+    },
+    include: { fromPerson: true, toPerson: true },
+  });
+  await recordPartnershipEnd({
+    familyId: ctx.family.id,
+    fromPersonId: relationship.fromPersonId,
+    toPersonId: relationship.toPersonId,
+    fromName: relationship.fromPerson.displayName,
+    toName: relationship.toPerson.displayName,
+    endedAt: relationship.endedAt,
+    endedKind: body.data.endedKind,
+  });
   return NextResponse.json({ relationship });
 }

@@ -7,16 +7,17 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/dates";
 import { canWrite } from "@/lib/roles";
 import Link from "next/link";
+import { TrashRestore } from "@/app/trash/ui";
 
 export default async function ArchiveItemPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
   const { id } = await params;
   const [asset, people] = await Promise.all([
     prisma.asset.findFirst({
-      where: { id, familyId: ctx.family.id },
+      where: { id, familyId: ctx.family.id, deletedAt: null },
       include: { tags: { include: { person: true } }, comments: { include: { author: true } } },
     }),
-    prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
   ]);
   if (!asset) notFound();
   return (
@@ -40,6 +41,7 @@ export default async function ArchiveItemPage({ params }: { params: Promise<{ id
       <p className="mt-4 font-sans text-sm">
         <Link href="/archive" className="text-seal">Back to the archive</Link>
       </p>
+      {canWrite(ctx.role) ? <TrashRestore type="photo" id={asset.id} /> : null}
       {canWrite(ctx.role) ? (
         <PhotoTagForm
           assetId={asset.id}

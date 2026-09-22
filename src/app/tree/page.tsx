@@ -16,7 +16,7 @@ export default async function TreePage({
   const ctx = await requireFamily();
   const params = await searchParams;
   const [people, relationships] = await Promise.all([
-    prisma.person.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
   ]);
   const assets = await prisma.asset.findMany({

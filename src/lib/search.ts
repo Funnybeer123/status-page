@@ -38,6 +38,7 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
     prisma.person.findMany({
       where: {
         familyId,
+        deletedAt: null,
         OR: [{ displayName: like }, { givenName: like }, { familyName: like }, { notes: like }],
       },
     }),
@@ -55,10 +56,10 @@ export async function searchArchive(familyId: string, rawQuery: string, role: Ro
       where: { familyId, OR: [{ title: like }, { body: like }] },
     }),
     prisma.document.findMany({
-      where: { familyId, OR: [{ title: like }, { transcript: like }] },
+      where: { familyId, deletedAt: null, OR: [{ title: like }, { transcript: like }] },
     }),
     prisma.asset.findMany({
-      where: { familyId, title: like },
+      where: { familyId, deletedAt: null, title: like },
     }),
     prisma.lifeEvent.findMany({
       where: { familyId, OR: [{ title: like }, { summary: like }] },

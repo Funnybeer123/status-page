@@ -4,10 +4,10 @@ import { buildGenerations } from "@/lib/tree";
 export async function familyArchiveStats(familyId: string) {
   const [people, relationships, documents, assets, stories, albums, comments, heirlooms, events, traditions, tasks, places] =
     await Promise.all([
-      prisma.person.findMany({ where: { familyId } }),
+      prisma.person.findMany({ where: { familyId, deletedAt: null } }),
       prisma.relationship.findMany({ where: { familyId } }),
-      prisma.document.findMany({ where: { familyId }, select: { kind: true } }),
-      prisma.asset.findMany({ where: { familyId }, select: { kind: true } }),
+      prisma.document.findMany({ where: { familyId, deletedAt: null }, select: { kind: true } }),
+      prisma.asset.findMany({ where: { familyId, deletedAt: null }, select: { kind: true } }),
       prisma.story.count({ where: { familyId } }),
       prisma.album.count({ where: { familyId } }),
       prisma.comment.count({ where: { familyId } }),

@@ -16,6 +16,18 @@ enum Role {
 enum RelType {
   parent
   partner
+  adoptive
+  step
+}
+
+enum PartnershipEnd {
+  divorce
+  separation
+}
+
+enum ShareKind {
+  memorial
+  album
 }
 
 enum AssetKind {
@@ -57,7 +69,17 @@ enum EventKind {
   reunion
   naturalization
   probate
+  divorce
+  separation
+  baptism
   other
+}
+
+enum DatePrecision {
+  exact
+  circa
+  before
+  after
 }
 
 model User {
@@ -74,6 +96,9 @@ model User {
   notifications  Notification[] @relation("Notified")
   noticesSent    Notification[] @relation("Notifier")
   researchTasks  ResearchTask[]
+  documentRevisions DocumentRevision[]
+  shareLinks     ShareLink[]
+  promptAnswers  StoryPromptAnswer[]
 }
 
 model Family {
@@ -100,15 +125,20 @@ model Family {
   heirlooms     Heirloom[]
   traditions    Tradition[]
   researchTasks ResearchTask[]
+  storyPrompts  StoryPrompt[]
+  shareLinks    ShareLink[]
+  eventWitnesses EventWitness[]
 }
 
 model Membership {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   userId   String
   familyId String
-  role     Role   @default(contributor)
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  role     Role    @default(contributor)
+  personId String?
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  family   Family  @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  person   Person? @relation("ClaimedBy", fields: [personId], references: [id], onDelete: SetNull)
 
   @@unique([userId, familyId])
 }
@@ -136,7 +166,12 @@ model Person {
   profileAssetId String?
   sex            String?
   gedcomXref     String?
+  causeOfDeath   String?
+  languages      String?
+  burialPlot     String?
+  deletedAt      DateTime?
   family         Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  claimedBy      Membership[]     @relation("ClaimedBy")
   fromRels       Relationship[]   @relation("FromPerson")
   toRels         Relationship[]   @relation("ToPerson")
   tags           PersonTag[]
@@ -151,6 +186,7 @@ model Person {
   heirlooms      Heirloom[]
   traditions     Tradition[]
   researchTasks  ResearchTask[]
+  witnessed      EventWitness[]
 }
 
 model Relationship {
@@ -159,8 +195,9 @@ model Relationship {
   fromPersonId String
   toPersonId   String
   type         RelType
-  startedAt    DateTime? @db.Date
-  endedAt      DateTime? @db.Date
+  startedAt    DateTime?      @db.Date
+  endedAt      DateTime?      @db.Date
+  endedKind    PartnershipEnd?
   family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
   fromPerson   Person   @relation("FromPerson", fields: [fromPersonId], references: [id], onDelete: Cascade)
   toPerson     Person   @relation("ToPerson", fields: [toPersonId], references: [id], onDelete: Cascade)
@@ -178,6 +215,7 @@ model Asset {
   capturedAt   DateTime?
   createdAt    DateTime    @default(now())
   uploadedById String
+  deletedAt    DateTime?
   family       Family      @relation(fields: [familyId], references: [id], onDelete: Cascade)
   uploadedBy   User        @relation("UploadedBy", fields: [uploadedById], references: [id])
   tags         PersonTag[]
@@ -206,6 +244,7 @@ model Document {
   transcript String
   writtenAt  DateTime?        @db.Date
   createdAt  DateTime         @default(now())
+  deletedAt  DateTime?
   family     Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
   asset      Asset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
   people     DocumentPerson[]
@@ -214,6 +253,7 @@ model Document {
   citations  Citation[]
   comments   Comment[]
   albumItems AlbumItem[]
+  revisions  DocumentRevision[]
 }
 
 model DocumentPerson {
@@ -294,11 +334,14 @@ model LifeEvent {
   title         String
   summary       String?
   happenedOn    DateTime?  @db.Date
+  preferred     Boolean    @default(false)
+  precision     DatePrecision @default(exact)
   family        Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
   person        Person     @relation("EventSubject", fields: [personId], references: [id], onDelete: Cascade)
   otherPerson   Person?    @relation("EventOther", fields: [otherPersonId], references: [id], onDelete: SetNull)
   place         Place?     @relation(fields: [placeId], references: [id], onDelete: SetNull)
   citations     Citation[]
+  witnesses     EventWitness[]
 
   @@index([familyId, happenedOn])
 }
@@ -318,6 +361,7 @@ model Story {
   citations      Citation[]
   comments       Comment[]
   albumItems     AlbumItem[]
+  promptAnswers  StoryPromptAnswer[]
 
   @@index([familyId])
 }
@@ -478,4 +522,69 @@ model ResearchTask {
   createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([familyId, doneAt])
+}
+
+model StoryPrompt {
+  id        String              @id @default(cuid())
+  familyId  String
+  title     String
+  body      String?
+  createdAt DateTime            @default(now())
+  family    Family              @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  answers   StoryPromptAnswer[]
+
+  @@index([familyId])
+}
+
+model StoryPromptAnswer {
+  id        String      @id @default(cuid())
+  promptId  String
+  storyId   String
+  authorId  String
+  createdAt DateTime    @default(now())
+  prompt    StoryPrompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+  story     Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  author    User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([promptId])
+}
+
+model ShareLink {
+  id          String    @id @default(cuid())
+  familyId    String
+  token       String    @unique
+  kind        ShareKind
+  entityId    String
+  createdAt   DateTime  @default(now())
+  createdById String
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([familyId, kind])
+}
+
+model DocumentRevision {
+  id         String   @id @default(cuid())
+  documentId String
+  transcript String
+  editedAt   DateTime @default(now())
+  editedById String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  editedBy   User     @relation(fields: [editedById], references: [id], onDelete: Cascade)
+
+  @@index([documentId, editedAt])
+}
+
+model EventWitness {
+  id       String    @id @default(cuid())
+  familyId String
+  eventId  String
+  personId String
+  role     String
+  family   Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  event    LifeEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  person   Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, personId])
+  @@index([familyId])
 }

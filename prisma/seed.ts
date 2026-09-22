@@ -605,6 +605,167 @@ async function ensureHartArchive() {
       update: { title: "Ask Lily who kept the navy hatband" },
     });
   }
+
+  await prisma.membership.updateMany({
+    where: { familyId: family.id, user: { email: DEMO_EMAIL } },
+    data: { personId: "person-lily" },
+  });
+  await prisma.storyPrompt.upsert({
+    where: { id: "prompt-how-met" },
+    create: {
+      id: "prompt-how-met",
+      familyId: family.id,
+      title: "How did the grandparents meet?",
+      body: "Tell it the way you heard it at the kitchen table.",
+    },
+    update: { title: "How did the grandparents meet?" },
+  });
+  await prisma.residence.upsert({
+    where: { id: "res-eleanor-farm" },
+    create: {
+      id: "res-eleanor-farm",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: northFarm.id,
+      startedAt: new Date("1948-06-14"),
+      endedAt: new Date("2015-06-03"),
+      notes: "After she married Sam she lived on the north farm.",
+    },
+    update: { notes: "After she married Sam she lived on the north farm." },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-death-alt" },
+    create: {
+      id: "event-eleanor-death-alt",
+      familyId: family.id,
+      personId: eleanor.id,
+      kind: EventKind.death,
+      title: "Eleanor died (cemetery book)",
+      happenedOn: new Date("2015-06-04"),
+      preferred: false,
+      placeId: cedar.id,
+    },
+    update: { happenedOn: new Date("2015-06-04"), preferred: false },
+  });
+  await prisma.person.update({
+    where: { id: eleanor.id },
+    data: {
+      causeOfDeath: "In her sleep at home",
+      languages: "English",
+      burialPlot: "Fairview, lot 14",
+    },
+  });
+  await prisma.lifeEvent.upsert({
+    where: { id: "event-eleanor-baptism" },
+    create: {
+      id: "event-eleanor-baptism",
+      familyId: family.id,
+      personId: eleanor.id,
+      placeId: cedar.id,
+      kind: EventKind.baptism,
+      title: "Eleanor baptised at St. John's",
+      happenedOn: new Date("1928-04-08"),
+    },
+    update: { title: "Eleanor baptised at St. John's" },
+  });
+
+  const robert = people.find((person) => person.id === "person-robert");
+  const daniel = people.find((person) => person.id === "person-daniel");
+  const wedding = await prisma.lifeEvent.findUnique({ where: { id: "event-ellie-sam-marriage" } });
+  if (robert) {
+    const claire = await prisma.person.upsert({
+      where: { id: "person-claire" },
+      create: {
+        id: "person-claire",
+        familyId: family.id,
+        displayName: "Claire Hart",
+        givenName: "Claire",
+        familyName: "Hart",
+        birthDate: new Date("1993-09-12"),
+        notes: "Robert's younger child. Shares only her father with Daniel.",
+      },
+      update: {},
+    });
+    const peter = await prisma.person.upsert({
+      where: { id: "person-peter" },
+      create: {
+        id: "person-peter",
+        familyId: family.id,
+        displayName: "Peter Hart",
+        givenName: "Peter",
+        familyName: "Hart",
+        birthDate: new Date("1988-04-03"),
+        notes: "Robert adopted Peter after the flood year.",
+      },
+      update: {},
+    });
+    const helenRowe = await prisma.person.upsert({
+      where: { id: "person-helen-rowe" },
+      create: {
+        id: "person-helen-rowe",
+        familyId: family.id,
+        displayName: "Helen Rowe",
+        givenName: "Helen",
+        familyName: "Rowe",
+        birthDate: new Date("1958-02-11"),
+        notes: "Robert's later partner. Step-parent to Daniel.",
+      },
+      update: {},
+    });
+    for (const rel of [
+      { fromPersonId: robert.id, toPersonId: claire.id, type: RelType.parent },
+      { fromPersonId: robert.id, toPersonId: peter.id, type: RelType.adoptive },
+      { fromPersonId: robert.id, toPersonId: helenRowe.id, type: RelType.partner },
+      ...(daniel ? [{ fromPersonId: helenRowe.id, toPersonId: daniel.id, type: RelType.step }] : []),
+    ]) {
+      const existingRel = await prisma.relationship.findFirst({
+        where: {
+          familyId: family.id,
+          fromPersonId: rel.fromPersonId,
+          toPersonId: rel.toPersonId,
+          type: rel.type,
+        },
+      });
+      if (!existingRel) {
+        await prisma.relationship.create({
+          data: { familyId: family.id, ...rel, startedAt: rel.type === RelType.partner ? new Date("2001-06-02") : null },
+        });
+      }
+    }
+  }
+  if (wedding && people.find((person) => person.id === "person-margaret")) {
+    await prisma.eventWitness.upsert({
+      where: { eventId_personId: { eventId: wedding.id, personId: "person-margaret" } },
+      create: {
+        familyId: family.id,
+        eventId: wedding.id,
+        personId: "person-margaret",
+        role: "attendant",
+      },
+      update: { role: "attendant" },
+    });
+  }
+  if (demo) {
+    const unknownPath = writeMedia(
+      family.id,
+      "unknown-faces.svg",
+      svgScene("Unknown faces", "Someone at the picnic", "", "#6b5344"),
+    );
+    const existingUnknown = await prisma.asset.findFirst({ where: { id: "asset-unknown-faces" } });
+    if (!existingUnknown) {
+      await prisma.asset.create({
+        data: {
+          id: "asset-unknown-faces",
+          familyId: family.id,
+          kind: AssetKind.photo,
+          title: "Unknown faces at a picnic",
+          mimeType: "image/svg+xml",
+          storagePath: unknownPath,
+          uploadedById: demo.id,
+        },
+      });
+    }
+  }
 }
 
 async function writeHartMedia() {

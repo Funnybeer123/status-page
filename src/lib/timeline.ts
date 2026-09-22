@@ -112,6 +112,9 @@ export function kindLabel(kind: string, source?: TimelineEntry["source"]) {
     reunion: "Reunion",
     naturalization: "Naturalization",
     probate: "Probate",
+    divorce: "Divorce",
+    separation: "Separation",
+    baptism: "Baptism",
     clipping: "Newspaper",
     recipe: "Recipe",
     obituary: "Obituary",
@@ -294,18 +297,18 @@ export async function familyHistory(
   opts: { personId?: string | null; generation?: number | null } = {},
 ): Promise<TimelineHistory> {
   const [people, relationships, events, documents, assets, stories, residences] = await Promise.all([
-    prisma.person.findMany({ where: { familyId } }),
+    prisma.person.findMany({ where: { familyId, deletedAt: null } }),
     prisma.relationship.findMany({ where: { familyId } }),
     prisma.lifeEvent.findMany({
       where: { familyId },
       include: { person: true, otherPerson: true, place: true },
     }),
     prisma.document.findMany({
-      where: { familyId, kind: { in: ["letter", "note", "clipping", "recipe", "obituary", "will"] } },
+      where: { familyId, deletedAt: null, kind: { in: ["letter", "note", "clipping", "recipe", "obituary", "will"] } },
       include: { people: { include: { person: true } }, asset: true },
     }),
     prisma.asset.findMany({
-      where: { familyId, kind: { in: ["photo", "video", "audio"] }, document: { is: null } },
+      where: { familyId, deletedAt: null, kind: { in: ["photo", "video", "audio"] }, document: { is: null } },
       include: { tags: { include: { person: true } } },
     }),
     prisma.story.findMany({

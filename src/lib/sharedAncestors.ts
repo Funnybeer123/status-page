@@ -14,7 +14,7 @@ function parentsOf(
 ) {
   const map = new Map<string, string[]>();
   for (const rel of relationships) {
-    if (rel.type === RelType.parent || rel.type === "parent") {
+    if (rel.type === RelType.parent || rel.type === RelType.adoptive || rel.type === RelType.step || rel.type === "parent" || rel.type === "adoptive" || rel.type === "step") {
       map.set(rel.toPersonId, [...(map.get(rel.toPersonId) ?? []), rel.fromPersonId]);
     }
   }

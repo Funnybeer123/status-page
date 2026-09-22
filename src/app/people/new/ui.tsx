@@ -31,12 +31,13 @@ export function PersonForm({ people }: { people: { id: string; displayName: stri
       return;
     }
     const parentId = String(data.get("parentId") || "");
+    const parentType = String(data.get("parentType") || "parent");
     const partnerId = String(data.get("partnerId") || "");
     if (parentId) {
       await fetch("/api/relationships", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromPersonId: parentId, toPersonId: payload.person.id, type: "parent" }),
+        body: JSON.stringify({ fromPersonId: parentId, toPersonId: payload.person.id, type: parentType }),
       });
     }
     if (partnerId) {
@@ -69,6 +70,14 @@ export function PersonForm({ people }: { people: { id: string; displayName: stri
           {people.map((person) => (
             <option key={person.id} value={person.id}>{person.displayName}</option>
           ))}
+        </select>
+      </label>
+      <label className="font-sans text-sm">
+        How they are a parent
+        <select name="parentType" className="mt-1 w-full rounded-lg border border-bark/15 bg-paper px-3 py-2">
+          <option value="parent">Parent</option>
+          <option value="adoptive">Adoptive parent</option>
+          <option value="step">Step-parent</option>
         </select>
       </label>
       <label className="font-sans text-sm">

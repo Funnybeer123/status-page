@@ -16,6 +16,10 @@ function person(id: string, name: string): TreePerson {
     profileAssetId: null,
     sex: null,
     gedcomXref: null,
+    causeOfDeath: null,
+    languages: null,
+    burialPlot: null,
+    deletedAt: null,
     profileUrl: null,
   };
 }
@@ -28,10 +32,10 @@ test("buildGenerations stacks parents, partners, and children", () => {
   const { generation, rows } = buildGenerations(
     [rose, louis, helen, nora],
     [
-      { id: "p1", familyId: "fam", type: RelType.partner, fromPersonId: "rose", toPersonId: "louis", startedAt: null, endedAt: null },
-      { id: "c1", familyId: "fam", type: RelType.parent, fromPersonId: "rose", toPersonId: "helen", startedAt: null, endedAt: null },
-      { id: "c2", familyId: "fam", type: RelType.parent, fromPersonId: "louis", toPersonId: "helen", startedAt: null, endedAt: null },
-      { id: "c3", familyId: "fam", type: RelType.parent, fromPersonId: "helen", toPersonId: "nora", startedAt: null, endedAt: null },
+      { id: "p1", familyId: "fam", type: RelType.partner, fromPersonId: "rose", toPersonId: "louis", startedAt: null, endedAt: null, endedKind: null },
+      { id: "c1", familyId: "fam", type: RelType.parent, fromPersonId: "rose", toPersonId: "helen", startedAt: null, endedAt: null, endedKind: null },
+      { id: "c2", familyId: "fam", type: RelType.parent, fromPersonId: "louis", toPersonId: "helen", startedAt: null, endedAt: null, endedKind: null },
+      { id: "c3", familyId: "fam", type: RelType.parent, fromPersonId: "helen", toPersonId: "nora", startedAt: null, endedAt: null, endedKind: null },
     ],
   );
   assert.equal(generation.get("rose"), 0);

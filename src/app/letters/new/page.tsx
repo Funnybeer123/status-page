@@ -8,9 +8,9 @@ import { formatDate } from "@/lib/dates";
 export default async function LettersNewPage() {
   const ctx = await requireFamily();
   const [people, letters] = await Promise.all([
-    prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
     prisma.document.findMany({
-      where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] } },
+      where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null },
       orderBy: { writtenAt: "desc" },
     }),
   ]);

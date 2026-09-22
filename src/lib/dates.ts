@@ -49,6 +49,15 @@ export function toDateInput(value?: Date | string | null) {
   return date.toISOString().slice(0, 10);
 }
 
+export function qualifyDate(value?: Date | string | null, precision?: string | null, fallback = "Date unknown") {
+  const formatted = formatDate(value, fallback);
+  if (!value || formatted === fallback) return formatted;
+  if (precision === "circa") return `about ${formatted}`;
+  if (precision === "before") return `before ${formatted}`;
+  if (precision === "after") return `after ${formatted}`;
+  return formatted;
+}
+
 export function formatMonthDay(value?: Date | string | null) {
   if (!value) return "";
   const date = typeof value === "string" ? new Date(value) : value;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { EventKind, Role } from "@prisma/client";
+import { DatePrecision, EventKind, Role } from "@prisma/client";
 import { z } from "zod";
 import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
@@ -20,6 +20,7 @@ const schema = z.object({
   locality: z.string().optional(),
   region: z.string().optional(),
   country: z.string().optional(),
+  precision: z.nativeEnum(DatePrecision).optional(),
 });
 
 export async function GET(req: Request) {
@@ -72,6 +73,7 @@ export async function POST(req: Request) {
       title: body.data.title.trim(),
       summary: body.data.summary?.trim() || null,
       happenedOn: parseDate(body.data.happenedOn),
+      precision: body.data.precision ?? DatePrecision.exact,
     },
     include: { person: true, otherPerson: true, place: true },
   });

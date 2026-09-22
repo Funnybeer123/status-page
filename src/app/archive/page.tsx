@@ -14,11 +14,11 @@ export default async function ArchivePage({
   const { year } = await searchParams;
   const [assets, people] = await Promise.all([
     prisma.asset.findMany({
-      where: { familyId: ctx.family.id },
+      where: { familyId: ctx.family.id, deletedAt: null },
       include: { tags: { include: { person: true } } },
       orderBy: [{ capturedAt: "desc" }, { createdAt: "desc" }],
     }),
-    prisma.person.findMany({ where: { familyId: ctx.family.id }, orderBy: { displayName: "asc" } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { displayName: "asc" } }),
   ]);
   const years = [
     ...new Set(

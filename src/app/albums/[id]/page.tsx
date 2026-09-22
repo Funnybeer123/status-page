@@ -5,6 +5,7 @@ import { AlbumAddForm } from "@/app/albums/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { canWrite } from "@/lib/roles";
+import { ShareLinkButton } from "@/app/share/ui";
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -14,8 +15,8 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
       where: { id, familyId: ctx.family.id },
       include: { items: { include: { asset: true, document: true, story: true } }, createdBy: true },
     }),
-    prisma.asset.findMany({ where: { familyId: ctx.family.id }, orderBy: { createdAt: "desc" } }),
-    prisma.document.findMany({ where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] } }, orderBy: { title: "asc" } }),
+    prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { createdAt: "desc" } }),
+    prisma.document.findMany({ where: { familyId: ctx.family.id, kind: { in: ["letter", "note"] }, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!album) notFound();
   return (
@@ -23,6 +24,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Album</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="album-title">{album.title}</h1>
       {album.summary ? <p className="mt-3 max-w-2xl text-bark">{album.summary}</p> : null}
+      {canWrite(ctx.role) ? <ShareLinkButton kind="album" entityId={album.id} /> : null}
       {canWrite(ctx.role) ? (
         <AlbumAddForm
           albumId={album.id}

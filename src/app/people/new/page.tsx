@@ -9,7 +9,7 @@ export default async function NewPersonPage() {
   const ctx = await requireFamily();
   if (!canWrite(ctx.role)) redirect("/tree");
   const people = await prisma.person.findMany({
-    where: { familyId: ctx.family.id },
+    where: { familyId: ctx.family.id, deletedAt: null },
     orderBy: { displayName: "asc" },
   });
   return (

@@ -34,7 +34,7 @@ function ReminderList({
 export default async function DatesPage() {
   const ctx = await requireFamily();
   const [people, events] = await Promise.all([
-    prisma.person.findMany({ where: { familyId: ctx.family.id } }),
+    prisma.person.findMany({ where: { familyId: ctx.family.id, deletedAt: null } }),
     prisma.lifeEvent.findMany({
       where: { familyId: ctx.family.id, happenedOn: { not: null } },
       include: { person: true },

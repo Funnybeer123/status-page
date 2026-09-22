@@ -1,5 +1,8 @@
-import { EventKind, RelType } from "@prisma/client";
+import { EventKind } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isPartnerRel } from "@/lib/rels";
+
+export { isPartnerRel, isParentRel } from "@/lib/rels";
 
 export async function syncVitalEvents(input: {
   familyId: string;
@@ -53,6 +56,7 @@ async function upsertVital(input: {
       kind: input.kind,
       title: input.title,
       happenedOn: input.happenedOn,
+      preferred: true,
     },
   });
 }
@@ -118,6 +122,44 @@ export async function recordResidenceEvent(input: {
   });
 }
 
-export function isPartnerRel(type: RelType | string) {
-  return type === RelType.partner || type === "partner";
+export async function recordPartnershipEnd(input: {
+  familyId: string;
+  fromPersonId: string;
+  toPersonId: string;
+  fromName: string;
+  toName: string;
+  endedAt?: Date | null;
+  endedKind: "divorce" | "separation";
+}) {
+  const kind = input.endedKind === "divorce" ? EventKind.divorce : EventKind.separation;
+  const title =
+    input.endedKind === "divorce"
+      ? `${input.fromName} and ${input.toName} divorced`
+      : `${input.fromName} and ${input.toName} separated`;
+  const existing = await prisma.lifeEvent.findFirst({
+    where: {
+      familyId: input.familyId,
+      kind,
+      OR: [
+        { personId: input.fromPersonId, otherPersonId: input.toPersonId },
+        { personId: input.toPersonId, otherPersonId: input.fromPersonId },
+      ],
+    },
+  });
+  if (existing) {
+    return prisma.lifeEvent.update({
+      where: { id: existing.id },
+      data: { title, happenedOn: input.endedAt ?? existing.happenedOn },
+    });
+  }
+  return prisma.lifeEvent.create({
+    data: {
+      familyId: input.familyId,
+      personId: input.fromPersonId,
+      otherPersonId: input.toPersonId,
+      kind,
+      title,
+      happenedOn: input.endedAt ?? null,
+    },
+  });
 }
