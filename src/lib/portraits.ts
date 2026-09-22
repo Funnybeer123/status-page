@@ -33,6 +33,28 @@ export function missingPortraitsHeading(count: number) {
   return `${count} people still need a portrait`;
 }
 
+export function isDeceased(person: { deathDate?: Date | string | null }) {
+  return Boolean(person.deathDate);
+}
+
+export function memorialWallHeading(count: number) {
+  if (!count) return "No memorial portraits yet";
+  if (count === 1) return "1 memorial portrait";
+  return `${count} memorial portraits`;
+}
+
+export function livingWallHeading(count: number) {
+  if (!count) return "No living portraits yet";
+  if (count === 1) return "1 living portrait";
+  return `${count} living portraits`;
+}
+
+export function memorialMissingHeading(count: number) {
+  if (!count) return "Every memorial has a portrait";
+  if (count === 1) return "1 person who has died still needs a portrait";
+  return `${count} people who have died still need a portrait`;
+}
+
 export type PortraitRow = {
   generation: number;
   heading: string;

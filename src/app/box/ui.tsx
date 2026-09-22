@@ -45,6 +45,59 @@ export function FileBoxForm({
   );
 }
 
+export function FileManyForm({
+  assets,
+  people,
+}: {
+  assets: { id: string; title: string | null }[];
+  people: { id: string; displayName: string }[];
+}) {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const assetIds = data.getAll("assetIds").map(String).filter(Boolean);
+    const response = await fetch("/api/box", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assetIds, personId: data.get("personId") }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setError(payload.error || "Could not file those uploads.");
+      return;
+    }
+    router.refresh();
+  }
+  if (!assets.length) return null;
+  return (
+    <form onSubmit={onSubmit} className="paper-card mt-8 grid gap-3 p-5" data-testid="file-many-form">
+      <p className="font-sans text-sm text-bark">File several leftover uploads onto one person.</p>
+      <div className="flex flex-wrap gap-2">
+        {assets.map((asset) => (
+          <label key={asset.id} className="rounded-full border border-bark/15 px-3 py-1 font-sans text-sm">
+            <input type="checkbox" name="assetIds" value={asset.id} className="mr-2" />
+            {asset.title || "Untitled upload"}
+          </label>
+        ))}
+      </div>
+      <select name="personId" required className="rounded-lg border border-bark/15 bg-paper px-3 py-2">
+        <option value="">File onto someone</option>
+        {people.map((person) => (
+          <option key={person.id} value={person.id}>
+            {person.displayName}
+          </option>
+        ))}
+      </select>
+      {error ? <p className="font-sans text-sm text-seal">{error}</p> : null}
+      <button className="w-fit rounded-full bg-seal px-4 py-2 font-sans text-sm text-cream" type="submit">
+        File these together
+      </button>
+    </form>
+  );
+}
+
 export function HoldForm({
   heirloomId,
   people,

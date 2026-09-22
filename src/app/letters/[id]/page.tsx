@@ -11,6 +11,7 @@ import { canWrite } from "@/lib/roles";
 import { KeepOutToggle } from "@/app/follow/ui";
 import { clippingPageHeading } from "@/lib/clippingPage";
 import { isTranscriptLocked, transcriptCreditLine, transcriptLockHeading } from "@/lib/transcriptLock";
+import { compareHeading, compareSideLabel, hasEdits, latestRevision } from "@/lib/transcriptCompare";
 
 export default async function LetterPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -94,6 +95,24 @@ export default async function LetterPage({ params }: { params: Promise<{ id: str
               </li>
             ))}
           </ul>
+        </section>
+      ) : null}
+      {hasEdits(letter.revisions) ? (
+        <section className="mt-10" data-testid="transcript-compare">
+          <h2 className="font-display text-2xl">{compareHeading()}</h2>
+          <p className="mt-2 font-sans text-sm">
+            <Link href={`/letters/${letter.id}/compare`} className="text-seal">Open the side-by-side page</Link>
+          </p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <article className="paper-card p-4">
+              <h3 className="font-display text-xl">{compareSideLabel("earlier")}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-bark">{latestRevision(letter.revisions)?.transcript}</p>
+            </article>
+            <article className="paper-card p-4">
+              <h3 className="font-display text-xl">{compareSideLabel("current")}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-bark">{letter.transcript}</p>
+            </article>
+          </div>
         </section>
       ) : null}
       {letter.revisions.length ? (

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
-import { compileThisYear, thisYearHeading } from "@/lib/thisYear";
+import { attachYearCredits, compileThisYear, thisYearHeading } from "@/lib/thisYear";
 import { hideEventFromViewer, hidePhotoFromAudience, shouldHideLivingFacts } from "@/lib/privacy";
 import { formatDate } from "@/lib/dates";
 
@@ -13,7 +13,7 @@ export default async function ThisYearPage({
 }) {
   const ctx = await requireFamily();
   const year = Number.parseInt((await searchParams).year || "", 10) || new Date().getUTCFullYear();
-  const [people, stories, photos, letters, events] = await Promise.all([
+  const [people, stories, photos, letters, events, activities] = await Promise.all([
     prisma.person.findMany({
       where: { familyId: ctx.family.id, deletedAt: null },
       select: { id: true, displayName: true, birthDate: true, deathDate: true },
@@ -31,15 +31,28 @@ export default async function ThisYearPage({
       where: { familyId: ctx.family.id },
       select: { id: true, title: true, personId: true, happenedOn: true, kind: true, person: { select: { deathDate: true } } },
     }),
+    prisma.activity.findMany({
+      where: { familyId: ctx.family.id },
+      include: { actor: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
-  const items = compileThisYear({
-    year,
-    people: people.filter((person) => !shouldHideLivingFacts(ctx.role, person) || Boolean(person.deathDate)),
-    stories,
-    photos: photos.filter((photo) => !hidePhotoFromAudience(ctx.role, photo.tags.map((tag) => tag.person))),
-    letters,
-    events: events.filter((event) => !hideEventFromViewer(ctx.role, event)),
-  });
+  const items = attachYearCredits(
+    compileThisYear({
+      year,
+      people: people.filter((person) => !shouldHideLivingFacts(ctx.role, person) || Boolean(person.deathDate)),
+      stories,
+      photos: photos.filter((photo) => !hidePhotoFromAudience(ctx.role, photo.tags.map((tag) => tag.person))),
+      letters,
+      events: events.filter((event) => !hideEventFromViewer(ctx.role, event)),
+    }),
+    activities.map((activity) => ({
+      entityId: activity.entityId,
+      title: activity.title,
+      actorName: activity.actor.name,
+    })),
+  );
   return (
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
@@ -55,6 +68,7 @@ export default async function ThisYearPage({
             <p className="font-sans text-xs uppercase tracking-wide text-gold">{item.kind}</p>
             <Link href={item.href} className="font-display text-2xl text-seal">{item.title}</Link>
             <p className="font-sans text-sm text-bark">{formatDate(item.date, "")}</p>
+            {item.credit ? <p className="font-sans text-sm text-gold" data-testid="year-credit">{item.credit}</p> : null}
           </li>
         ))}
         {!items.length ? <li className="text-bark">Nothing from {year} yet.</li> : null}

@@ -2430,6 +2430,125 @@ async function ensureHartArchive() {
     }
   }
 
+  await prisma.family.update({
+    where: { id: family.id },
+    data: { nameStyle: "given-family", dateStyle: "day-month-year" },
+  });
+  if (samuel) {
+    await prisma.occupationRecord.upsert({
+      where: { id: "occ-sam-farmer" },
+      create: {
+        id: "occ-sam-farmer",
+        familyId: family.id,
+        personId: samuel.id,
+        title: "Farmer",
+        employer: "North farm",
+        place: "Cedar Falls",
+        startedOn: new Date("1948-06-14"),
+        endedOn: new Date("1987-11-01"),
+      },
+      update: { title: "Farmer" },
+    });
+  }
+  await prisma.occupationRecord.upsert({
+    where: { id: "occ-eleanor-millinery" },
+    create: {
+      id: "occ-eleanor-millinery",
+      familyId: family.id,
+      personId: eleanor.id,
+      title: "Milliner",
+      employer: "Market Street counter",
+      place: "Cedar Falls",
+      startedOn: new Date("1946-03-01"),
+      endedOn: new Date("1952-06-01"),
+    },
+    update: { title: "Milliner" },
+  });
+  if (margaret) {
+    await prisma.schooling.upsert({
+      where: { id: "school-margaret-ui" },
+      create: {
+        id: "school-margaret-ui",
+        familyId: family.id,
+        personId: margaret.id,
+        school: "University of Iowa",
+        place: "Iowa City",
+        startedOn: new Date("1970-09-01"),
+        endedOn: new Date("1974-05-15"),
+        notes: "She trained as a teacher.",
+      },
+      update: { school: "University of Iowa" },
+    });
+  }
+  if (demoUser) {
+    await prisma.documentRevision.upsert({
+      where: { id: "rev-harvest-first-pass" },
+      create: {
+        id: "rev-harvest-first-pass",
+        documentId: "doc-harvest",
+        transcript: "Sam — the dance was last Saturday. I will write more later.\n\nEllie",
+        editedById: demoUser.id,
+        editedAt: new Date("2026-02-14"),
+      },
+      update: {},
+    });
+    for (const item of [
+      { id: "asset-unsorted-ticket", file: "unsorted-ticket.svg", title: "Harvest dance ticket still in the box", year: "1947" },
+      { id: "asset-unsorted-ribbon", file: "unsorted-ribbon.svg", title: "Prize ribbon still in the box", year: "1948" },
+    ]) {
+      const existing = await prisma.asset.findFirst({ where: { id: item.id } });
+      if (!existing) {
+        const path = writeMedia(family.id, item.file, svgScene(item.title, "Still in the box", item.year, "#4a3a2a"));
+        await prisma.asset.create({
+          data: {
+            id: item.id,
+            familyId: family.id,
+            kind: AssetKind.photo,
+            title: item.title,
+            mimeType: "image/svg+xml",
+            storagePath: path,
+            capturedAt: new Date(`${item.year}-10-18`),
+            uploadedById: demoUser.id,
+          },
+        });
+      }
+    }
+  }
+  if (picnicForNote && demoUser) {
+    let cleaned = await prisma.asset.findFirst({ where: { id: "asset-picnic-cleaned" } });
+    if (!cleaned) {
+      const cleanedPath = writeMedia(
+        family.id,
+        "picnic-cleaned.svg",
+        svgScene("Hart picnic, cleaned", "Sunday rolls under the cottonwoods", "1961", "#5c4634"),
+      );
+      cleaned = await prisma.asset.create({
+        data: {
+          id: "asset-picnic-cleaned",
+          familyId: family.id,
+          kind: AssetKind.photo,
+          title: "Hart picnic, 1961 — cleaned",
+          mimeType: "image/svg+xml",
+          storagePath: cleanedPath,
+          capturedAt: new Date("1961-07-04"),
+          uploadedById: demoUser.id,
+        },
+      });
+    }
+    await prisma.photoRestore.upsert({
+      where: { id: "restore-picnic-1961" },
+      create: {
+        id: "restore-picnic-1961",
+        familyId: family.id,
+        title: "Hart picnic, 1961",
+        originalId: picnicForNote.id,
+        cleanedId: cleaned.id,
+        notes: "The scan was faded; Lily cleaned the cottonwoods and the Sunday rolls.",
+      },
+      update: { title: "Hart picnic, 1961" },
+    });
+  }
+
   const livingAdults = [margaret, people.find((person) => person.id === "person-lily"), people.find((person) => person.id === "person-wei")]
     .filter((person): person is NonNullable<typeof person> => Boolean(person));
   for (const person of livingAdults) {

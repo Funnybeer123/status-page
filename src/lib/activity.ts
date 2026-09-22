@@ -100,5 +100,7 @@ export function activityHref(entityType: string, entityId?: string | null) {
   if (entityType === "farm") return "/farms";
   if (entityType === "land") return "/land";
   if (entityType === "military") return "/military";
+  if (entityType === "restore") return `/restores/${entityId}`;
+  if (entityType === "occupation") return "/occupations";
   return "/activity";
 }

@@ -25,6 +25,8 @@ export default async function SchoolsPage() {
         <SchoolForm people={people.map((person) => ({ id: person.id, displayName: person.displayName }))} />
       ) : null}
       <p className="mt-2 font-sans text-sm">
+        <Link href="/schools/map" className="text-seal">School map</Link>
+        {" · "}
         <Link href="/classes" className="text-seal">Class lists</Link>
         {" · "}
         <Link href="/classes/mates" className="text-seal">Classmates</Link>

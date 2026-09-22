@@ -32,6 +32,7 @@ export async function GET(req: Request) {
         .filter((item) => item.document.kind === "letter" || item.document.kind === "note")
         .map((item) => item.document),
       stories: [...person.storiesTold, ...person.storyLinks.map((link) => link.story)],
+      style: { nameStyle: ctx.family.nameStyle, dateStyle: ctx.family.dateStyle },
     }),
   );
   const pdf = buildPdf(chapters, `${ctx.family.name} family book`);

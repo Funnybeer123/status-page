@@ -41,6 +41,7 @@ export default async function BookPage({
           ...person.storiesTold,
           ...person.storyLinks.map((link) => link.story),
         ],
+        style: { nameStyle: ctx.family.nameStyle, dateStyle: ctx.family.dateStyle },
       }),
     );
 

@@ -35,6 +35,7 @@ export default async function MemorialPage({ params }: { params: Promise<{ id: s
     events: person.events,
     letters: person.documents.map((item) => item.document),
     stories: [...person.storiesTold, ...person.storyLinks.map((link) => link.story)],
+    style: { nameStyle: ctx.family.nameStyle, dateStyle: ctx.family.dateStyle },
   });
   const burial = person.events.filter((event) => event.kind === "burial" || event.kind === "death");
   const photos = person.tags.filter((tag) => tag.asset.kind === "photo" || tag.asset.mimeType.startsWith("image/"));

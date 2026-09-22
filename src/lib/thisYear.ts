@@ -4,7 +4,28 @@ export type YearItem = {
   title: string;
   href: string;
   date?: Date | string | null;
+  credit?: string;
 };
+
+export function yearCreditLine(name?: string | null) {
+  const who = name?.trim();
+  return who ? `Added by ${who}` : "";
+}
+
+export function attachYearCredits(
+  items: YearItem[],
+  activities: { entityId?: string | null; title?: string | null; actorName?: string | null }[],
+): YearItem[] {
+  if (!activities.length) return items;
+  return items.map((item) => {
+    const match = activities.find((activity) => {
+      if (activity.entityId && (activity.entityId === item.id || item.id.endsWith(activity.entityId))) return true;
+      return Boolean(activity.title && item.title && activity.title === item.title);
+    });
+    const credit = yearCreditLine(match?.actorName);
+    return credit ? { ...item, credit } : item;
+  });
+}
 
 export function yearOf(value?: Date | string | null) {
   if (!value) return null;

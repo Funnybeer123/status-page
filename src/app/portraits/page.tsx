@@ -43,6 +43,10 @@ export default async function PortraitsPage() {
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
         One photograph per person, grouped by generation.{" "}
+        <Link href="/portraits/memorial" className="text-seal">Memorial wall</Link>
+        {" · "}
+        <Link href="/portraits/living" className="text-seal">Living wall</Link>
+        {" · "}
         <Link href="/portraits/missing" className="text-seal">{missingPortraitsHeading(wall.missing.length)}</Link>.
       </p>
       {wall.rows.map((row) => (

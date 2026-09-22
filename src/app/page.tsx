@@ -15,6 +15,10 @@ import { compileThisWeek, thisWeekHeading, thisWeekSince } from "@/lib/thisWeek"
 import { BannerForm } from "@/app/banner/ui";
 import { bookmarkHomeHeading, bookmarkLine } from "@/lib/bookmarks";
 import { boxHeading } from "@/lib/box";
+import { recentsHeading, recentLine } from "@/lib/recents";
+import { pickTodayQuestion, todayQuestionHeading, unansweredQuestionsHeading } from "@/lib/todayQuestion";
+import { PromptAnswer } from "@/app/prompts/ui";
+import { hideMinorDetails } from "@/lib/privacy";
 
 export default async function HomePage() {
   const session = await auth();
@@ -53,7 +57,7 @@ export default async function HomePage() {
   }
 
   const meId = ctx.membership?.personId ?? null;
-  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount] = await Promise.all([
+  const [{ upcoming, reminders }, sources, activities, weekActivities, mePeople, relationships, pins, pinChoices, bookmarks, boxCount, prompts, visits] = await Promise.all([
     loadFamilyReminders(ctx.family.id, ctx.role),
     loadOnThisDaySources(ctx.family.id),
     prisma.activity.findMany({
@@ -98,6 +102,17 @@ export default async function HomePage() {
     prisma.asset.count({
       where: { familyId: ctx.family.id, deletedAt: null, tags: { none: {} } },
     }),
+    prisma.storyPrompt.findMany({
+      where: { familyId: ctx.family.id },
+      include: { answers: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.personVisit.findMany({
+      where: { userId: session.user.id, familyId: ctx.family.id, person: { ...alive } },
+      include: { person: true },
+      orderBy: { openedAt: "desc" },
+      take: 6,
+    }),
   ]);
   const [pinStories, pinLetters, pinPhotos] = pinChoices;
   const me = mePeople.find((person) => person.id === meId) ?? null;
@@ -111,6 +126,9 @@ export default async function HomePage() {
   const today = collectOnThisDay({ ...sources, role: ctx.role });
   const week = remindersThisWeek(reminders);
   const tomorrow = remindersTomorrow(reminders);
+  const todayQuestion = pickTodayQuestion(prompts);
+  const unanswered = prompts.filter((prompt) => !prompt.answers.length);
+  const recentPeople = visits.filter((visit) => !hideMinorDetails(ctx.role, visit.person));
   const thisWeek = compileThisWeek(
     weekActivities.map((item) => ({
       id: item.id,
@@ -145,6 +163,36 @@ export default async function HomePage() {
           </>
         )}
       </p>
+      <section className="mt-8" data-testid="home-today-question">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{todayQuestionHeading(todayQuestion?.title)}</h2>
+          <Link href="/prompts/unanswered" className="font-sans text-sm text-seal">{unansweredQuestionsHeading(unanswered.length)}</Link>
+        </div>
+        {todayQuestion ? (
+          <div className="mt-4 paper-card p-5">
+            <p className="text-bark">{todayQuestion.body || "Answer in your own words. It will be saved as a story."}</p>
+            {canWrite(ctx.role) ? <PromptAnswer promptId={todayQuestion.id} /> : null}
+          </div>
+        ) : (
+          <p className="mt-2 text-bark">Add a family question and it will sit on the home.</p>
+        )}
+      </section>
+      <section className="mt-8" data-testid="home-recents">
+        <div className="flex items-baseline justify-between">
+          <h2 className="font-display text-2xl">{recentsHeading(recentPeople.length)}</h2>
+          <Link href="/recents" className="font-sans text-sm text-seal">Recently opened</Link>
+        </div>
+        <ul className="mt-4 space-y-3" data-testid="recents-home-list">
+          {recentPeople.map((visit) => (
+            <li key={`${visit.userId}-${visit.personId}`} className="paper-card p-4">
+              <Link href={`/people/${visit.person.id}`} className="font-display text-xl text-seal">
+                {recentLine(visit.person.displayName)}
+              </Link>
+            </li>
+          ))}
+          {!recentPeople.length ? <li className="text-bark">Open a person’s record and they will stay on the family home.</li> : null}
+        </ul>
+      </section>
       <section className="mt-8" data-testid="home-box">
         <div className="flex items-baseline justify-between">
           <h2 className="font-display text-2xl">{boxHeading(boxCount)}</h2>

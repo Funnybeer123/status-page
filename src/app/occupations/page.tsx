@@ -17,7 +17,12 @@ export default async function OccupationsPage() {
     <AppShell>
       <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">{ctx.family.name}</p>
       <h1 className="mt-2 font-display text-4xl" data-testid="occupations-heading">Occupations</h1>
-      <p className="mt-3 max-w-2xl text-bark">Work a relative did, with the employer and years if we know them.</p>
+      <p className="mt-3 max-w-2xl text-bark">
+        Work a relative did, with the employer and years if we know them.{" "}
+        <Link href="/occupations/timelines" className="text-seal">Occupation timelines</Link>
+        {" · "}
+        <Link href="/occupations/missing" className="text-seal">Still needed</Link>.
+      </p>
       {canWrite(ctx.role) ? (
         <RecordForm
           kind="occupation"
@@ -38,7 +43,7 @@ export default async function OccupationsPage() {
           <li key={row.id} className="paper-card p-5">
             <p className="font-display text-2xl">{row.title}</p>
             <p className="text-bark">
-              <Link href={`/people/${row.personId}`} className="text-seal">{row.person.displayName}</Link>
+              <Link href={`/people/${row.personId}/occupations`} className="text-seal">{row.person.displayName}</Link>
               {row.employer ? ` · ${row.employer}` : ""}
               {row.place ? ` · ${row.place}` : ""}
               {row.startedOn || row.endedOn ? ` · ${formatYear(row.startedOn) || "?"}–${formatYear(row.endedOn) || ""}` : ""}

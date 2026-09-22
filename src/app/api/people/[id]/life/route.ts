@@ -37,6 +37,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           .filter((item) => item.document.kind === "letter" || item.document.kind === "note")
           .map((item) => item.document),
     stories: [...person.storiesTold, ...person.storyLinks.map((link) => link.story)],
+    style: { nameStyle: ctx.family.nameStyle, dateStyle: ctx.family.dateStyle },
   });
   const title = lifePdfTitle(person.displayName);
   const pdf = buildPdf([chapter], title);

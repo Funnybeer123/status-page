@@ -1,5 +1,6 @@
 import { isParentRel, isPartnerRel, parentsOf, type RelRow } from "@/lib/rels";
 import { formatDate, lifespan } from "@/lib/dates";
+import { formatStyledDate, type FamilyStyle } from "@/lib/styleSheet";
 
 export type SheetPerson = {
   id: string;
@@ -36,6 +37,7 @@ export function compileGroupSheet(
     place?: { name: string } | null;
     title?: string | null;
   }[] = [],
+  style?: FamilyStyle,
 ): GroupSheet | null {
   const byId = new Map(people.map((person) => [person.id, person]));
   const person = byId.get(personId);
@@ -82,7 +84,7 @@ export function compileGroupSheet(
     spouseParents,
     children,
     marriage: marriageEvent
-      ? { date: formatDate(marriageEvent.happenedOn, ""), place: marriageEvent.place?.name || undefined }
+      ? { date: formatStyledDate(marriageEvent.happenedOn, style?.dateStyle, ""), place: marriageEvent.place?.name || undefined }
       : undefined,
   };
 }

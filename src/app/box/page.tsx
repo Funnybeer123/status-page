@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { FileBoxForm } from "@/app/box/ui";
+import { FileBoxForm, FileManyForm } from "@/app/box/ui";
 import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
@@ -24,8 +24,14 @@ export default async function BoxPage() {
         {boxHeading(assets.length)}
       </h1>
       <p className="mt-3 max-w-2xl text-bark">
-        Uploads that are not filed onto a person yet. File each one so it shows up on their page.
+        Uploads that are not filed onto a person yet.         File each one so it shows up on their page, or file several onto one person at once.
       </p>
+      {canWrite(ctx.role) ? (
+        <FileManyForm
+          assets={assets.map((asset) => ({ id: asset.id, title: asset.title }))}
+          people={people.map((person) => ({ id: person.id, displayName: person.displayName }))}
+        />
+      ) : null}
       <ul className="mt-10 space-y-3" data-testid="box-list">
         {assets.map((asset) => (
           <li key={asset.id} className="paper-card p-5">

@@ -5,6 +5,7 @@ import { requireFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { compileGroupSheet } from "@/lib/groupSheet";
 import { formatDate, lifespan } from "@/lib/dates";
+import { formatStyledName } from "@/lib/styleSheet";
 
 export default async function GroupSheetPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await requireFamily();
@@ -14,17 +15,20 @@ export default async function GroupSheetPage({ params }: { params: Promise<{ id:
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
     prisma.lifeEvent.findMany({ where: { familyId: ctx.family.id }, include: { place: true } }),
   ]);
-  const sheet = compileGroupSheet(id, people, relationships, events);
+  const style = { nameStyle: ctx.family.nameStyle, dateStyle: ctx.family.dateStyle };
+  const sheet = compileGroupSheet(id, people, relationships, events, style);
   if (!sheet) notFound();
+  const named = (person: { displayName: string; givenName?: string | null; familyName?: string | null }) =>
+    formatStyledName(person, style.nameStyle);
   return (
     <AppShell>
       <div className="print:hidden">
         <p className="font-sans text-xs uppercase tracking-[0.2em] text-gold">Printable group sheet</p>
-        <h1 className="mt-2 font-display text-4xl" data-testid="group-sheet-heading">{sheet.person.displayName}</h1>
+        <h1 className="mt-2 font-display text-4xl" data-testid="group-sheet-heading">{named(sheet.person)}</h1>
         <p className="mt-3 max-w-2xl text-bark">Parents, spouses, and children on one page.</p>
       </div>
       <article className="mt-8 paper-card p-6" data-testid="group-sheet">
-        <h2 className="font-display text-3xl">{sheet.person.displayName}</h2>
+        <h2 className="font-display text-3xl">{named(sheet.person)}</h2>
         <p className="font-sans text-sm text-gold">{lifespan(sheet.person.birthDate, sheet.person.deathDate)}</p>
         {sheet.marriage?.date ? (
           <p className="mt-2 text-bark">Married {sheet.marriage.date}{sheet.marriage.place ? ` · ${sheet.marriage.place}` : ""}</p>
@@ -34,7 +38,7 @@ export default async function GroupSheetPage({ params }: { params: Promise<{ id:
           <ul className="mt-2 space-y-1">
             {sheet.parents.map((parent) => (
               <li key={parent.id}>
-                <Link href={`/people/${parent.id}`} className="text-seal">{parent.displayName}</Link>
+                <Link href={`/people/${parent.id}`} className="text-seal">{named(parent)}</Link>
                 <span className="ml-2 font-sans text-sm text-bark">{lifespan(parent.birthDate, parent.deathDate)}</span>
               </li>
             ))}
@@ -46,11 +50,11 @@ export default async function GroupSheetPage({ params }: { params: Promise<{ id:
           <ul className="mt-2 space-y-2">
             {sheet.spouses.map((spouse) => (
               <li key={spouse.id}>
-                <Link href={`/people/${spouse.id}`} className="text-seal">{spouse.displayName}</Link>
+                <Link href={`/people/${spouse.id}`} className="text-seal">{named(spouse)}</Link>
                 <span className="ml-2 font-sans text-sm text-bark">{lifespan(spouse.birthDate, spouse.deathDate)}</span>
                 {sheet.spouseParents.find((row) => row.spouseId === spouse.id)?.parents.length ? (
                   <p className="font-sans text-sm text-bark">
-                    Parents: {sheet.spouseParents.find((row) => row.spouseId === spouse.id)?.parents.map((parent) => parent.displayName).join(", ")}
+                    Parents: {sheet.spouseParents.find((row) => row.spouseId === spouse.id)?.parents.map((parent) => named(parent)).join(", ")}
                   </p>
                 ) : null}
               </li>
@@ -63,7 +67,7 @@ export default async function GroupSheetPage({ params }: { params: Promise<{ id:
           <ul className="mt-2 space-y-2" data-testid="group-sheet-children">
             {sheet.children.map((child) => (
               <li key={child.person.id}>
-                <Link href={`/people/${child.person.id}`} className="text-seal">{child.person.displayName}</Link>
+                <Link href={`/people/${child.person.id}`} className="text-seal">{named(child.person)}</Link>
                 {child.dates ? <span className="ml-2 font-sans text-sm text-bark">{child.dates}</span> : null}
                 {child.spouses.length ? (
                   <span className="ml-2 font-sans text-sm text-bark">

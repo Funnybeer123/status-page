@@ -111,6 +111,7 @@ model User {
   shareOpens     ShareLinkOpen[]
   transcripts    Document[]      @relation("TranscriptCredit")
   meetings       FamilyMeeting[]
+  visits         PersonVisit[]
 }
 
 model Family {
@@ -120,6 +121,8 @@ model Family {
   bannerText    String?
   bannerNote    String?
   calendarToken String?        @unique
+  nameStyle     String?
+  dateStyle     String?
   createdAt     DateTime       @default(now())
   memberships   Membership[]
   people        Person[]
@@ -199,6 +202,8 @@ model Family {
   suggestions   FactSuggestion[]
   journals      JournalEntry[]
   meetings      FamilyMeeting[]
+  visits        PersonVisit[]
+  restores      PhotoRestore[]
 }
 
 model Membership {
@@ -313,6 +318,7 @@ model Person {
   follows        PersonFollow[]
   heirloomHolds  HeirloomHold[]
   meetings       FamilyMeetingPerson[]
+  visits         PersonVisit[]
 }
 
 model Relationship {
@@ -366,6 +372,8 @@ model Asset {
   censusScans    CensusHousehold[]
   voyageManifests Voyage[]
   landDeeds      LandRecord[]
+  restoreOriginal PhotoRestore[] @relation("RestoreOriginal")
+  restoreCleaned  PhotoRestore[] @relation("RestoreCleaned")
 }
 
 model PersonTag {
@@ -1839,4 +1847,33 @@ model FamilyMeetingPerson {
   person    Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@id([meetingId, personId])
+}
+
+model PersonVisit {
+  userId   String
+  personId String
+  familyId String
+  openedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, personId])
+  @@index([userId, openedAt])
+  @@index([familyId])
+}
+
+model PhotoRestore {
+  id         String   @id @default(cuid())
+  familyId   String
+  title      String
+  originalId String
+  cleanedId  String
+  notes      String?
+  createdAt  DateTime @default(now())
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  original   Asset    @relation("RestoreOriginal", fields: [originalId], references: [id], onDelete: Cascade)
+  cleaned    Asset    @relation("RestoreCleaned", fields: [cleanedId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
 }

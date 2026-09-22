@@ -53,6 +53,11 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
     prisma.asset.findMany({ where: { familyId: ctx.family.id, deletedAt: null }, orderBy: { title: "asc" } }),
   ]);
   if (!person) notFound();
+  await prisma.personVisit.upsert({
+    where: { userId_personId: { userId: ctx.session.user.id, personId: person.id } },
+    create: { userId: ctx.session.user.id, personId: person.id, familyId: ctx.family.id },
+    update: { openedAt: new Date() },
+  });
   const [bookmarked, following] = await Promise.all([
     prisma.personBookmark.findUnique({
       where: { userId_personId: { userId: ctx.session.user.id, personId: person.id } },
@@ -231,6 +236,9 @@ export default async function PersonPage({ params }: { params: Promise<{ id: str
                 PDF of this life
               </Link>
             ) : null}
+            <Link href={`/people/${person.id}/occupations`} className="mt-2 block font-sans text-sm text-seal" data-testid="occupations-link">
+              Occupation timeline
+            </Link>
             <Link href={`/people/${person.id}/watchers`} className="mt-2 block font-sans text-sm text-seal" data-testid="watchers-link">
               Who is watching
             </Link>

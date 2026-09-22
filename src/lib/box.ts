@@ -17,3 +17,10 @@ export function boxItemLine(title?: string | null) {
 export function isUnsorted(asset: { tags?: { personId?: string }[] | null }) {
   return !(asset.tags && asset.tags.length);
 }
+
+export function boxFileManyLine(count: number, name: string) {
+  const who = name.trim() || "someone";
+  if (!count) return `No uploads filed onto ${who}`;
+  if (count === 1) return `1 upload filed onto ${who}`;
+  return `${count} uploads filed onto ${who}`;
+}

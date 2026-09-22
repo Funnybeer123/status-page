@@ -5,7 +5,15 @@ import { apiFamily } from "@/lib/family";
 import { prisma } from "@/lib/prisma";
 import { alive } from "@/lib/alive";
 import { recordActivity } from "@/lib/activity";
-import { buildPortraitWall, hangPortraitLine, missingPortraitsHeading } from "@/lib/portraits";
+import {
+  buildPortraitWall,
+  hangPortraitLine,
+  isDeceased,
+  livingWallHeading,
+  memorialMissingHeading,
+  memorialWallHeading,
+  missingPortraitsHeading,
+} from "@/lib/portraits";
 import { hideMinorDetails } from "@/lib/privacy";
 
 const schema = z.object({
@@ -13,9 +21,10 @@ const schema = z.object({
   assetId: z.string(),
 });
 
-export async function GET() {
+export async function GET(req: Request) {
   const ctx = await apiFamily();
   if ("error" in ctx) return ctx.error;
+  const wallKind = new URL(req.url).searchParams.get("wall");
   const [people, relationships, tags] = await Promise.all([
     prisma.person.findMany({ where: { familyId: ctx.family.id, ...alive } }),
     prisma.relationship.findMany({ where: { familyId: ctx.family.id } }),
@@ -24,7 +33,12 @@ export async function GET() {
       orderBy: { asset: { createdAt: "asc" } },
     }),
   ]);
-  const visible = people.filter((person) => !hideMinorDetails(ctx.role, person));
+  const visible = people.filter((person) => {
+    if (hideMinorDetails(ctx.role, person)) return false;
+    if (wallKind === "memorial") return isDeceased(person);
+    if (wallKind === "living") return !isDeceased(person);
+    return true;
+  });
   const assetIds = [
     ...new Set(
       visible
@@ -43,9 +57,17 @@ export async function GET() {
     tags,
     assetPath,
   );
+  const heading =
+    wallKind === "memorial"
+      ? memorialWallHeading(wall.portraits)
+      : wallKind === "living"
+        ? livingWallHeading(wall.portraits)
+        : wall.heading;
   return NextResponse.json({
     ...wall,
-    missingHeading: missingPortraitsHeading(wall.missing.length),
+    heading,
+    missingHeading:
+      wallKind === "memorial" ? memorialMissingHeading(wall.missing.length) : missingPortraitsHeading(wall.missing.length),
   });
 }
 
