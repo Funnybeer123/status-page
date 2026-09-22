@@ -1,10 +1,10 @@
 export type GeoPoint = { latitude: number; longitude: number };
 
 const KNOWN: { test: RegExp; point: GeoPoint }[] = [
-  { test: /cedar falls/i, point: { latitude: 42.5278, longitude: -92.4453 } },
-  { test: /iowa city/i, point: { latitude: 41.6611, longitude: -91.5302 } },
-  { test: /north farm|grange hall/i, point: { latitude: 42.54, longitude: -92.452 } },
   { test: /market street/i, point: { latitude: 42.529, longitude: -92.446 } },
+  { test: /north farm|grange hall/i, point: { latitude: 42.54, longitude: -92.452 } },
+  { test: /iowa city/i, point: { latitude: 41.6611, longitude: -91.5302 } },
+  { test: /cedar falls/i, point: { latitude: 42.5278, longitude: -92.4453 } },
 ];
 
 export function lookupCoordinates(input: {

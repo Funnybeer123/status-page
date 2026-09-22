@@ -8,6 +8,11 @@ test("known Iowa towns have coordinates", () => {
   assert.ok(cedar.latitude > 42 && cedar.longitude < -92);
 });
 
+test("Market Street rooms keep street coordinates even in Cedar Falls", () => {
+  const point = lookupCoordinates({ name: "Market Street rooms", locality: "Cedar Falls", region: "Iowa" });
+  assert.deepEqual(point, { latitude: 42.529, longitude: -92.446 });
+});
+
 test("projectPoint keeps a northern farm above Cedar Falls", () => {
   const cedar = { latitude: 42.5278, longitude: -92.4453 };
   const farm = { latitude: 42.54, longitude: -92.452 };
